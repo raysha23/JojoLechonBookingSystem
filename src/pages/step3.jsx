@@ -1,6 +1,45 @@
 import React from "react";
+import { dishProducts } from "../data/dishes-data";
+import { deliveryCharges } from "../data/deliveryfee-data";
 
-export default function Step3() {
+const EXTRA_DISH_PRICE = 700;
+
+function getDeliveryFee(zone) {
+  if (!zone) return 0;
+  for (const charge of deliveryCharges) {
+    if (charge.zones.includes(zone)) return charge.minAmount;
+  }
+  return 0;
+}
+
+export default function Step3({ orderState }) {
+  const {
+    orderType,
+    zone,
+    address,
+    deliveryDate,
+    deliveryTime,
+    selectedProduct,
+    extraDishes,
+    paymentMethod,
+    customerName,
+    contacts,
+    facebookProfile,
+  } = orderState;
+
+  const deliveryFee = orderType === "delivery" ? getDeliveryFee(zone) : 0;
+  const filledExtraDishes = (extraDishes || []).filter((d) => d !== "");
+  const dishesTotal = filledExtraDishes.length * EXTRA_DISH_PRICE;
+  const packageTotal = selectedProduct ? selectedProduct.amount : 0;
+  const discount = selectedProduct?.discount || 0;
+  const total = packageTotal + dishesTotal + deliveryFee - discount;
+
+  const fmt = (n) =>
+    "₱" + Number(n).toLocaleString("en-PH", { minimumFractionDigits: 2 });
+
+  const paymentLabel = paymentMethod === "gcash" ? "GCash" : "Cash on Delivery";
+  const paymentIcon = paymentMethod === "gcash" ? "📱" : "💵";
+
   return (
     <div className="space-y-6 pb-24 animate-in fade-in slide-in-from-bottom-4 duration-700">
       {/* 1. CUSTOMER DETAILS */}
@@ -12,9 +51,15 @@ export default function Step3() {
           </h3>
         </div>
         <div className="p-6 space-y-1">
-          <DetailRow label="Name" value="N/A" />
-          <DetailRow label="Contact Number" value="N/A" />
-          <DetailRow label="Facebook Profile" value="N/A" />
+          <DetailRow label="Name" value={customerName || "N/A"} />
+          <DetailRow
+            label="Contact Number"
+            value={contacts.filter((c) => c !== "").join(", ") || "N/A"}
+          />
+          <DetailRow
+            label="Facebook Profile"
+            value={facebookProfile || "N/A"}
+          />
         </div>
       </div>
 
@@ -27,26 +72,35 @@ export default function Step3() {
           </h3>
         </div>
         <div className="p-6 space-y-1">
-          <DetailRow label="Delivery Type" value="Pickup" isHighlight />
-          <DetailRow label="Delivery Date" value="N/A" />
-          <DetailRow label="Delivery Time" value="N/A" />
-          <DetailRow label="Address" value="N/A" />
-          <DetailRow label="Delivery Fee" value="₱0.00" />
+          <DetailRow
+            label="Delivery Type"
+            value={orderType === "delivery" ? "Delivery" : "Pickup"}
+            isHighlight
+          />
+          <DetailRow label="Delivery Date" value={deliveryDate || "N/A"} />
+          <DetailRow label="Delivery Time" value={deliveryTime || "N/A"} />
+          {orderType === "delivery" && (
+            <>
+              <DetailRow label="Address" value={address || "N/A"} />
+              <DetailRow label="Zone" value={zone || "N/A"} />
+              <DetailRow label="Delivery Fee" value={fmt(deliveryFee)} />
+            </>
+          )}
           <div className="flex justify-between items-center py-3">
             <span className="text-sm font-bold text-gray-400">
               Payment Method
             </span>
             <div className="flex items-center gap-2 bg-[#0d0d0d] text-white px-3 py-1.5 rounded-xl shadow-lg">
-              <span className="text-xs">📱</span>
+              <span className="text-xs">{paymentIcon}</span>
               <span className="text-[10px] font-black uppercase tracking-widest">
-                GCash
+                {paymentLabel}
               </span>
             </div>
           </div>
         </div>
       </div>
 
-      {/* 3. ORDER DETAILS (Package Bundle + Extras) */}
+      {/* 2. ORDER DETAILS */}
       <div className="bg-white rounded-[2rem] shadow-sm border border-gray-100 overflow-hidden">
         <div className="p-5 border-b border-gray-50 bg-gray-50/50">
           <h3 className="font-black text-gray-800 tracking-tight flex items-center gap-2">
@@ -56,75 +110,99 @@ export default function Step3() {
         </div>
 
         <div className="p-6">
-          {/* PACKAGE & INCLUDED SIDES */}
-          <div className="mb-8">
-            <p className="text-[10px] font-black text-red-600 uppercase tracking-[0.2em] mb-3">
-              Selected Package
-            </p>
-
-            {/* Main Package Title */}
-            <div className="flex justify-between items-center mb-3">
-              <span className="text-base font-black text-gray-900">
-                Lechon Package A
-              </span>
-              <span className="text-base font-black text-gray-900">₱3,200</span>
-            </div>
-
-            {/* Included Side Dishes (Nested Style) */}
-            <div className="bg-gray-50/80 rounded-2xl p-4 border border-dashed border-gray-200">
-              <p className="text-[9px] font-bold text-gray-400 uppercase mb-2">
-                Included Sides:
+          {/* SELECTED PACKAGE */}
+          {selectedProduct ? (
+            <div className="mb-8">
+              <p className="text-[10px] font-black text-red-600 uppercase tracking-[0.2em] mb-3">
+                Selected Package
               </p>
-              <div className="grid grid-cols-1 gap-2">
-                {["Whole Lechon", "Pancit Guisado", "Rice (1 Tray)"].map(
-                  (side, i) => (
-                    <div
-                      key={i}
-                      className="flex items-center gap-2 text-gray-600"
-                    >
-                      <div className="w-1 h-1 bg-gray-300 rounded-full"></div>
-                      <span className="text-xs font-bold">{side}</span>
+              <div className="flex justify-between items-center mb-3">
+                <span className="text-base font-black text-gray-900">
+                  {selectedProduct.productName}
+                </span>
+                <span className="text-base font-black text-gray-900">
+                  {fmt(selectedProduct.amount)}
+                </span>
+              </div>
+
+              {/* Included dishes from package */}
+              {selectedProduct.freebies &&
+                selectedProduct.freebies.length > 0 && (
+                  <div className="bg-gray-50/80 rounded-2xl p-4 border border-dashed border-gray-200">
+                    <p className="text-[9px] font-bold text-gray-400 uppercase mb-2">
+                      Included Sides:
+                    </p>
+                    <div className="grid grid-cols-1 gap-2">
+                      {selectedProduct.freebies.map((side, i) => (
+                        <div
+                          key={i}
+                          className="flex items-center gap-2 text-gray-600"
+                        >
+                          <div className="w-1 h-1 bg-gray-300 rounded-full"></div>
+                          <span className="text-xs font-bold">{side}</span>
+                        </div>
+                      ))}
                     </div>
-                  ),
+                  </div>
                 )}
+            </div>
+          ) : (
+            <p className="text-sm text-gray-400 italic mb-8">
+              No package selected.
+            </p>
+          )}
+
+          {/* EXTRA DISHES */}
+          {filledExtraDishes.length > 0 && (
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">
+                  Additional Dishes
+                </p>
+                <span className="text-[10px] font-bold bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">
+                  Extras
+                </span>
+              </div>
+              <div className="space-y-3">
+                {filledExtraDishes.map((dishIndex, i) => {
+                  const dish = dishProducts[dishIndex];
+                  return dish ? (
+                    <ItemRow
+                      key={i}
+                      name={dish.productName}
+                      price={fmt(EXTRA_DISH_PRICE)}
+                    />
+                  ) : null;
+                })}
               </div>
             </div>
-          </div>
+          )}
 
-          {/* ADDITIONAL DISHES (EXTRAS) */}
-          <div>
-            <div className="flex items-center justify-between mb-3">
-              <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">
-                Additional Dishes
-              </p>
-              <span className="text-[10px] font-bold bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">
-                Extras
-              </span>
-            </div>
-
-            <div className="space-y-3">
-              <ItemRow name="Lumpiang Shanghai x1" price="₱250" />
-              <ItemRow name="Dinuguan x1" price="₱350" />
-            </div>
+          {/* TOTAL */}
+          <div className="mt-6 pt-4 border-t-2 border-gray-100">
+            <ItemRow name="Total" price={fmt(total)} isBold />
           </div>
         </div>
       </div>
 
-      {/* 4. FREEBIES */}
-      <div className="bg-emerald-50/40 rounded-[2rem] border border-emerald-100 p-6 relative overflow-hidden">
-        <h3 className="font-black text-emerald-800 mb-4 tracking-tight">
-          Included Freebies
-        </h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <FreebieCard text="Disposable Plates & Utensils" />
-          <FreebieCard text="Lechon Sauce (Special Recipe)" />
+      {/* 3. FREEBIES */}
+      {selectedProduct?.freebies && selectedProduct.freebies.length > 0 && (
+        <div className="bg-emerald-50/40 rounded-[2rem] border border-emerald-100 p-6 relative overflow-hidden">
+          <h3 className="font-black text-emerald-800 mb-4 tracking-tight">
+            Included Freebies
+          </h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {selectedProduct.freebies.map((text, i) => (
+              <FreebieCard key={i} text={text} />
+            ))}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
 
-/* ================= REFINED SUB COMPONENTS ================= */
+/* ================= SUB COMPONENTS ================= */
 
 function DetailRow({ label, value, isHighlight = false }) {
   return (
@@ -133,7 +211,9 @@ function DetailRow({ label, value, isHighlight = false }) {
         {label}
       </span>
       <span
-        className={`text-sm font-black px-2 py-0.5 rounded-md ${isHighlight ? "text-red-600 bg-red-50" : "text-gray-800 bg-gray-50"}`}
+        className={`text-sm font-black px-2 py-0.5 rounded-md ${
+          isHighlight ? "text-red-600 bg-red-50" : "text-gray-800 bg-gray-50"
+        }`}
       >
         {value}
       </span>

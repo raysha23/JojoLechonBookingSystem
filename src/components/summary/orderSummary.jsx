@@ -1,7 +1,44 @@
-import React, { useState } from "react";
+import React from "react";
+import { deliveryCharges } from "../../data/deliveryfee-data";
+import { dishProducts } from "../../data/dishes-data";
 
-export default function OrderSummary() {
-  const [paymentMethod, setPaymentMethod] = useState("gcash");
+const EXTRA_DISH_PRICE = 700;
+
+function getDeliveryFee(zone) {
+  if (!zone) return 0;
+  for (const charge of deliveryCharges) {
+    if (charge.zones.includes(zone)) return charge.minAmount;
+  }
+  return 0;
+}
+
+export default function OrderSummary({ orderState }) {
+  const {
+    orderType,
+    zone,
+    selectedProduct,
+    extraDishes,
+    paymentMethod,
+    setPaymentMethod,
+  } = orderState;
+
+  const packageTotal = selectedProduct ? selectedProduct.amount : 0;
+  const deliveryFee = orderType === "delivery" ? getDeliveryFee(zone) : 0;
+
+  // Count only extra dishes that have a selection
+  const filledExtraDishes = (extraDishes || []).filter((d) => d !== "");
+  const dishesTotal = filledExtraDishes.length * EXTRA_DISH_PRICE;
+
+  // Discount from package (if your data has a discount field)
+  const discount = selectedProduct?.discount || 0;
+
+  const subtotal = packageTotal + dishesTotal + deliveryFee - discount;
+  const total = subtotal;
+
+  const freebiesCount = selectedProduct?.freebies?.length || 0;
+
+  const fmt = (n) =>
+    "₱" + Number(n).toLocaleString("en-PH", { minimumFractionDigits: 2 });
 
   return (
     <div className="bg-[#0d0d0d] text-white rounded-3xl p-8 shadow-2xl max-w-md mx-auto">
@@ -16,31 +53,52 @@ export default function OrderSummary() {
             <div>
               <p className="font-bold text-sm tracking-tight">Package total</p>
               <p className="text-[10px] text-gray-500 font-medium">
-                Premium package (delivery)
+                {selectedProduct
+                  ? selectedProduct.productName
+                  : "No package selected"}
               </p>
             </div>
-            <p className="font-bold text-lg">₱0.00</p>
+            <p className="font-bold text-lg">{fmt(packageTotal)}</p>
           </div>
 
           <div className="flex justify-between items-start border-t border-gray-800 pt-4">
             <div>
               <p className="font-bold text-sm tracking-tight">Dishes total</p>
-              <p className="text-[10px] text-gray-500 font-medium">0 items</p>
+              <p className="text-[10px] text-gray-500 font-medium">
+                {filledExtraDishes.length} extra{" "}
+                {filledExtraDishes.length === 1 ? "dish" : "dishes"}
+              </p>
             </div>
-            <p className="font-bold text-lg">₱0</p>
+            <p className="font-bold text-lg">{fmt(dishesTotal)}</p>
           </div>
 
-          <div className="flex justify-between items-start border-t border-gray-800 pt-4">
-            <div>
-              <p className="font-bold text-sm tracking-tight text-emerald-500">
-                Discount
-              </p>
-              <p className="text-[10px] text-gray-500 font-medium">
-                Premium package bonus
+          {orderType === "delivery" && (
+            <div className="flex justify-between items-start border-t border-gray-800 pt-4">
+              <div>
+                <p className="font-bold text-sm tracking-tight">Delivery fee</p>
+                <p className="text-[10px] text-gray-500 font-medium">
+                  {zone || "No zone selected"}
+                </p>
+              </div>
+              <p className="font-bold text-lg">{fmt(deliveryFee)}</p>
+            </div>
+          )}
+
+          {discount > 0 && (
+            <div className="flex justify-between items-start border-t border-gray-800 pt-4">
+              <div>
+                <p className="font-bold text-sm tracking-tight text-emerald-500">
+                  Discount
+                </p>
+                <p className="text-[10px] text-gray-500 font-medium">
+                  Package bonus
+                </p>
+              </div>
+              <p className="font-bold text-lg text-emerald-500">
+                -{fmt(discount)}
               </p>
             </div>
-            <p className="font-bold text-lg text-emerald-500">₱0.00</p>
-          </div>
+          )}
         </div>
 
         {/* TOTAL SECTION */}
@@ -49,7 +107,7 @@ export default function OrderSummary() {
             <p className="text-gray-500 font-bold uppercase text-[10px] tracking-widest">
               SUBTOTAL
             </p>
-            <p className="text-xl font-bold">₱0.00</p>
+            <p className="text-xl font-bold">{fmt(subtotal)}</p>
           </div>
 
           <div className="bg-red-600 rounded-2xl p-5 flex justify-between items-center">
@@ -58,12 +116,13 @@ export default function OrderSummary() {
                 TOTAL AMOUNT
               </p>
               <p className="text-[11px] font-medium opacity-80">
-                With delivery
+                {orderType === "delivery" ? "With delivery" : "Pickup"}
               </p>
             </div>
-            <p className="text-2xl sm:text-3xl font-black">₱0.00</p>
+            <p className="text-2xl sm:text-3xl font-black">{fmt(total)}</p>
           </div>
         </div>
+
         {/* PAYMENT METHOD SECTION */}
         <div className="pt-4 border-t border-gray-800">
           <h3 className="text-white font-bold text-sm mb-4">Payment Method</h3>
@@ -107,11 +166,12 @@ export default function OrderSummary() {
             </button>
           </div>
         </div>
+
         {/* FOOTER STATS */}
         <div className="grid grid-cols-3 pt-6 border-t border-gray-800">
           <div className="text-center">
             <p className="text-red-500 text-2xl font-bold leading-none mb-1">
-              0
+              {filledExtraDishes.length}
             </p>
             <p className="text-[9px] text-gray-500 font-bold uppercase tracking-wider">
               DISHES
@@ -119,7 +179,7 @@ export default function OrderSummary() {
           </div>
           <div className="text-center border-x border-gray-800">
             <p className="text-emerald-500 text-2xl font-bold leading-none mb-1">
-              0
+              {freebiesCount}
             </p>
             <p className="text-[9px] text-gray-500 font-bold uppercase tracking-wider">
               FREEBIES
@@ -127,7 +187,7 @@ export default function OrderSummary() {
           </div>
           <div className="text-center">
             <p className="text-blue-400 text-2xl font-bold leading-none mb-1">
-              0
+              {selectedProduct ? 1 : 0}
             </p>
             <p className="text-[9px] text-gray-500 font-bold uppercase tracking-wider">
               PACKAGE
