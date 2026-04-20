@@ -39,14 +39,20 @@ export default function OrderSummary({ orderState }) {
   // Delivery fee
   const deliveryFee = orderType === "delivery" ? getDeliveryFee(zone) : 0;
 
+  // Discount — promoAmount is stored as a string like "-1000", "-500", or "0"
+  const discount = selectedProduct?.promoAmount
+    ? Math.abs(Number(selectedProduct.promoAmount))
+    : 0;
+
   // Total dishes shown in footer = required (from package) + extra
   const totalDishCount = requiredDishCount + filledExtraDishes.length;
 
   // Freebies count
   const freebiesCount = selectedProduct?.freebies?.length || 0;
 
-  // Grand total
-  const total = packageTotal + extraDishesTotal + deliveryFee;
+  // Subtotal before discount, total after
+  const subtotal = packageTotal + extraDishesTotal + deliveryFee;
+  const total = subtotal - discount;
   // ─────────────────────────────────────────────────────────────────
 
   return (
@@ -109,6 +115,22 @@ export default function OrderSummary({ orderState }) {
               </p>
             </div>
           )}
+          {/* DISCOUNT — only show when product has a promo */}
+          {discount > 0 && (
+            <div className="flex justify-between items-start border-t border-gray-800 pt-4">
+              <div>
+                <p className="font-bold text-sm tracking-tight text-emerald-400">
+                  Discount
+                </p>
+                <p className="text-[10px] text-gray-500 font-medium">
+                  Promo — {selectedProduct.productName}
+                </p>
+              </div>
+              <p className="font-bold text-lg text-emerald-400">
+                -{fmt(discount)}
+              </p>
+            </div>
+          )}
         </div>
 
         {/* TOTAL SECTION */}
@@ -117,7 +139,7 @@ export default function OrderSummary({ orderState }) {
             <p className="text-gray-500 font-bold uppercase text-[10px] tracking-widest">
               SUBTOTAL
             </p>
-            <p className="text-xl font-bold">{fmt(total)}</p>
+            <p className="text-xl font-bold">{fmt(subtotal)}</p>
           </div>
 
           <div className="bg-red-600 rounded-2xl p-5 flex justify-between items-center">
