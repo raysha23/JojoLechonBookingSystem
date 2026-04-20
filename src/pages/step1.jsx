@@ -192,7 +192,8 @@ export default function Step1() {
                 onChange={(e) => {
                   setProductType(e.target.value);
                   setSelectedProductIndex("");
-                  setRequiredDishes([]); // ← add this
+                  setRequiredDishes([]);
+                  setExtraDishes([]);
                 }}
               >
                 <option value="">— Select a product type —</option>
@@ -263,14 +264,10 @@ export default function Step1() {
                     />
                   </svg>
                 </div>
-
                 <div>
-                  <h2 className="text-xl font-bold text-gray-800">
-                    Additional Dishes
-                  </h2>
-
+                  <h2 className="text-xl font-bold text-gray-800">Dishes</h2>
                   <p className="text-sm text-gray-500">
-                    Note: Each additional dish costs{" "}
+                    Note: Each extra dish costs{" "}
                     <span className="font-semibold text-red-600">₱700</span>
                   </p>
                 </div>
@@ -279,7 +276,10 @@ export default function Step1() {
               {/* ADD BUTTON */}
               <button
                 onClick={() => {
-                  if (selectedProductIndex === "") {
+                  if (
+                    productType !== "dish_only" &&
+                    selectedProductIndex === ""
+                  ) {
                     setShowModal(true);
                     return;
                   }
@@ -287,79 +287,123 @@ export default function Step1() {
                 }}
                 className="bg-red-600 text-white px-6 py-2.5 rounded-full font-bold flex items-center justify-center hover:bg-red-700 transition-colors md:w-64"
               >
-                <span>+ Add Dish</span>
+                <span>
+                  {productType === "dish_only"
+                    ? "+ Add Dish"
+                    : "+ Add Extra Dish"}
+                </span>
               </button>
             </div>
 
-            {/* REQUIRED DISHES (AUTO FROM PRODUCT) */}
-            {requiredDishes.length > 0 && (
-              <div className="space-y-3 mb-6">
-                <p className="text-sm font-bold text-gray-700">
-                  Required Dishes (Included in Package)
+            {/* NO PRODUCT SELECTED */}
+            {productType !== "dish_only" && selectedProductIndex === "" ? (
+              <div className="flex flex-col items-center justify-center py-8 space-y-2 opacity-50 flex-1">
+                <svg
+                  className="w-8 h-8 text-gray-400"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="1.5"
+                    d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
+                  />
+                </svg>
+                <p className="text-sm font-semibold text-gray-500">
+                  No product selected
                 </p>
-
-                {requiredDishes.map((_, index) => (
-                  <select
-                    key={`required-${index}`}
-                    className="w-full p-3 border rounded-xl bg-gray-100"
-                  >
-                    <option value="">— Select Dish —</option>
-
-                    {dishProducts.map((dish, i) => (
-                      <option key={i} value={i}>
-                        {dish.productName}
-                      </option>
+                <p className="text-xs text-gray-400">
+                  Please select a product to manage its dishes.
+                </p>
+              </div>
+            ) : requiredDishes.length === 0 && extraDishes.length === 0 ? (
+              /* PRODUCT SELECTED BUT NO DISHES YET */
+              <div className="flex flex-col items-center justify-center py-8 space-y-2 opacity-50 flex-1">
+                <svg
+                  className="w-8 h-8 text-gray-400"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="1.5"
+                    d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+                  />
+                </svg>
+                <p className="text-sm font-semibold text-gray-500">
+                  No dishes added yet
+                </p>
+                <p className="text-xs text-gray-400">
+                  Click "+ Add Dish" to include additional dishes to this order.
+                </p>
+              </div>
+            ) : (
+              /* HAS DISHES */
+              <>
+                {/* REQUIRED DISHES */}
+                {requiredDishes.length > 0 && (
+                  <div className="space-y-3 mb-6">
+                    <p className="text-sm font-bold text-gray-700">
+                      Required Dishes (Included in Package)
+                    </p>
+                    {requiredDishes.map((_, index) => (
+                      <select
+                        key={`required-${index}`}
+                        className="w-full p-3 border rounded-xl bg-gray-100"
+                      >
+                        <option value="">— Select Dish —</option>
+                        {dishProducts.map((dish, i) => (
+                          <option key={i} value={i}>
+                            {dish.productName}
+                          </option>
+                        ))}
+                      </select>
                     ))}
-                  </select>
-                ))}
-              </div>
-            )}
-
-            {/* EXTRA DISHES */}
-            {extraDishes.length > 0 && (
-              <div className="space-y-3 mb-6">
-                <p className="text-sm font-bold text-gray-700">Extra Dishes</p>
-
-                {extraDishes.map((dish, index) => (
-                  <div key={index} className="flex gap-2">
-                    <select className="flex-1 p-3 border rounded-xl">
-                      <option value="">— Select Dish —</option>
-
-                      {dishProducts.map((dishItem, i) => (
-                        <option key={i} value={i}>
-                          {dishItem.productName} — ₱{dishItem.amount}
-                        </option>
-                      ))}
-                    </select>
-
-                    <button
-                      onClick={() => {
-                        setExtraDishes(
-                          extraDishes.filter((_, i) => i !== index),
-                        );
-                      }}
-                      className="bg-red-500 text-white px-3 rounded-lg"
-                    >
-                      ✕
-                    </button>
                   </div>
-                ))}
-              </div>
-            )}
+                )}
 
-            {/* EMPTY STATE */}
-            {requiredDishes.length === 0 && extraDishes.length === 0 && (
-              <div className="flex flex-col items-center justify-center text-center py-8 opacity-40 flex-1">
-                <p className="text-gray-500 font-medium">
-                  No additional dishes added yet
-                </p>
-              </div>
+                {/* EXTRA DISHES */}
+                {extraDishes.length > 0 && (
+                  <div className="space-y-3 mb-6">
+                    {productType !== "dish_only" && (
+                      <p className="text-sm font-bold text-gray-700">
+                        Extra Dishes
+                      </p>
+                    )}
+                    {extraDishes.map((dish, index) => (
+                      <div key={index} className="flex gap-2">
+                        <select className="flex-1 p-3 border rounded-xl">
+                          <option value="">— Select Dish —</option>
+                          {dishProducts.map((dishItem, i) => (
+                            <option key={i} value={i}>
+                              {dishItem.productName} — ₱{dishItem.amount}
+                            </option>
+                          ))}
+                        </select>
+                        <button
+                          onClick={() =>
+                            setExtraDishes(
+                              extraDishes.filter((_, i) => i !== index),
+                            )
+                          }
+                          className="bg-red-500 text-white px-3 rounded-lg hover:bg-red-600 transition-colors"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
             )}
           </div>
         )}
 
-        {/* FREEBIES */}
-        {/* ✅ FREEBIES SECTION */}
+        {/* FREEBIES SECTION */}
         {showFreebies && (
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
             <div className="flex items-center justify-between mb-6">
@@ -379,27 +423,90 @@ export default function Step1() {
                     />
                   </svg>
                 </div>
-
                 <h2 className="text-xl font-bold text-gray-800">
                   Included Freebies
                 </h2>
               </div>
-
               <span className="bg-emerald-100 text-emerald-600 text-[10px] font-bold px-3 py-1 rounded-full uppercase">
                 Auto-Generated
               </span>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {selectedProduct?.freebies?.map((item, index) => (
-                <div
-                  key={index}
-                  className="p-3 bg-emerald-50 rounded-lg text-sm font-medium"
+            {/* NO PRODUCT SELECTED */}
+            {!selectedProduct ? (
+              <div className="flex flex-col items-center justify-center py-8 space-y-2 opacity-50">
+                <svg
+                  className="w-8 h-8 text-gray-400"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
                 >
-                  {item}
-                </div>
-              ))}
-            </div>
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="1.5"
+                    d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
+                  />
+                </svg>
+                <p className="text-sm font-semibold text-gray-500">
+                  No product selected
+                </p>
+                <p className="text-xs text-gray-400">
+                  Please select a product to view its included freebies.
+                </p>
+              </div>
+            ) : /* PRODUCT HAS NO FREEBIES */
+            !selectedProduct.freebies ||
+              selectedProduct.freebies.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-8 space-y-2 opacity-50">
+                <svg
+                  className="w-8 h-8 text-gray-400"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="1.5"
+                    d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"
+                  />
+                </svg>
+                <p className="text-sm font-semibold text-gray-500">
+                  No freebies available
+                </p>
+                <p className="text-xs text-gray-400">
+                  This product does not include any freebies.
+                </p>
+              </div>
+            ) : (
+              /* HAS FREEBIES */
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {selectedProduct.freebies.map((item, index) => (
+                  <div
+                    key={index}
+                    className="flex items-center space-x-2 p-3 bg-emerald-50 rounded-lg"
+                  >
+                    <svg
+                      className="w-4 h-4 text-emerald-500 shrink-0"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth="2.5"
+                        d="M5 13l4 4L19 7"
+                      />
+                    </svg>
+                    <span className="text-sm font-medium text-emerald-800">
+                      {item}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>
