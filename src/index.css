@@ -21,3 +21,115 @@
     letter-spacing: -0.025em;
   }
 }
+.print-only {
+  display: none;
+}
+@media print {
+  /* ─────────────────────────────
+     PAGE SETUP
+  ───────────────────────────── */
+  .print-only {
+    display: table-cell !important;
+  }
+  @page {
+    size: landscape;
+    margin: 10mm;
+  }
+
+  body {
+    background: white !important;
+    font-family: Arial, sans-serif;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* ─────────────────────────────
+     HIDE ADMIN UI
+  ───────────────────────────── */
+  .print-hidden {
+    display: none !important;
+  }
+
+  .print-hide {
+    display: none !important;
+  }
+
+  /* ─────────────────────────────
+     TABLE BASE
+  ───────────────────────────── */
+  table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    font-size: 12px !important;
+  }
+
+  /* ─────────────────────────────
+     HEADER (RED FIXED)
+     IMPORTANT: use !important
+  ───────────────────────────── */
+  thead {
+    display: table-header-group;
+  }
+
+  th {
+    font-size: 16px !important;
+    font-weight: 700 !important;
+    padding: 8px !important;
+    color: white !important;
+    background: #dc2626 !important; /* red-600 */
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* ─────────────────────────────
+     TABLE CELLS
+  ───────────────────────────── */
+  td {
+    font-size: 14px !important;
+    padding: 6px !important;
+    border: 1px solid #6b7280 !important; /* gray-600 */
+    vertical-align: top;
+  }
+
+  /* ─────────────────────────────
+     ROW CONTROL (PREVENT CUTTING)
+  ───────────────────────────── */
+  tr {
+    page-break-inside: avoid !important;
+  }
+
+  /* ─────────────────────────────
+     LINKS (CLEAN PRINT LOOK)
+  ───────────────────────────── */
+  a {
+    color: black !important;
+    text-decoration: none !important;
+  }
+
+  /* ─────────────────────────────
+     BADGES / COLORS FIX
+  ───────────────────────────── */
+  .text-blue-500,
+  .text-red-500,
+  .text-green-500 {
+    color: black !important;
+  }
+
+  /* ─────────────────────────────
+     REMOVE SHADOWS / ROUNDING
+  ───────────────────────────── */
+  .shadow-sm,
+  .shadow,
+  .rounded-2xl {
+    box-shadow: none !important;
+    border-radius: 0 !important;
+  }
+
+  /* ─────────────────────────────
+     OPTIONAL: CLEAN TABLE LOOK
+  ───────────────────────────── */
+  th,
+  td {
+    border-color: #6b7280 !important;
+  }
+}

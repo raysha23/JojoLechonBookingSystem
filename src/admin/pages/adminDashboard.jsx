@@ -6,6 +6,7 @@ import {
   restoreOrder,
   updateOrder,
 } from "../services/orderServices.jsx";
+import { exportBookingsToExcel } from "../../utils/exportExcel.js";
 
 const EXTRA_DISH_PRICE = 700;
 
@@ -45,17 +46,25 @@ function parseTime(timeStr) {
 
 // ── MAIN ──────────────────────────────────────────────────────────
 
+const getToday = () => {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, "0");
+  const day = String(today.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
+
 export default function AdminDashboard() {
   const navigate = useNavigate();
   const [bookings, setBookings] = useState([]);
-  const [filterDate, setFilterDate] = useState("");
   const [showDeleted, setShowDeleted] = useState(false);
   const [selectedBooking, setSelectedBooking] = useState(null);
   const [editingBooking, setEditingBooking] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [restoreTarget, setRestoreTarget] = useState(null);
   const [search, setSearch] = useState("");
-
+  const [filterDate, setFilterDate] = useState(getToday());
   const loadBookings = async () => {
     const data = await getOrders({ showDeleted });
     setBookings(data);
@@ -253,9 +262,9 @@ export default function AdminDashboard() {
                   onChange={(e) => setFilterDate(e.target.value)}
                   className="bg-transparent px-2 py-1.5 text-xs font-extrabold text-slate-700 uppercase tracking-tight outline-none cursor-pointer"
                 />
-                {filterDate && (
+                {filterDate &&  filterDate !== getToday() && (
                   <button
-                    onClick={() => setFilterDate("")}
+                    onClick={() => setFilterDate(getToday())}
                     className="p-1 hover:bg-white rounded-md text-slate-400 hover:text-red-500 transition-all shadow-none hover:shadow-sm"
                   >
                     <svg
@@ -360,9 +369,9 @@ export default function AdminDashboard() {
         </div>
 
         {/* ── TABLE ── */}
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+        <div className=" bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden print:shadow-none print:rounded-none ">
           <div className="overflow-x-auto">
-            <table className="w-full text-sm ">
+            <table className="w-full text-sm print:text-xs border-collapse">
               <thead>
                 <tr className="border-b-2 border-gray-100 bg-red-600 font-bold text-white">
                   <Th>Delivery Time</Th>
@@ -372,9 +381,10 @@ export default function AdminDashboard() {
                   <Th>Total Amount</Th>
                   <Th>Process Time</Th>
                   <Th>Location</Th>
-                  <Th>Facebook</Th>
+                  <Th className="print-hidden">Facebook</Th>
                   <Th>Contact</Th>
                   <Th>Payment</Th>
+                  <Th className="print-only">Rider</Th>
                   <Th className="print:hidden">Actions</Th>
                 </tr>
               </thead>
@@ -545,7 +555,7 @@ function BookingRow({ booking, onView, onEdit, onDelete, onRestore }) {
             <p className="text-[10px] font-black text-gray-400 uppercase tracking-wider mb-1">
               Included Dishes ({booking.dishes.required.length})
             </p>
-            <p className="text-sm text-gray-600 font-medium leading-relaxed">
+            <p className="text-sm text-gray-600 font-bold leading-relaxed">
               {booking.dishes.required.filter(Boolean).join(" · ")}
             </p>
           </div>
@@ -581,11 +591,12 @@ function BookingRow({ booking, onView, onEdit, onDelete, onRestore }) {
         <p className="text-base font-black text-gray-900">
           {fmt(booking.payment.total)}
         </p>
-        {/* {discount > 0 && (
+        {discount > 0 && (
           <p className="text-xs text-emerald-500 font-bold mt-0.5">
+            {/* <p>Note:Deducted</p> */}
             -{fmt(discount)} disc.
           </p>
-        )} */}
+        )}
       </td>
 
       {/* PROCESS TIME */}
@@ -614,7 +625,7 @@ function BookingRow({ booking, onView, onEdit, onDelete, onRestore }) {
       </td>
 
       {/* FACEBOOK */}
-      <td className="px-5 py-4 border border-gray-200">
+      <td className="px-5 py-4 border border-gray-200 print-hidden">
         {booking.customer.facebookProfile ? (
           <a
             href={booking.customer.facebookProfile}
@@ -648,9 +659,14 @@ function BookingRow({ booking, onView, onEdit, onDelete, onRestore }) {
           {booking.payment.method === "gcash" ? "GCash" : "COD"}
         </span>
       </td>
+      <td className="px-5 py-4 print-only">
+        <p className="text-sm font-bold text-gray-700">
+          &nbsp;
+        </p>
+      </td>
 
       {/* ACTIONS */}
-      <td className="px-5 py-4 print:hidden border border-gray-200">
+      <td className="px-5 py-4 print:hidden border border-gray-200 print:hidden">
         <div className="flex items-center gap-1.5">
           <ActionBtn
             onClick={onView}
