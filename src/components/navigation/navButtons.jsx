@@ -1,4 +1,4 @@
-export default function NavButtons({ step, setStep }) {
+export default function NavButtons({ step, setStep, onRecordOrder }) {
   const next = () => {
     if (step < 3) setStep(step + 1);
   };
@@ -8,7 +8,14 @@ export default function NavButtons({ step, setStep }) {
   };
 
   const isFinalStep = step === 3;
-  const nextLabel = isFinalStep ? "Record Order" : "Next";
+
+  const handleNext = () => {
+    if (isFinalStep) {
+      onRecordOrder(); // triggers the confirmation modal in App.jsx
+    } else {
+      next();
+    }
+  };
 
   return (
     <div className="flex justify-between items-center w-full mt-8">
@@ -33,7 +40,6 @@ export default function NavButtons({ step, setStep }) {
               />
             </svg>
           </div>
-
           <span className="text-sm font-bold">Previous</span>
         </button>
       ) : (
@@ -42,11 +48,12 @@ export default function NavButtons({ step, setStep }) {
 
       {/* NEXT / RECORD */}
       <button
-        onClick={next}
+        onClick={handleNext}
         className="bg-red-600 text-white px-6 py-3 rounded-full font-bold flex items-center space-x-4 shadow-lg hover:bg-red-700 transition-all group"
       >
-        <span className="text-sm font-black tracking-tight">{nextLabel}</span>
-
+        <span className="text-sm font-black tracking-tight">
+          {isFinalStep ? "Record Order" : "Next"}
+        </span>
         <div className="bg-red-500 p-2 rounded-full group-hover:translate-x-1 transition-transform">
           <svg
             className="w-5 h-5 text-white"
