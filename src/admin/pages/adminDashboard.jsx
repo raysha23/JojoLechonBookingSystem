@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-
 import {
   getOrders,
   softDeleteOrder,
@@ -10,27 +9,52 @@ import {
 
 const EXTRA_DISH_PRICE = 700;
 
+// ── HELPERS ───────────────────────────────────────────────────────
+
+const fmt = (n) =>
+  "₱" + Number(n).toLocaleString("en-PH", { minimumFractionDigits: 2 });
+
+function getProcessTime(deliveryTime) {
+  if (!deliveryTime) return "—";
+  try {
+    const [time, meridiem] = deliveryTime.trim().split(" ");
+    let [hours, minutes] = time.split(":").map(Number);
+    if (meridiem === "PM" && hours !== 12) hours += 12;
+    if (meridiem === "AM" && hours === 12) hours = 0;
+    hours -= 5;
+    if (hours < 0) hours += 24;
+    const period = hours >= 12 ? "PM" : "AM";
+    const display = hours % 12 === 0 ? 12 : hours % 12;
+    return `${display}:${String(minutes).padStart(2, "0")} ${period}`;
+  } catch {
+    return "—";
+  }
+}
+
+function parseTime(timeStr) {
+  if (!timeStr) return 0;
+
+  const [time, period] = timeStr.split(" ");
+  let [hours, minutes] = time.split(":").map(Number);
+
+  if (period === "PM" && hours !== 12) hours += 12;
+  if (period === "AM" && hours === 12) hours = 0;
+
+  return hours * 60 + minutes;
+}
+
+// ── MAIN ──────────────────────────────────────────────────────────
+
 export default function AdminDashboard() {
   const navigate = useNavigate();
   const [bookings, setBookings] = useState([]);
+  const [filterDate, setFilterDate] = useState("");
   const [showDeleted, setShowDeleted] = useState(false);
-  const [search, setSearch] = useState("");
   const [selectedBooking, setSelectedBooking] = useState(null);
   const [editingBooking, setEditingBooking] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [restoreTarget, setRestoreTarget] = useState(null);
-
-  const fmt = (n) =>
-    "₱" + Number(n).toLocaleString("en-PH", { minimumFractionDigits: 2 });
-
-  const formatDate = (iso) => {
-    if (!iso) return "—";
-    return new Date(iso).toLocaleDateString("en-PH", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    });
-  };
+  const [search, setSearch] = useState("");
 
   const loadBookings = async () => {
     const data = await getOrders({ showDeleted });
@@ -64,37 +88,41 @@ export default function AdminDashboard() {
     loadBookings();
   };
 
-  const filtered = bookings.filter(
-    (b) =>
-      b.customer.name.toLowerCase().includes(search.toLowerCase()) ||
-      b.id.toLowerCase().includes(search.toLowerCase()) ||
-      b.product?.productName?.toLowerCase().includes(search.toLowerCase()),
+  const filtered = bookings
+    .filter((b) => {
+      const matchDate = filterDate ? b.order.deliveryDate === filterDate : true;
+
+      const matchSearch = search
+        ? b.customer.name.toLowerCase().includes(search.toLowerCase())
+        : true;
+
+      return matchDate && matchSearch;
+    })
+    .sort((a, b) => {
+      return parseTime(a.order.deliveryTime) - parseTime(b.order.deliveryTime);
+    });
+  const grandTotal = filtered.reduce(
+    (sum, b) => sum + (b.payment.total || 0),
+    0,
   );
+  const activeCount = bookings.filter((b) => !b.deletedAt).length;
+  const deletedCount = bookings.filter((b) => b.deletedAt).length;
+  const gcashCount = bookings.filter(
+    (b) => b.payment.method === "gcash",
+  ).length;
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* TOPBAR */}
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-30">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+      {/* ── TOPBAR ── */}
+      <header className="bg-white border-b border-gray-200 sticky top-0 z-30 print:hidden">
+        <div className="max-w-screen-2xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 bg-red-600 rounded-xl flex items-center justify-center">
-              <svg
-                className="w-5 h-5 text-white"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="2"
-                  d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
-                />
-              </svg>
+            <div className="w-10 h-10 bg-red-600 rounded-xl flex items-center justify-center shadow-sm">
+              <span className="text-xl">🐷</span>
             </div>
             <div>
               <h1 className="text-lg font-black text-gray-900 leading-none">
-                Jojo Lechon
+                Jojo's Lechon
               </h1>
               <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">
                 Admin Dashboard
@@ -102,88 +130,14 @@ export default function AdminDashboard() {
             </div>
           </div>
 
-          <button
-            onClick={handleLogout}
-            className="flex items-center gap-2 text-sm font-bold text-gray-500 hover:text-red-600 transition-colors px-4 py-2 rounded-xl hover:bg-red-50"
-          >
-            <svg
-              className="w-4 h-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="2"
-                d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
-              />
-            </svg>
-            Logout
-          </button>
-        </div>
-      </header>
-
-      <main className="max-w-7xl mx-auto px-6 py-8">
-        {/* STATS ROW */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          <StatCard
-            label="Total Bookings"
-            value={bookings.length}
-            color="blue"
-          />
-          <StatCard
-            label="Active"
-            value={bookings.filter((b) => !b.deletedAt).length}
-            color="green"
-          />
-          <StatCard
-            label="Deleted"
-            value={bookings.filter((b) => b.deletedAt).length}
-            color="red"
-          />
-          <StatCard
-            label="GCash Orders"
-            value={bookings.filter((b) => b.payment.method === "gcash").length}
-            color="purple"
-          />
-        </div>
-
-        {/* TOOLBAR */}
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 mb-6">
-          <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-            {/* SEARCH */}
-            <div className="relative flex-1 max-w-sm">
-              <svg
-                className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="2"
-                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                />
-              </svg>
-              <input
-                type="text"
-                placeholder="Search by name, ID, or product..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-all"
-              />
-            </div>
-
-            {/* TOGGLE DELETED */}
+          <div className="flex items-center gap-3">
+            <span className="text-sm text-gray-400 font-medium hidden sm:block">
+              Logged in as{" "}
+              <span className="text-gray-700 font-bold">Admin</span>
+            </span>
             <button
-              onClick={() => setShowDeleted(!showDeleted)}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold border-2 transition-all ${
-                showDeleted
-                  ? "bg-red-600 text-white border-red-600"
-                  : "bg-white text-gray-600 border-gray-200 hover:border-red-300"
-              }`}
+              onClick={handleLogout}
+              className="flex items-center gap-2 text-sm font-bold text-gray-500 hover:text-red-600 transition-colors px-4 py-2 rounded-xl hover:bg-red-50"
             >
               <svg
                 className="w-4 h-4"
@@ -195,156 +149,271 @@ export default function AdminDashboard() {
                   strokeLinecap="round"
                   strokeLinejoin="round"
                   strokeWidth="2"
-                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                  d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
                 />
               </svg>
-              {showDeleted ? "Showing Deleted" : "Show Deleted"}
+              Logout
             </button>
           </div>
         </div>
+      </header>
 
-        {/* TABLE */}
+      <main className="w-full px-16 py-8">
+        {/* ── PAGE TITLE ── */}
+        <div className="mb-8 print:hidden bg-red-600 text-white rounded-2xl px-6 py-5">
+          <h2 className="text-2xl font-black ">Bookings</h2>
+          <p className="text-sm  font-medium mt-0.5">
+            View and manage all customer orders
+          </p>
+        </div>
+
+        {/* ── STAT CARDS ── */}
+        {/* <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8 print:hidden">
+          <StatCard
+            icon="📋"
+            label="Total Bookings"
+            value={bookings.length}
+            color="blue"
+          />
+          <StatCard
+            icon="✅"
+            label="Active"
+            value={activeCount}
+            color="green"
+          />
+          <StatCard
+            icon="🗑️"
+            label="Deleted"
+            value={deletedCount}
+            color="red"
+          />
+          <StatCard
+            icon="📱"
+            label="GCash Orders"
+            value={gcashCount}
+            color="purple"
+          />
+        </div> */}
+
+        {/* ── TOOLBAR ── */}
+        {/* ── TOOLBAR ── */}
+        <div className="bg-white rounded-[1.5rem] border border-slate-200/70 shadow-sm p-4 mb-8 print:hidden">
+          <div className="flex flex-col lg:flex-row gap-4 items-center justify-between">
+            {/* LEFT: DATA CONTROLS (Search & Filter) */}
+            <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
+              {/* 🔍 SEARCH COMPONENT */}
+              <div className="relative flex-1 sm:flex-none min-w-[260px]">
+                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+                  <svg
+                    className="h-4 w-4 text-slate-400"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="2"
+                      d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                    />
+                  </svg>
+                </div>
+                <input
+                  type="text"
+                  placeholder="Search customer records..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="block w-full pl-10 pr-10 py-2.5 bg-slate-50/50 border border-slate-200 rounded-xl text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:ring-4 focus:ring-slate-900/5 focus:border-slate-900 focus:bg-white transition-all"
+                />
+                {search && (
+                  <button
+                    onClick={() => setSearch("")}
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-300 hover:text-slate-600"
+                  >
+                    <svg
+                      className="h-4 w-4"
+                      fill="currentColor"
+                      viewBox="0 0 20 20"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                  </button>
+                )}
+              </div>
+
+              {/* 📅 DATE COMPONENT */}
+              <div className="flex items-center gap-2 bg-slate-50/50 border border-slate-200 rounded-xl px-2 py-1">
+                <input
+                  type="date"
+                  value={filterDate}
+                  onChange={(e) => setFilterDate(e.target.value)}
+                  className="bg-transparent px-2 py-1.5 text-xs font-extrabold text-slate-700 uppercase tracking-tight outline-none cursor-pointer"
+                />
+                {filterDate && (
+                  <button
+                    onClick={() => setFilterDate("")}
+                    className="p-1 hover:bg-white rounded-md text-slate-400 hover:text-red-500 transition-all shadow-none hover:shadow-sm"
+                  >
+                    <svg
+                      className="w-3.5 h-3.5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth="2.5"
+                        d="M6 18L18 6M6 6l12 12"
+                      />
+                    </svg>
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* RIGHT: SYSTEM ACTIONS */}
+            <div className="flex items-center gap-3 w-full lg:w-auto justify-end border-t lg:border-t-0 pt-4 lg:pt-0">
+              {/* RECORD COUNTER (SUBTLE) */}
+              <div className="hidden xl:flex items-center px-3 py-1 bg-slate-100 rounded-full mr-2">
+                <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest leading-none">
+                  {filtered.length}{" "}
+                  {filtered.length === 1 ? "Entry" : "Entries"}
+                </span>
+              </div>
+
+              {/* ARCHIVE TOGGLE */}
+              <button
+                onClick={() => setShowDeleted(!showDeleted)}
+                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all border ${
+                  showDeleted
+                    ? "bg-amber-50 text-amber-700 border-amber-200"
+                    : "bg-white text-slate-500 border-slate-200 hover:bg-slate-50"
+                }`}
+              >
+                <svg
+                  className="w-4 h-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                  />
+                </svg>
+                {showDeleted ? "Viewing Trash" : "Trash"}
+              </button>
+
+              {/* PRINT REPORT (THE 'HERO' ACTION) */}
+              <button
+                onClick={() => window.print()}
+                className="flex items-center gap-2.5 bg-slate-900 text-white px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-[0.15em] hover:bg-black transition-all shadow-md active:scale-95"
+              >
+                <svg
+                  className="w-4 h-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2.5"
+                    d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"
+                  />
+                </svg>
+                Print Orders
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* ── PRINT HEADER (Refined Typography) ── */}
+        <div className="hidden print:block mb-8 border-b-2 border-slate-900 pb-4">
+          <div className="flex justify-between items-end">
+            <div>
+              <h1 className="text-3xl font-black text-slate-900 tracking-tighter uppercase">
+                Jojo's Lechon
+              </h1>
+              <p className="text-slate-500 font-bold text-xs tracking-widest uppercase mt-1">
+                Master Order Log
+              </p>
+            </div>
+            <div className="text-right">
+              {filterDate && (
+                <p className="text-sm font-bold text-slate-900">
+                  Delivery: {filterDate}
+                </p>
+              )}
+              <p className="text-[10px] text-slate-400 font-medium">
+                Generated: {new Date().toLocaleDateString("en-PH")}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* ── TABLE ── */}
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full">
+            <table className="w-full text-sm ">
               <thead>
-                <tr className="border-b border-gray-100 bg-gray-50/50">
-                  <th className="text-left px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">
-                    Order ID
-                  </th>
-                  <th className="text-left px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">
-                    Customer
-                  </th>
-                  <th className="text-left px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">
-                    Product
-                  </th>
-                  <th className="text-left px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">
-                    Date
-                  </th>
-                  <th className="text-left px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">
-                    Type
-                  </th>
-                  <th className="text-left px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">
-                    Payment
-                  </th>
-                  <th className="text-left px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">
-                    Total
-                  </th>
-                  <th className="text-left px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">
-                    Actions
-                  </th>
+                <tr className="border-b-2 border-gray-100 bg-red-600 font-bold text-white">
+                  <Th>Delivery Time</Th>
+                  <Th>Customer</Th>
+                  <Th>Order Type</Th>
+                  <Th wide>Order Details</Th>
+                  <Th>Total Amount</Th>
+                  <Th>Process Time</Th>
+                  <Th>Location</Th>
+                  <Th>Facebook</Th>
+                  <Th>Contact</Th>
+                  <Th>Payment</Th>
+                  <Th className="print:hidden">Actions</Th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
                 {filtered.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="px-6 py-16 text-center">
-                      <p className="text-gray-400 font-bold text-sm">
-                        No bookings found
-                      </p>
-                      <p className="text-gray-300 text-xs mt-1">
-                        Try adjusting your search or filter
-                      </p>
+                    <td colSpan={11} className="py-20 text-center">
+                      <div className="flex flex-col items-center gap-2 opacity-40">
+                        <svg
+                          className="w-10 h-10 text-gray-300"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth="1.5"
+                            d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
+                          />
+                        </svg>
+                        <p className="font-bold  text-base">
+                          {filterDate
+                            ? `No bookings for ${filterDate}`
+                            : "No bookings found"}
+                        </p>
+                      </div>
                     </td>
                   </tr>
                 ) : (
                   filtered.map((booking) => (
-                    <tr
+                    <BookingRow
                       key={booking.id}
-                      className={`hover:bg-gray-50/50 transition-colors ${booking.deletedAt ? "opacity-50" : ""}`}
-                    >
-                      <td className="px-6 py-4">
-                        <span className="text-xs font-black text-gray-500 bg-gray-100 px-2 py-1 rounded-lg">
-                          {booking.id}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4">
-                        <p className="text-sm font-black text-gray-800">
-                          {booking.customer.name}
-                        </p>
-                        <p className="text-xs text-gray-400 font-medium">
-                          {booking.customer.contacts[0]}
-                        </p>
-                      </td>
-                      <td className="px-6 py-4">
-                        <p className="text-sm font-bold text-gray-700 max-w-[180px] truncate">
-                          {booking.product?.productName || "—"}
-                        </p>
-                      </td>
-                      <td className="px-6 py-4">
-                        <p className="text-sm font-bold text-gray-600">
-                          {booking.order.deliveryDate || "—"}
-                        </p>
-                        <p className="text-xs text-gray-400">
-                          {booking.order.deliveryTime}
-                        </p>
-                      </td>
-                      <td className="px-6 py-4">
-                        <span
-                          className={`text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full ${
-                            booking.order.orderType === "delivery"
-                              ? "bg-blue-50 text-blue-600"
-                              : "bg-amber-50 text-amber-600"
-                          }`}
-                        >
-                          {booking.order.orderType}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4">
-                        <span
-                          className={`text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full ${
-                            booking.payment.method === "gcash"
-                              ? "bg-blue-50 text-blue-600"
-                              : "bg-green-50 text-green-600"
-                          }`}
-                        >
-                          {booking.payment.method === "gcash" ? "GCash" : "COD"}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4">
-                        <p className="text-sm font-black text-gray-800">
-                          {fmt(booking.payment.total)}
-                        </p>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-2">
-                          {/* VIEW */}
-                          <ActionButton
-                            onClick={() => setSelectedBooking(booking)}
-                            color="gray"
-                            title="View"
-                            icon="M15 12a3 3 0 11-6 0 3 3 0 016 0zM2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
-                          />
-
-                          {booking.deletedAt ? (
-                            /* RESTORE */
-                            <ActionButton
-                              onClick={() => setRestoreTarget(booking)}
-                              color="green"
-                              title="Restore"
-                              icon="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-                            />
-                          ) : (
-                            <>
-                              {/* EDIT */}
-                              <ActionButton
-                                onClick={() => setEditingBooking(booking)}
-                                color="blue"
-                                title="Edit"
-                                icon="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                              />
-                              {/* DELETE */}
-                              <ActionButton
-                                onClick={() => setDeleteTarget(booking)}
-                                color="red"
-                                title="Delete"
-                                icon="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                              />
-                            </>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
+                      booking={booking}
+                      onView={() => setSelectedBooking(booking)}
+                      onEdit={() => setEditingBooking(booking)}
+                      onDelete={() => setDeleteTarget(booking)}
+                      onRestore={() => setRestoreTarget(booking)}
+                    />
                   ))
                 )}
               </tbody>
@@ -352,22 +421,27 @@ export default function AdminDashboard() {
           </div>
 
           {/* TABLE FOOTER */}
-          <div className="px-6 py-4 border-t border-gray-100 bg-gray-50/30">
+          <div className="px-6 py-4 border-t border-gray-100 bg-gray-50/40 flex items-center justify-between">
             <p className="text-xs font-bold text-gray-400">
               Showing {filtered.length} of {bookings.length}{" "}
               {showDeleted ? "deleted" : "active"} bookings
+              {filterDate && ` for ${filterDate}`}
             </p>
+            {filtered.length > 0 && (
+              <p className="text-sm font-black text-gray-700">
+                Grand Total:{" "}
+                <span className="text-red-600">{fmt(grandTotal)}</span>
+              </p>
+            )}
           </div>
         </div>
       </main>
 
-      {/* ── MODALS ─────────────────────────────────────────────────── */}
+      {/* ── MODALS ── */}
       {selectedBooking && (
         <ViewModal
           booking={selectedBooking}
           onClose={() => setSelectedBooking(null)}
-          fmt={fmt}
-          formatDate={formatDate}
         />
       )}
       {editingBooking && (
@@ -380,7 +454,7 @@ export default function AdminDashboard() {
       {deleteTarget && (
         <ConfirmModal
           title="Delete Booking"
-          message={`Are you sure you want to delete the booking for "${deleteTarget.customer.name}"? This can be restored later.`}
+          message={`Delete the booking for "${deleteTarget.customer.name}"? This can be restored later.`}
           confirmLabel="Delete"
           confirmColor="red"
           onConfirm={handleDelete}
@@ -397,23 +471,236 @@ export default function AdminDashboard() {
           onCancel={() => setRestoreTarget(null)}
         />
       )}
+
+      {/* PRINT STYLES */}
+      <style>{`
+        @media print {
+          .print\\:hidden { display: none !important; }
+          .hidden.print\\:block { display: block !important; }
+          body { background: white !important; }
+        }
+      `}</style>
     </div>
   );
 }
 
-/* ── STAT CARD ──────────────────────────────────────────────────── */
-function StatCard({ label, value, color }) {
+// ── TABLE HEADER CELL ─────────────────────────────────────────────
+function Th({ children, wide, className = "" }) {
+  return (
+    <th
+      className={`px-5 py-4 text-left text-base font-bold text-white  uppercase tracking-widest whitespace-nowrap  ${wide ? "min-w-[420px]" : ""} ${className}`}
+    >
+      {children}
+    </th>
+  );
+}
+
+// ── BOOKING ROW ───────────────────────────────────────────────────
+function BookingRow({ booking, onView, onEdit, onDelete, onRestore }) {
+  const extraDishes = booking.dishes?.extra?.filter(Boolean) || [];
+  const discount = Math.abs(Number(booking.product?.promoAmount || 0));
+  const processTime = getProcessTime(booking.order.deliveryTime);
+
+  return (
+    <tr
+      className={`hover:bg-gray-50/80 transition-colors ${booking.deletedAt ? "opacity-40" : ""}`}
+    >
+      {/* DELIVERY TIME */}
+      <td className="px-5 py-4 whitespace-nowrap border border-gray-200">
+        <span className="font-black text-gray-800 text-sm">
+          {booking.order.deliveryTime || "—"}
+        </span>
+      </td>
+
+      {/* CUSTOMER */}
+      <td className="px-5 py-4 whitespace-nowrap border border-gray-200">
+        <p className="font-black text-gray-900 text-sm">
+          {booking.customer.name}
+        </p>
+      </td>
+
+      {/* ORDER TYPE */}
+      <td className="px-5 py-4 border border-gray-200">
+        <span
+          className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${
+            booking.order.orderType === "delivery"
+              ? "bg-blue-50 text-blue-600"
+              : "bg-amber-50 text-amber-600"
+          }`}
+        >
+          {booking.order.orderType === "delivery" ? "Delivery" : "Pickup"}
+        </span>
+      </td>
+
+      {/* ORDER DETAILS */}
+      <td className="px-5 py-4 min-w-[420px] border border-gray-200">
+        {/* Product */}
+        <p className="text-base font-black text-gray-900 mb-2">
+          {booking.product?.productName || "—"}
+        </p>
+
+        {/* Included dishes */}
+        {booking.dishes?.required?.filter(Boolean).length > 0 && (
+          <div className="mb-2">
+            <p className="text-[10px] font-black text-gray-400 uppercase tracking-wider mb-1">
+              Included Dishes ({booking.dishes.required.length})
+            </p>
+            <p className="text-sm text-gray-600 font-medium leading-relaxed">
+              {booking.dishes.required.filter(Boolean).join(" · ")}
+            </p>
+          </div>
+        )}
+
+        {/* Extra dishes */}
+        {extraDishes.length > 0 && (
+          <div className="mb-2">
+            <p className="text-[10px] font-black text-red-400 uppercase tracking-wider mb-1">
+              Extra Dishes ({extraDishes.length} × ₱700)
+            </p>
+            <p className="text-sm text-gray-600 font-medium leading-relaxed">
+              {extraDishes.join(" · ")}
+            </p>
+          </div>
+        )}
+
+        {/* Freebies */}
+        {booking.product?.freebies?.length > 0 && (
+          <div>
+            <p className="text-[10px] font-black text-emerald-500 uppercase tracking-wider mb-1">
+              Freebies
+            </p>
+            <p className="text-sm text-emerald-600 font-medium leading-relaxed">
+              {booking.product.freebies.join(" · ")}
+            </p>
+          </div>
+        )}
+      </td>
+
+      {/* TOTAL AMOUNT */}
+      <td className="px-5 py-4 whitespace-nowrap border border-gray-200">
+        <p className="text-base font-black text-gray-900">
+          {fmt(booking.payment.total)}
+        </p>
+        {/* {discount > 0 && (
+          <p className="text-xs text-emerald-500 font-bold mt-0.5">
+            -{fmt(discount)} disc.
+          </p>
+        )} */}
+      </td>
+
+      {/* PROCESS TIME */}
+      <td className="px-5 py-4 whitespace-nowrap border border-gray-200">
+        <span className="text-sm font-black text-red-600 bg-red-50 px-2.5 py-1 rounded-lg">
+          {processTime}
+        </span>
+      </td>
+
+      {/* LOCATION */}
+      <td className="px-5 py-4 min-w-[120px] border border-gray-200">
+        {booking.order.orderType === "delivery" ? (
+          <div>
+            <p className="text-sm font-bold text-gray-700">
+              {booking.order.zone || "—"}
+            </p>
+            {booking.order.address && (
+              <p className="text-xs text-gray-400 mt-0.5 max-w-[160px]">
+                {booking.order.address}
+              </p>
+            )}
+          </div>
+        ) : (
+          <span className="text-sm font-bold text-amber-600">Pickup</span>
+        )}
+      </td>
+
+      {/* FACEBOOK */}
+      <td className="px-5 py-4 border border-gray-200">
+        {booking.customer.facebookProfile ? (
+          <a
+            href={booking.customer.facebookProfile}
+            target="_blank"
+            rel="noreferrer"
+            className="text-sm font-bold text-blue-500 hover:text-blue-700 hover:underline transition-colors"
+          >
+            View Profile
+          </a>
+        ) : (
+          <span className="text-gray-300 text-sm">—</span>
+        )}
+      </td>
+
+      {/* CONTACT */}
+      <td className="px-5 py-4 whitespace-nowrap border border-gray-200">
+        <p className="text-sm font-bold text-gray-700">
+          {booking.customer.contacts.filter(Boolean).join(", ") || "—"}
+        </p>
+      </td>
+
+      {/* PAYMENT */}
+      <td className="px-5 py-4 whitespace-nowrap border border-gray-200">
+        <span
+          className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${
+            booking.payment.method === "gcash"
+              ? "bg-blue-50 text-blue-600"
+              : "bg-green-50 text-green-600"
+          }`}
+        >
+          {booking.payment.method === "gcash" ? "GCash" : "COD"}
+        </span>
+      </td>
+
+      {/* ACTIONS */}
+      <td className="px-5 py-4 print:hidden border border-gray-200">
+        <div className="flex items-center gap-1.5">
+          <ActionBtn
+            onClick={onView}
+            color="gray"
+            title="View"
+            icon="M15 12a3 3 0 11-6 0 3 3 0 016 0zM2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+          />
+          {booking.deletedAt ? (
+            <ActionBtn
+              onClick={onRestore}
+              color="green"
+              title="Restore"
+              icon="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+            />
+          ) : (
+            <>
+              <ActionBtn
+                onClick={onEdit}
+                color="blue"
+                title="Edit"
+                icon="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+              />
+              <ActionBtn
+                onClick={onDelete}
+                color="red"
+                title="Delete"
+                icon="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+              />
+            </>
+          )}
+        </div>
+      </td>
+    </tr>
+  );
+}
+
+// ── STAT CARD ─────────────────────────────────────────────────────
+function StatCard({ icon, label, value, color }) {
   const colors = {
-    blue: "bg-blue-50 text-blue-600",
-    green: "bg-emerald-50 text-emerald-600",
-    red: "bg-red-50 text-red-600",
-    purple: "bg-purple-50 text-purple-600",
+    blue: "text-blue-600",
+    green: "text-emerald-600",
+    red: "text-red-600",
+    purple: "text-purple-600",
   };
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-      <p className={`text-3xl font-black ${colors[color].split(" ")[1]}`}>
-        {value}
-      </p>
+      <div className="flex items-center justify-between mb-3">
+        <span className="text-2xl">{icon}</span>
+      </div>
+      <p className={`text-3xl font-black ${colors[color]}`}>{value}</p>
       <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mt-1">
         {label}
       </p>
@@ -421,8 +708,8 @@ function StatCard({ label, value, color }) {
   );
 }
 
-/* ── ACTION BUTTON ──────────────────────────────────────────────── */
-function ActionButton({ onClick, color, title, icon }) {
+// ── ACTION BUTTON ─────────────────────────────────────────────────
+function ActionBtn({ onClick, color, title, icon }) {
   const colors = {
     gray: "bg-gray-100 text-gray-500 hover:bg-gray-200",
     blue: "bg-blue-50 text-blue-500 hover:bg-blue-100",
@@ -436,7 +723,7 @@ function ActionButton({ onClick, color, title, icon }) {
       className={`p-2 rounded-lg transition-colors ${colors[color]}`}
     >
       <svg
-        className="w-3.5 h-3.5"
+        className="w-4 h-4"
         fill="none"
         stroke="currentColor"
         viewBox="0 0 24 24"
@@ -452,11 +739,12 @@ function ActionButton({ onClick, color, title, icon }) {
   );
 }
 
-/* ── VIEW MODAL ─────────────────────────────────────────────────── */
-function ViewModal({ booking, onClose, fmt, formatDate }) {
+// ── VIEW MODAL ────────────────────────────────────────────────────
+function ViewModal({ booking, onClose }) {
   const extraDishes = booking.dishes?.extra?.filter(Boolean) || [];
   const extraTotal = extraDishes.length * EXTRA_DISH_PRICE;
   const discount = Math.abs(Number(booking.product?.promoAmount || 0));
+  const processTime = getProcessTime(booking.order.deliveryTime);
 
   return (
     <Modal onClose={onClose}>
@@ -465,7 +753,7 @@ function ViewModal({ booking, onClose, fmt, formatDate }) {
         subtitle={booking.id}
         onClose={onClose}
       />
-      <div className="p-6 space-y-5 max-h-[60vh] overflow-y-auto">
+      <div className="p-6 space-y-5 max-h-[65vh] overflow-y-auto">
         <Section title="Customer" icon="👤">
           <Row label="Name" value={booking.customer.name} />
           <Row label="Contact" value={booking.customer.contacts.join(", ")} />
@@ -475,8 +763,9 @@ function ViewModal({ booking, onClose, fmt, formatDate }) {
         </Section>
         <Section title="Delivery" icon="🚚">
           <Row label="Type" value={booking.order.orderType} highlight />
-          <Row label="Date" value={booking.order.deliveryDate} />
-          <Row label="Time" value={booking.order.deliveryTime} />
+          <Row label="Delivery Date" value={booking.order.deliveryDate} />
+          <Row label="Delivery Time" value={booking.order.deliveryTime} />
+          <Row label="Process Time" value={processTime} highlight />
           {booking.order.orderType === "delivery" && (
             <>
               <Row label="Address" value={booking.order.address} />
@@ -486,12 +775,21 @@ function ViewModal({ booking, onClose, fmt, formatDate }) {
         </Section>
         <Section title="Order" icon="🍖">
           <Row label="Product" value={booking.product?.productName} />
-          <Row
-            label="Required Dishes"
-            value={booking.dishes?.required?.join(", ") || "—"}
-          />
+          {booking.dishes?.required?.filter(Boolean).length > 0 && (
+            <Row
+              label="Included Dishes"
+              value={booking.dishes.required.filter(Boolean).join(", ")}
+            />
+          )}
           {extraDishes.length > 0 && (
             <Row label="Extra Dishes" value={extraDishes.join(", ")} />
+          )}
+          {booking.product?.freebies?.length > 0 && (
+            <Row
+              label="Freebies"
+              value={booking.product.freebies.join(", ")}
+              green
+            />
           )}
         </Section>
         <Section title="Pricing" icon="💰">
@@ -519,17 +817,12 @@ function ViewModal({ booking, onClose, fmt, formatDate }) {
             }
           />
         </Section>
-        <p className="text-[10px] text-gray-300 font-medium text-center">
-          Booked on {formatDate(booking.createdAt)}
-          {booking.deletedAt &&
-            ` · Deleted on ${formatDate(booking.deletedAt)}`}
-        </p>
       </div>
     </Modal>
   );
 }
 
-/* ── EDIT MODAL ─────────────────────────────────────────────────── */
+// ── EDIT MODAL ────────────────────────────────────────────────────
 function EditModal({ booking, onClose, onSave }) {
   const [form, setForm] = useState({
     customerName: booking.customer.name,
@@ -639,7 +932,7 @@ function EditModal({ booking, onClose, onSave }) {
   );
 }
 
-/* ── CONFIRM MODAL ──────────────────────────────────────────────── */
+// ── CONFIRM MODAL ─────────────────────────────────────────────────
 function ConfirmModal({
   title,
   message,
@@ -649,8 +942,8 @@ function ConfirmModal({
   onCancel,
 }) {
   const colors = {
-    red: "bg-red-600 hover:bg-red-700 shadow-red-100",
-    green: "bg-emerald-600 hover:bg-emerald-700 shadow-emerald-100",
+    red: "bg-red-600 hover:bg-red-700",
+    green: "bg-emerald-600 hover:bg-emerald-700",
   };
   return (
     <Modal onClose={onCancel}>
@@ -687,7 +980,7 @@ function ConfirmModal({
           </button>
           <button
             onClick={onConfirm}
-            className={`flex-1 py-3 rounded-xl text-white font-black text-sm transition-all shadow-lg ${colors[confirmColor]}`}
+            className={`flex-1 py-3 rounded-xl text-white font-black text-sm transition-all ${colors[confirmColor]}`}
           >
             {confirmLabel}
           </button>
@@ -697,7 +990,7 @@ function ConfirmModal({
   );
 }
 
-/* ── SHARED MODAL SHELL ─────────────────────────────────────────── */
+// ── SHARED SHELLS ─────────────────────────────────────────────────
 function Modal({ children, onClose }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -761,7 +1054,7 @@ function Row({ label, value, highlight = false, green = false }) {
     <div className="flex justify-between items-center py-2.5 border-b border-gray-100 last:border-0">
       <span className="text-xs font-bold text-gray-400">{label}</span>
       <span
-        className={`text-xs font-black px-2 py-0.5 rounded-lg max-w-[55%] text-right ${
+        className={`text-xs font-black px-2 py-0.5 rounded-lg max-w-[60%] text-right ${
           green
             ? "text-emerald-600 bg-emerald-50"
             : highlight
