@@ -54,7 +54,6 @@ const getToday = () => {
   return `${year}-${month}-${day}`;
 };
 
-
 export default function AdminDashboard() {
   const navigate = useNavigate();
   const [bookings, setBookings] = useState([]);
@@ -65,6 +64,8 @@ export default function AdminDashboard() {
   const [restoreTarget, setRestoreTarget] = useState(null);
   const [search, setSearch] = useState("");
   const [filterDate, setFilterDate] = useState(getToday());
+  const [printFilter, setPrintFilter] = useState("all");
+
   const loadBookings = async () => {
     const data = await getOrders({ showDeleted });
     setBookings(data);
@@ -100,16 +101,33 @@ export default function AdminDashboard() {
   const filtered = bookings
     .filter((b) => {
       const matchDate = filterDate ? b.order.deliveryDate === filterDate : true;
-
       const matchSearch = search
         ? b.customer.name.toLowerCase().includes(search.toLowerCase())
         : true;
+      const matchPrint =
+        printFilter === "all"
+          ? true
+          : printFilter === "unprinted"
+            ? !b.isPrinted
+            : b.isPrinted;
 
-      return matchDate && matchSearch;
+      return matchDate && matchSearch && matchPrint;
     })
-    .sort((a, b) => {
-      return parseTime(a.order.deliveryTime) - parseTime(b.order.deliveryTime);
-    });
+    .sort(
+      (a, b) =>
+        parseTime(a.order.deliveryTime) - parseTime(b.order.deliveryTime),
+    );
+
+  const unprintedCount = bookings.filter(
+    (b) =>
+      !b.isPrinted && (filterDate ? b.order.deliveryDate === filterDate : true),
+  ).length;
+
+  const printedCount = bookings.filter(
+    (b) =>
+      b.isPrinted && (filterDate ? b.order.deliveryDate === filterDate : true),
+  ).length;
+
   const grandTotal = filtered.reduce(
     (sum, b) => sum + (b.payment.total || 0),
     0,
@@ -262,7 +280,7 @@ export default function AdminDashboard() {
                   onChange={(e) => setFilterDate(e.target.value)}
                   className="bg-transparent px-2 py-1.5 text-xs font-extrabold text-slate-700 uppercase tracking-tight outline-none cursor-pointer"
                 />
-                {filterDate &&  filterDate !== getToday() && (
+                {filterDate && filterDate !== getToday() && (
                   <button
                     onClick={() => setFilterDate(getToday())}
                     className="p-1 hover:bg-white rounded-md text-slate-400 hover:text-red-500 transition-all shadow-none hover:shadow-sm"
@@ -343,7 +361,81 @@ export default function AdminDashboard() {
             </div>
           </div>
         </div>
+        {/* ── PRINT STATUS TABS ── */}
+        <div className="flex items-center gap-2 mb-6 print:hidden">
+          {/* ALL */}
+          <button
+            onClick={() => setPrintFilter("all")}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all border ${
+              printFilter === "all"
+                ? "bg-gray-900 text-white border-gray-900"
+                : "bg-white text-gray-500 border-gray-200 hover:bg-gray-50"
+            }`}
+          >
+            All
+            <span
+              className={`px-1.5 py-0.5 rounded-full text-[10px] font-black ${
+                printFilter === "all"
+                  ? "bg-white/20 text-white"
+                  : "bg-gray-100 text-gray-500"
+              }`}
+            >
+              {bookings.length}
+            </span>
+          </button>
 
+          {/* NOT PRINTED */}
+          <button
+            onClick={() => setPrintFilter("unprinted")}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all border ${
+              printFilter === "unprinted"
+                ? "bg-red-600 text-white border-red-600"
+                : "bg-white text-gray-500 border-gray-200 hover:bg-red-50 hover:border-red-200"
+            }`}
+          >
+            <span className="relative flex h-2 w-2">
+              {unprintedCount > 0 && printFilter !== "unprinted" && (
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+              )}
+              <span
+                className={`relative inline-flex rounded-full h-2 w-2 ${
+                  printFilter === "unprinted" ? "bg-white" : "bg-red-500"
+                }`}
+              ></span>
+            </span>
+            Not Printed
+            <span
+              className={`px-1.5 py-0.5 rounded-full text-[10px] font-black ${
+                printFilter === "unprinted"
+                  ? "bg-white/20 text-white"
+                  : "bg-red-100 text-red-600"
+              }`}
+            >
+              {unprintedCount}
+            </span>
+          </button>
+
+          {/* PRINTED */}
+          <button
+            onClick={() => setPrintFilter("printed")}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all border ${
+              printFilter === "printed"
+                ? "bg-emerald-600 text-white border-emerald-600"
+                : "bg-white text-gray-500 border-gray-200 hover:bg-emerald-50 hover:border-emerald-200"
+            }`}
+          >
+            ✅ Printed
+            <span
+              className={`px-1.5 py-0.5 rounded-full text-[10px] font-black ${
+                printFilter === "printed"
+                  ? "bg-white/20 text-white"
+                  : "bg-emerald-100 text-emerald-600"
+              }`}
+            >
+              {printedCount}
+            </span>
+          </button>
+        </div>
         {/* ── PRINT HEADER (Refined Typography) ── */}
         <div className="hidden print:block mb-8 border-b-2 border-slate-900 pb-4">
           <div className="flex justify-between items-end">
@@ -384,6 +476,7 @@ export default function AdminDashboard() {
                   <Th className="print-hidden">Facebook</Th>
                   <Th>Contact</Th>
                   <Th>Payment</Th>
+                  <Th>Status</Th>
                   <Th className="print-only">Rider</Th>
                   <Th className="print:hidden">Actions</Th>
                 </tr>
@@ -555,7 +648,7 @@ function BookingRow({ booking, onView, onEdit, onDelete, onRestore }) {
             <p className="text-[10px] font-black text-gray-400 uppercase tracking-wider mb-1">
               Included Dishes ({booking.dishes.required.length})
             </p>
-            <p className="text-sm text-gray-600 font-bold leading-relaxed">
+            <p className="text-sm text-black font-bold leading-relaxed">
               {booking.dishes.required.filter(Boolean).join(" · ")}
             </p>
           </div>
@@ -567,7 +660,7 @@ function BookingRow({ booking, onView, onEdit, onDelete, onRestore }) {
             <p className="text-[10px] font-black text-red-400 uppercase tracking-wider mb-1">
               Extra Dishes ({extraDishes.length} × ₱700)
             </p>
-            <p className="text-sm text-gray-600 font-medium leading-relaxed">
+            <p className="text-sm text-black font-bold leading-relaxed">
               {extraDishes.join(" · ")}
             </p>
           </div>
@@ -579,7 +672,7 @@ function BookingRow({ booking, onView, onEdit, onDelete, onRestore }) {
             <p className="text-[10px] font-black text-emerald-500 uppercase tracking-wider mb-1">
               Freebies
             </p>
-            <p className="text-sm text-emerald-600 font-medium leading-relaxed">
+            <p className="text-sm text-black font-bold leading-relaxed">
               {booking.product.freebies.join(" · ")}
             </p>
           </div>
@@ -593,8 +686,7 @@ function BookingRow({ booking, onView, onEdit, onDelete, onRestore }) {
         </p>
         {discount > 0 && (
           <p className="text-xs text-emerald-500 font-bold mt-0.5">
-            {/* <p>Note:Deducted</p> */}
-            -{fmt(discount)} disc.
+            {/* <p>Note:Deducted</p> */}-{fmt(discount)} disc.
           </p>
         )}
       </td>
@@ -610,11 +702,11 @@ function BookingRow({ booking, onView, onEdit, onDelete, onRestore }) {
       <td className="px-5 py-4 min-w-[120px] border border-gray-200">
         {booking.order.orderType === "delivery" ? (
           <div>
-            <p className="text-sm font-bold text-gray-700">
+            <p className="text-sm  text-gray-500">
               {booking.order.zone || "—"}
             </p>
             {booking.order.address && (
-              <p className="text-xs text-gray-400 mt-0.5 max-w-[160px]">
+              <p className="text-xs text-black font-bold mt-0.5 max-w-[160px]">
                 {booking.order.address}
               </p>
             )}
@@ -660,11 +752,23 @@ function BookingRow({ booking, onView, onEdit, onDelete, onRestore }) {
         </span>
       </td>
       <td className="px-5 py-4 print-only">
-        <p className="text-sm font-bold text-gray-700">
-          &nbsp;
-        </p>
+        <p className="text-sm font-bold text-gray-700">&nbsp;</p>
       </td>
-
+      <td className="px-5 py-4 whitespace-nowrap border border-gray-200">
+        {/* <p className="font-black text-gray-900 text-sm">
+          {booking.customer.name}
+        </p> */}
+        {/* PRINT BADGE */}
+        {booking.isPrinted ? (
+          <span className="text-[9px] font-black text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-full uppercase tracking-wider">
+            ✅ Printed
+          </span>
+        ) : (
+          <span className="text-[9px] font-black text-red-500 bg-red-50 px-1.5 py-0.5 rounded-full uppercase tracking-wider">
+            🔴 Not Printed
+          </span>
+        )}
+      </td>
       {/* ACTIONS */}
       <td className="px-5 py-4 print:hidden border border-gray-200 print:hidden">
         <div className="flex items-center gap-1.5">
