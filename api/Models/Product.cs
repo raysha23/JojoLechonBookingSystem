@@ -12,11 +12,8 @@ namespace api.Models
         public int NoOfIncludedDishes { get; set; } = 0;
         public bool IsActive { get; set; } = true;
 
-        // Foreign Key
-        public int ProductTypeId { get; set; }
 
         // Navigation
-        public ProductType ProductType { get; set; } = null!;
         public ICollection<ProductFreebie> Freebies { get; set; } = new List<ProductFreebie>();
         public ICollection<ProductDefaultDish> DefaultDishes { get; set; } = new List<ProductDefaultDish>();
         public ICollection<Order> Orders { get; set; } = new List<Order>();

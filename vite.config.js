@@ -5,6 +5,12 @@ export default defineConfig({
   plugins: [react()],
   base: "/JojoLechonBookingSystem/",
   server: {
+    proxy: {
+      "/api": {
+        target: "http://localhost:5194",
+        changeOrigin: true, // ← add this
+      },
+    },
     allowedHosts: "all",
-  }
+  },
 });

@@ -29,9 +29,13 @@ C:\Users\Administrator\Desktop\ReactLechonBooking\JojoLechonBookingSystem\api\bi
 C:\Users\Administrator\Desktop\ReactLechonBooking\JojoLechonBookingSystem\api\bin\Debug\net8.0\Microsoft.IdentityModel.Protocols.dll
 C:\Users\Administrator\Desktop\ReactLechonBooking\JojoLechonBookingSystem\api\bin\Debug\net8.0\Microsoft.IdentityModel.Protocols.OpenIdConnect.dll
 C:\Users\Administrator\Desktop\ReactLechonBooking\JojoLechonBookingSystem\api\bin\Debug\net8.0\Microsoft.IdentityModel.Tokens.dll
+C:\Users\Administrator\Desktop\ReactLechonBooking\JojoLechonBookingSystem\api\bin\Debug\net8.0\Microsoft.OpenApi.dll
 C:\Users\Administrator\Desktop\ReactLechonBooking\JojoLechonBookingSystem\api\bin\Debug\net8.0\Microsoft.SqlServer.Server.dll
 C:\Users\Administrator\Desktop\ReactLechonBooking\JojoLechonBookingSystem\api\bin\Debug\net8.0\Microsoft.Win32.SystemEvents.dll
 C:\Users\Administrator\Desktop\ReactLechonBooking\JojoLechonBookingSystem\api\bin\Debug\net8.0\Mono.TextTemplating.dll
+C:\Users\Administrator\Desktop\ReactLechonBooking\JojoLechonBookingSystem\api\bin\Debug\net8.0\Swashbuckle.AspNetCore.Swagger.dll
+C:\Users\Administrator\Desktop\ReactLechonBooking\JojoLechonBookingSystem\api\bin\Debug\net8.0\Swashbuckle.AspNetCore.SwaggerGen.dll
+C:\Users\Administrator\Desktop\ReactLechonBooking\JojoLechonBookingSystem\api\bin\Debug\net8.0\Swashbuckle.AspNetCore.SwaggerUI.dll
 C:\Users\Administrator\Desktop\ReactLechonBooking\JojoLechonBookingSystem\api\bin\Debug\net8.0\System.CodeDom.dll
 C:\Users\Administrator\Desktop\ReactLechonBooking\JojoLechonBookingSystem\api\bin\Debug\net8.0\System.Composition.AttributedModel.dll
 C:\Users\Administrator\Desktop\ReactLechonBooking\JojoLechonBookingSystem\api\bin\Debug\net8.0\System.Composition.Convention.dll
@@ -116,6 +120,7 @@ C:\Users\Administrator\Desktop\ReactLechonBooking\JojoLechonBookingSystem\api\ob
 C:\Users\Administrator\Desktop\ReactLechonBooking\JojoLechonBookingSystem\api\obj\Debug\net8.0\api.AssemblyInfoInputs.cache
 C:\Users\Administrator\Desktop\ReactLechonBooking\JojoLechonBookingSystem\api\obj\Debug\net8.0\api.AssemblyInfo.cs
 C:\Users\Administrator\Desktop\ReactLechonBooking\JojoLechonBookingSystem\api\obj\Debug\net8.0\api.csproj.CoreCompileInputs.cache
+C:\Users\Administrator\Desktop\ReactLechonBooking\JojoLechonBookingSystem\api\obj\Debug\net8.0\api.MvcApplicationPartsAssemblyInfo.cs
 C:\Users\Administrator\Desktop\ReactLechonBooking\JojoLechonBookingSystem\api\obj\Debug\net8.0\api.MvcApplicationPartsAssemblyInfo.cache
 C:\Users\Administrator\Desktop\ReactLechonBooking\JojoLechonBookingSystem\api\obj\Debug\net8.0\api.sourcelink.json
 C:\Users\Administrator\Desktop\ReactLechonBooking\JojoLechonBookingSystem\api\obj\Debug\net8.0\rjimswa.dswa.cache.json
@@ -133,8 +138,3 @@ C:\Users\Administrator\Desktop\ReactLechonBooking\JojoLechonBookingSystem\api\ob
 C:\Users\Administrator\Desktop\ReactLechonBooking\JojoLechonBookingSystem\api\obj\Debug\net8.0\api.pdb
 C:\Users\Administrator\Desktop\ReactLechonBooking\JojoLechonBookingSystem\api\obj\Debug\net8.0\api.genruntimeconfig.cache
 C:\Users\Administrator\Desktop\ReactLechonBooking\JojoLechonBookingSystem\api\obj\Debug\net8.0\ref\api.dll
-C:\Users\Administrator\Desktop\ReactLechonBooking\JojoLechonBookingSystem\api\bin\Debug\net8.0\Microsoft.OpenApi.dll
-C:\Users\Administrator\Desktop\ReactLechonBooking\JojoLechonBookingSystem\api\bin\Debug\net8.0\Swashbuckle.AspNetCore.Swagger.dll
-C:\Users\Administrator\Desktop\ReactLechonBooking\JojoLechonBookingSystem\api\bin\Debug\net8.0\Swashbuckle.AspNetCore.SwaggerGen.dll
-C:\Users\Administrator\Desktop\ReactLechonBooking\JojoLechonBookingSystem\api\bin\Debug\net8.0\Swashbuckle.AspNetCore.SwaggerUI.dll
-C:\Users\Administrator\Desktop\ReactLechonBooking\JojoLechonBookingSystem\api\obj\Debug\net8.0\api.MvcApplicationPartsAssemblyInfo.cs
