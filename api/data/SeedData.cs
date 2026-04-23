@@ -259,23 +259,96 @@ namespace api.data
         // ─────────────────────────────────────────────
         // DEFAULT DISHES  (Pasko 2 has Lechon Belly Medium Cut + Garlic Rice)
         // ─────────────────────────────────────────────
-        public static List<ProductDefaultDish> GetProductDefaultDishes(List<Product> products, List<Dish> dishes)
+        public static List<ProductDefaultDish> GetProductDefaultDishes(
+     List<Product> products,
+     List<Dish> dishes)
         {
-            // Only Pasko 2 has fixed default dishes in the source data.
-            // All other packages let customers pick from the dish list.
             var defaults = new List<ProductDefaultDish>();
 
-            var pasko2 = products.FirstOrDefault(p => p.ProductName == "Pasko 2 (18kg - 20kg)");
-            var bellyMC = dishes.FirstOrDefault(d => d.DishName == "Lechon Belly Medium Cut");
-            var garlicR = dishes.FirstOrDefault(d => d.DishName == "Garlic Rice");
+            // Helper to get dish safely
+            Dish? GetDish(string name) =>
+                dishes.FirstOrDefault(d => d.DishName == name);
 
-            // NOTE: "Lechon Belly Medium Cut" and "Garlic Rice" are not in the dishes
-            // list above — they appear to be included dishes, not orderable side dishes.
-            // If you add them to GetDishes() later, uncomment the lines below:
-            // if (pasko2 != null && bellyMC != null)
-            //     defaults.Add(new ProductDefaultDish { ProductId = pasko2.Id, DishId = bellyMC.Id });
-            // if (pasko2 != null && garlicR != null)
-            //     defaults.Add(new ProductDefaultDish { ProductId = pasko2.Id, DishId = garlicR.Id });
+            // ─────────────────────────────────────────────
+            // GROUP PRODUCTS
+            // ─────────────────────────────────────────────
+            var lechonPackages = products
+                .Where(p => p.ProductTypeId == products.First(pt => pt.ProductName.Contains("Pasko") || pt.ProductName.Contains("Jumbo") || pt.ProductName.Contains("Medium") || pt.ProductName.Contains("Regular") || pt.ProductName.Contains("Small") || pt.ProductName.Contains("Twin")).ProductTypeId)
+                .ToList();
+
+            var bellyPackages = products
+                .Where(p => p.ProductName.Contains("Belly") && p.NoOfIncludedDishes > 0)
+                .ToList();
+
+            // fallback grouping (more stable)
+            lechonPackages = products
+                .Where(p => p.ProductName.Contains("Pasko")
+                         || p.ProductName.Contains("Jumbo")
+                         || p.ProductName.Contains("Medium")
+                         || p.ProductName.Contains("Regular")
+                         || p.ProductName.Contains("Small")
+                         || p.ProductName.Contains("Twin"))
+                .ToList();
+
+            bellyPackages = products
+                .Where(p => p.ProductName.Contains("Belly") && !p.ProductName.Contains("Only"))
+                .ToList();
+
+            // ─────────────────────────────────────────────
+            // DEFAULT DISH SETS (ONLY FROM YOUR DISH LIST)
+            // ─────────────────────────────────────────────
+
+            var lechonDefaultSet = new List<string>
+    {
+        "Pancit Guisado",
+        "Lumpia",
+        "Chop Suey",
+        "Menudo"
+    };
+
+            var bellyDefaultSet = new List<string>
+    {
+        "Humba",
+        "Pork Caldereta",
+        "Chicken Afritada",
+        "Bam-e"
+    };
+
+            // ─────────────────────────────────────────────
+            // APPLY DEFAULTS TO LECHON PACKAGES
+            // ─────────────────────────────────────────────
+            foreach (var product in lechonPackages)
+            {
+                foreach (var dishName in lechonDefaultSet)
+                {
+                    var dish = GetDish(dishName);
+                    if (dish == null) continue;
+
+                    defaults.Add(new ProductDefaultDish
+                    {
+                        ProductId = product.Id,
+                        DishId = dish.Id
+                    });
+                }
+            }
+
+            // ─────────────────────────────────────────────
+            // APPLY DEFAULTS TO BELLY PACKAGES
+            // ─────────────────────────────────────────────
+            foreach (var product in bellyPackages)
+            {
+                foreach (var dishName in bellyDefaultSet)
+                {
+                    var dish = GetDish(dishName);
+                    if (dish == null) continue;
+
+                    defaults.Add(new ProductDefaultDish
+                    {
+                        ProductId = product.Id,
+                        DishId = dish.Id
+                    });
+                }
+            }
 
             return defaults;
         }

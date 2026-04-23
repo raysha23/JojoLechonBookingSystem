@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using api.data;
 using api.DTOs.Order;
+using api.DTOs.Product;
 using api.Mappers;
 using api.Models;
 using Microsoft.AspNetCore.Mvc;
@@ -27,9 +28,9 @@ namespace api.Controllers
             .Include(o => o.Customer)
             .ThenInclude(c => c.Contacts)
             .Include(o => o.Product)
-            .ThenInclude(p => p.ProductType)        // ← product type name
+            .ThenInclude(p => p!.ProductType)        // ← product type name
             .Include(o => o.Product)
-            .ThenInclude(p => p.Freebies)           // ← freebies
+            .ThenInclude(p => p!.Freebies)           // ← freebies
             .Include(o => o.OrderDishes)                // ← dishes on the order
             .ThenInclude(od => od.Dish)
             .Include(o => o.DeliveryCharge);            // ← delivery charge + zone
@@ -51,39 +52,70 @@ namespace api.Controllers
         }
 
         [HttpPost]
-        [HttpPost]
         public async Task<ActionResult<OrderDTO>> CreateOrder([FromBody] CreateOrderDTO createOrderDto)
         {
+            // -------------------------
+            // 1. VALIDATION
+            // -------------------------
             if (string.IsNullOrWhiteSpace(createOrderDto.CustomerName))
-            {
                 return BadRequest("Customer name is required.");
-            }
 
             if (createOrderDto.DeliveryDate == default)
-            {
                 return BadRequest("Delivery date is required.");
-            }
+
+            if (createOrderDto.Dishes == null)
+                createOrderDto.Dishes = new DishesDTO
+                {
+                    Required = new List<int>(),
+                    Extra = new List<int>()
+                };
 
             // Treat invalid product ID as null
-            if (createOrderDto.ProductId.HasValue && createOrderDto.ProductId.Value <= 0)
-            {
+            if (createOrderDto.ProductId.HasValue && createOrderDto.ProductId <= 0)
                 createOrderDto.ProductId = null;
-            }
 
-            // Validate product exists
             if (createOrderDto.ProductId.HasValue)
             {
                 var productExists = await _context.Products
                     .AnyAsync(p => p.Id == createOrderDto.ProductId.Value);
 
                 if (!productExists)
-                {
                     return BadRequest($"Product with ID {createOrderDto.ProductId.Value} does not exist.");
-                }
             }
 
             // -------------------------
-            // 1. Create Customer
+            // 2. VALIDATE DISHES (🔥 IMPORTANT FIX)
+            // -------------------------
+            var allDishIds = await _context.Dishes
+                .Select(d => d.Id)
+                .ToListAsync();
+
+            var allRequestedDishIds =
+                (createOrderDto.Dishes.Required ?? new List<int>())
+                .Concat(createOrderDto.Dishes.Extra ?? new List<int>())
+                .ToList();
+
+            foreach (var dishId in allRequestedDishIds)
+            {
+                if (!allDishIds.Contains(dishId))
+                {
+                    return BadRequest($"Dish with ID {dishId} does not exist.");
+                }
+            }
+            // -------------------------
+            // 2.5 GET PRODUCT DEFAULT DISHES
+            // -------------------------
+            List<int> defaultDishIds = new();
+
+            if (createOrderDto.ProductId.HasValue)
+            {
+                defaultDishIds = await _context.ProductDefaultDishes
+                    .Where(pd => pd.ProductId == createOrderDto.ProductId.Value)
+                    .Select(pd => pd.DishId)
+                    .ToListAsync();
+            }
+            // -------------------------
+            // 3. CREATE CUSTOMER
             // -------------------------
             var customer = new Customer
             {
@@ -102,51 +134,52 @@ namespace api.Controllers
             await _context.SaveChangesAsync();
 
             // -------------------------
-            // 2. Create Order
+            // 4. CREATE ORDER
             // -------------------------
             var order = createOrderDto.ToOrderFromCreateDTO(customer.Id);
 
             _context.Orders.Add(order);
-            await _context.SaveChangesAsync(); // IMPORTANT: generates order.Id
+            await _context.SaveChangesAsync(); // generates order.Id
 
             // -------------------------
-            // 3. Create Order Dishes (🔥 FIXED PART)
+            // 5. CREATE ORDER DISHES
             // -------------------------
-            if (createOrderDto.Dishes != null)
+            var orderDishes = new List<OrderDish>();
+
+            // Combine default dishes with required dishes (no duplicates)
+            var includedDishIds = (createOrderDto.Dishes.Required ?? new List<int>()).Union(defaultDishIds).ToList();
+
+            if (includedDishIds.Any())
             {
-                // REQUIRED DISHES (included)
-                if (createOrderDto.Dishes.Required != null && createOrderDto.Dishes.Required.Any())
-                {
-                    foreach (var dishId in createOrderDto.Dishes.Required)
+                orderDishes.AddRange(
+                    includedDishIds.Select(dishId => new OrderDish
                     {
-                        _context.OrderDishes.Add(new OrderDish
-                        {
-                            OrderId = order.Id,
-                            DishId = dishId,
-                            DishType = "included"
-                        });
-                    }
-                }
-
-                // EXTRA DISHES
-                if (createOrderDto.Dishes.Extra != null && createOrderDto.Dishes.Extra.Any())
-                {
-                    foreach (var dishId in createOrderDto.Dishes.Extra)
-                    {
-                        _context.OrderDishes.Add(new OrderDish
-                        {
-                            OrderId = order.Id,
-                            DishId = dishId,
-                            DishType = "extra"
-                        });
-                    }
-                }
-
-                await _context.SaveChangesAsync();
+                        OrderId = order.Id,
+                        DishId = dishId,
+                        DishType = "included",
+                        IsExtra = false
+                    })
+                );
             }
 
+            if (createOrderDto.Dishes.Extra != null)
+            {
+                orderDishes.AddRange(
+                    createOrderDto.Dishes.Extra.Select(dishId => new OrderDish
+                    {
+                        OrderId = order.Id,
+                        DishId = dishId,
+                        DishType = "extra",
+                        IsExtra = true
+                    })
+                );
+            }
+
+            _context.OrderDishes.AddRange(orderDishes);
+            await _context.SaveChangesAsync();
+
             // -------------------------
-            // 4. Reload created order
+            // 6. RELOAD ORDER (with relations)
             // -------------------------
             var createdOrder = await _context.Orders
                 .Include(o => o.Customer)
@@ -157,9 +190,7 @@ namespace api.Controllers
                 .FirstOrDefaultAsync(o => o.Id == order.Id);
 
             if (createdOrder == null)
-            {
                 return StatusCode(500, "Order was created but could not be loaded.");
-            }
 
             return Created($"/api/order/{createdOrder.Id}", createdOrder.ToOrderDTO());
         }

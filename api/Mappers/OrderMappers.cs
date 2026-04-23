@@ -34,18 +34,18 @@ namespace api.Mappers
                 ProductId = order.ProductId,
                 ProductName = order.Product?.ProductName,
 
-                // ✅ THIS FIXES YOUR UI
-                Dishes = new DishesDTO
+                // ✅ THIS FIXES YOUR UI - Return dish NAMES not IDs
+                Dishes = new OrderDTO.DishesResponse
                 {
                     Required = order.OrderDishes?
                     .Where(od => od.DishType == "included")
-                    .Select(od => od.DishId)
-                    .ToList() ?? new List<int>(),
+                    .Select(od => od.Dish.DishName)
+                    .ToList() ?? new List<string>(),
 
-                                Extra = order.OrderDishes?
+                    Extra = order.OrderDishes?
                     .Where(od => od.DishType == "extra")
-                    .Select(od => od.DishId)
-                    .ToList() ?? new List<int>()
+                    .Select(od => od.Dish.DishName)
+                    .ToList() ?? new List<string>()
                 },
                 Freebies = new FreebiesDTO
                 {

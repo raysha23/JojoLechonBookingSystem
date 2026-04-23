@@ -32,7 +32,15 @@ namespace api.DTOs.Order
 
         public int? ProductId { get; set; }
         public string? ProductName { get; set; }
-        public DishesDTO Dishes { get; set; } = new();
+
+        // ✅ Changed to store dish NAMES instead of IDs
+        public class DishesResponse
+        {
+            public List<string> Required { get; set; } = new();
+            public List<string> Extra { get; set; } = new();
+        }
+
+        public DishesResponse Dishes { get; set; } = new();
         public FreebiesDTO Freebies { get; set; } = new();
 
     }

@@ -19,8 +19,6 @@ namespace api.Repository
         {
             // throw new NotImplementedException();
             return Task.FromResult(_context.Orders.ToList());
-
-
         }
 
         public Task<List<Order>> GetOrdersByDateAsync(DateTime deliveryDate)

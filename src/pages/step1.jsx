@@ -70,6 +70,7 @@ export default function Step1({ orderState }) {
           productTypeId: product.productTypeId,
           NoOfDishes: product.noOfIncludedDishes ?? 0,
           freebies: (product.freebies ?? []).map((f) => f.freebieName),
+          defaultDishes: product.defaultDishes ?? [],
         }));
         setAllProducts(mapped);
       } catch (error) {
@@ -121,6 +122,17 @@ export default function Step1({ orderState }) {
     productType === "belly_package" ||
     productType === "lechon_only" ||
     (productType === "belly_only" && selectedProductIndex !== "");
+
+  const getDefaultDishesForProduct = (productId) => {
+    const defaults = productTypes.length
+      ? [] // optional safety
+      : [];
+
+    // You should fetch from backend OR include in products response
+    const product = allProducts.find((p) => p.id === productId);
+
+    return product?.defaultDishes ?? [];
+  };
 
   return (
     <div className="grid gap-6">
@@ -317,20 +329,55 @@ export default function Step1({ orderState }) {
                 <label className="block text-sm font-bold text-gray-700 mb-2">
                   Select Product
                 </label>
+
                 <select
                   className="w-full p-3 border border-red-500 rounded-xl"
                   value={selectedProductIndex}
                   onChange={(e) => {
                     const selectedId = e.target.value;
                     setSelectedProductIndex(selectedId);
+
                     if (selectedId !== "") {
                       const product = products.find(
                         (p) => String(p.id) === String(selectedId),
                       );
+
                       setSelectedProduct(product);
-                      setRequiredDishes(
-                        Array(product?.NoOfDishes || 0).fill(""),
+
+                      // 🔍 DEBUG LOGS
+                      console.log("========== PRODUCT DEBUG ==========");
+                      console.log("Selected Product ID:", product?.id);
+                      console.log(
+                        "Selected Product Name:",
+                        product?.productName,
                       );
+                      console.log("Raw defaultDishes:", product?.defaultDishes);
+
+                      const normalizedDefaults = (
+                        product?.defaultDishes ?? []
+                      ).map((d) => {
+                        return {
+                          id: d.dishId,
+                          name: d.dish?.dishName ?? d.dish?.name ?? "UNKNOWN",
+                        };
+                      });
+
+                      console.log(
+                        "Normalized default dishes:",
+                        normalizedDefaults,
+                      );
+                      console.log("===================================");
+
+                      // fill required dishes based on product slots
+                      const defaultDishIds = (product?.defaultDishes ?? []).map(
+                        (d) => d.dishId,
+                      );
+                      const filledRequired = Array.from(
+                        { length: product?.NoOfDishes || 0 },
+                        (_, index) => defaultDishIds[index] ?? "",
+                      );
+
+                      setRequiredDishes(filledRequired);
                     } else {
                       setSelectedProduct(null);
                       setRequiredDishes([]);
@@ -338,6 +385,7 @@ export default function Step1({ orderState }) {
                   }}
                 >
                   <option value="">— Select a product —</option>
+
                   {products.map((item) => (
                     <option key={item.id} value={item.id}>
                       {item.productName} — ₱{item.amount}
