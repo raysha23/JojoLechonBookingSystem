@@ -22,7 +22,7 @@ namespace api.DTOs.Order
         public string? PaymentMethod { get; set; }
         public decimal TotalAmount { get; set; }
 
-        public int ProductId { get; set; }
+        public int? ProductId { get; set; }
 
     }
 }

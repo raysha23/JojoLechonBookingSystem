@@ -1,4 +1,10 @@
-export default function NavButtons({ step, setStep, onRecordOrder }) {
+export default function NavButtons({
+  step,
+  setStep,
+  onRecordOrder,
+  canProceed = true,
+  blockedMessage = "Please complete required fields.",
+}) {
   const next = () => {
     if (step < 3) setStep(step + 1);
   };
@@ -10,6 +16,11 @@ export default function NavButtons({ step, setStep, onRecordOrder }) {
   const isFinalStep = step === 3;
 
   const handleNext = () => {
+    if (!canProceed) {
+      alert(blockedMessage);
+      return;
+    }
+
     if (isFinalStep) {
       onRecordOrder(); // triggers the confirmation modal in App.jsx
     } else {
@@ -49,12 +60,23 @@ export default function NavButtons({ step, setStep, onRecordOrder }) {
       {/* NEXT / RECORD */}
       <button
         onClick={handleNext}
-        className="bg-red-600 text-white px-6 py-3 rounded-full font-bold flex items-center space-x-4 shadow-lg hover:bg-red-700 transition-all group"
+        disabled={!canProceed}
+        className={`px-6 py-3 rounded-full font-bold flex items-center space-x-4 shadow-lg transition-all group ${
+          canProceed
+            ? "bg-red-600 text-white hover:bg-red-700"
+            : "bg-gray-300 text-gray-500 cursor-not-allowed"
+        }`}
       >
         <span className="text-sm font-black tracking-tight">
           {isFinalStep ? "Record Order" : "Next"}
         </span>
-        <div className="bg-red-500 p-2 rounded-full group-hover:translate-x-1 transition-transform">
+        <div
+          className={`p-2 rounded-full transition-transform ${
+            canProceed
+              ? "bg-red-500 group-hover:translate-x-1"
+              : "bg-gray-400"
+          }`}
+        >
           <svg
             className="w-5 h-5 text-white"
             fill="none"

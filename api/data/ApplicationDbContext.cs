@@ -33,6 +33,7 @@ namespace api.data
         public DbSet<User> Users { get; set; }
         public DbSet<Customer> Customers { get; set; }
         public DbSet<CustomerContact> CustomerContacts { get; set; }
+        public DbSet<ProductType> ProductTypes { get; set; }
         public DbSet<Product> Products { get; set; }
         public DbSet<ProductFreebie> ProductFreebies { get; set; }
         public DbSet<Dish> Dishes { get; set; }

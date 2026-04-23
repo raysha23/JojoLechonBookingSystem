@@ -2,9 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using api.data;
+using api.Interfaces;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 
 namespace api.Controllers
 {
@@ -12,21 +11,26 @@ namespace api.Controllers
     [ApiController]
     public class ProductController : ControllerBase
     {
-        private readonly ApplicationDbContext _context;
+        private readonly IProductRepository _productRepository;
 
-        public ProductController(ApplicationDbContext context)
+        public ProductController(IProductRepository productRepository)
         {
-            _context = context;
+            _productRepository = productRepository;
         }
 
         [HttpGet]
-        public async Task<IActionResult> GetProducts()
+        public async Task<IActionResult> GetProducts([FromQuery] int? productTypeId = null, [FromQuery] string? productTypeName = null)
         {
-            var products = await _context.Products
-                .Where(p => p.IsActive)
-                .ToListAsync();
+            var products = await _productRepository.GetProductsAsync(productTypeId, productTypeName);
 
             return Ok(products);
+        }
+
+        [HttpGet("types")]
+        public async Task<IActionResult> GetProductTypes()
+        {
+            var productTypes = await _productRepository.GetProductTypesAsync();
+            return Ok(productTypes);
         }
     }
 }

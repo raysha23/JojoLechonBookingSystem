@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Text.Json.Serialization;
 
 namespace api.Models
 {
@@ -11,7 +12,9 @@ namespace api.Models
         public bool IsActive { get; set; } = true;
 
         // Navigation
+        [JsonIgnore]
         public ICollection<ProductDefaultDish> ProductDefaultDishes { get; set; } = new List<ProductDefaultDish>();
+        [JsonIgnore]
         public ICollection<OrderDish> OrderDishes { get; set; } = new List<OrderDish>();
     }
 }

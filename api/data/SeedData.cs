@@ -35,8 +35,43 @@ namespace api.data
                 new Dish { DishName = "Steamed Rice", Amount = 500 }
             };
         }
-        public static List<Product> GetProducts()
+        public static List<ProductType> GetProductTypes()
         {
+            return new List<ProductType>
+            {
+                new ProductType
+                {
+                    TypeName = "lechon_package",
+                    Description = "Lechon package products with dishes and freebies",
+                    HasIncludedDishes = true,
+                    HasExtraDishes = true,
+                    HasFreebies = true
+                },
+                new ProductType
+                {
+                    TypeName = "belly_package",
+                    Description = "Belly package products with dishes and freebies",
+                    HasIncludedDishes = true,
+                    HasExtraDishes = true,
+                    HasFreebies = true
+                },
+                new ProductType
+                {
+                    TypeName = "lechon_only",
+                    Description = "Lechon only products",
+                    HasIncludedDishes = false,
+                    HasExtraDishes = true,
+                    HasFreebies = true
+                }
+            };
+        }
+
+        public static List<Product> GetProducts(List<ProductType> productTypes)
+        {
+            var lechonPackageType = productTypes.First(pt => pt.TypeName == "lechon_package");
+            var bellyPackageType = productTypes.First(pt => pt.TypeName == "belly_package");
+            var lechonOnlyType = productTypes.First(pt => pt.TypeName == "lechon_only");
+
             return new List<Product>
             {
                 new Product
@@ -44,28 +79,32 @@ namespace api.data
                     ProductName = "Lechon Package A",
                     Amount = 8500,
                     PromoAmount = 8000,
-                    NoOfIncludedDishes = 2
+                    NoOfIncludedDishes = 2,
+                    ProductTypeId = lechonPackageType.Id
                 },
                 new Product
                 {
                     ProductName = "Lechon Package B",
                     Amount = 10500,
                     PromoAmount = 9800,
-                    NoOfIncludedDishes = 3
+                    NoOfIncludedDishes = 3,
+                    ProductTypeId = lechonPackageType.Id
                 },
                 new Product
                 {
                     ProductName = "Belly Package A",
                     Amount = 6500,
                     PromoAmount = 6000,
-                    NoOfIncludedDishes = 2
+                    NoOfIncludedDishes = 2,
+                    ProductTypeId = bellyPackageType.Id
                 },
                 new Product
                 {
                     ProductName = "Lechon Only (Small)",
                     Amount = 5000,
                     PromoAmount = 0,
-                    NoOfIncludedDishes = 0
+                    NoOfIncludedDishes = 0,
+                    ProductTypeId = lechonOnlyType.Id
                 }
             };
         }

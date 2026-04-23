@@ -1,7 +1,7 @@
 [
   {
     "ContainingType": "Program\u002B\u003C\u003Ec",
-    "Method": "\u003C\u003CMain\u003E$\u003Eb__0_1",
+    "Method": "\u003C\u003CMain\u003E$\u003Eb__0_2",
     "RelativePath": "",
     "HttpMethod": "GET",
     "IsController": false,
@@ -19,18 +19,32 @@
   },
   {
     "ContainingType": "api.Controllers.OrderController",
-    "Method": "CreateOrder",
+    "Method": "GetOrders",
     "RelativePath": "api/order",
-    "HttpMethod": "POST",
+    "HttpMethod": "GET",
     "IsController": true,
     "Order": 0,
-    "Parameters": [
+    "Parameters": [],
+    "ReturnTypes": [
       {
-        "Name": "dto",
-        "Type": "api.DTOs.Order.CreateOrderRequestDTO",
-        "IsRequired": true
+        "Type": "System.Collections.Generic.IEnumerable\u00601[[api.DTOs.Order.OrderDTO, api, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]]",
+        "MediaTypes": [
+          "text/plain",
+          "application/json",
+          "text/json"
+        ],
+        "StatusCode": 200
       }
-    ],
+    ]
+  },
+  {
+    "ContainingType": "api.Controllers.ProductController",
+    "Method": "GetProducts",
+    "RelativePath": "api/products",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
     "ReturnTypes": []
   }
 ]

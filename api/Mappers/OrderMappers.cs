@@ -21,7 +21,7 @@ namespace api.Mappers
                 DeliveryTime = order.DeliveryTime,
                 PaymentMethod = order.PaymentMethod,
                 TotalAmount = order.TotalAmount,
-                ProductId = order.ProductId.GetValueOrDefault()
+                ProductId = order.ProductId
             };
         }
 
@@ -43,7 +43,9 @@ namespace api.Mappers
                 IsPrinted = false,
                 CreatedAt = DateTime.UtcNow,
                 CustomerId = customerId, // ✅ passed in from controller
-                ProductId = dto.ProductId
+                ProductId = dto.ProductId.HasValue && dto.ProductId.Value > 0
+                    ? dto.ProductId
+                    : null
             };
         }
     }

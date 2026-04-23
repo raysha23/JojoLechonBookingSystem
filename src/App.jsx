@@ -43,6 +43,49 @@ function App() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   // ─────────────────────────────────────────────────────────────────
 
+  const hasValidContacts = contacts.some(
+    (contact) => contact.trim() !== "" && /^[0-9]+$/.test(contact.trim()),
+  );
+  const hasInvalidContacts = contacts.some(
+    (contact) => contact.trim() !== "" && !/^[0-9]+$/.test(contact.trim()),
+  );
+  const isFacebookValid =
+    facebookProfile.trim() === "" ||
+    facebookProfile.includes("facebook.com") ||
+    facebookProfile.includes("fb.com");
+
+  const isStep1Valid =
+    orderType &&
+    deliveryDate &&
+    deliveryTime &&
+    productType &&
+    (productType === "dish_only" || selectedProduct !== null) &&
+    (orderType !== "delivery" || (address.trim() !== "" && zone.trim() !== ""));
+
+  const isStep2Valid =
+    customerName.trim() !== "" &&
+    /^[a-zA-Z\s]+$/.test(customerName.trim()) &&
+    hasValidContacts &&
+    !hasInvalidContacts &&
+    isFacebookValid;
+
+  const isStep3Valid = isStep1Valid && isStep2Valid;
+
+  const getBlockedMessage = () => {
+    if (step === 1) {
+      return "Complete Step 1 required fields: order type, date/time, delivery details (if delivery), product type, and product selection.";
+    }
+
+    if (step === 2) {
+      return "Complete Step 2 required fields: valid customer name and at least one valid contact number.";
+    }
+
+    return "Please complete all required order details before recording.";
+  };
+
+  const canProceedCurrentStep =
+    step === 1 ? isStep1Valid : step === 2 ? isStep2Valid : isStep3Valid;
+
   const orderState = {
     orderType,
     setOrderType,
@@ -76,6 +119,11 @@ function App() {
 
   // Opens the confirmation modal
   const handleRecordOrder = () => {
+    if (!isStep3Valid) {
+      alert("Please complete all required fields before recording the order.");
+      return;
+    }
+
     setShowConfirmModal(true);
   };
 
@@ -92,7 +140,7 @@ function App() {
       zone,
       deliveryDate,
       deliveryTime,
-      productId: null,
+      productId: selectedProduct?.id ?? null,
       paymentMethod,
       totalAmount: (() => {
         const deliveryFee = orderType === "delivery" ? getDeliveryFee(zone) : 0;
@@ -166,6 +214,8 @@ function App() {
                 step={step}
                 setStep={setStep}
                 onRecordOrder={handleRecordOrder}
+                canProceed={canProceedCurrentStep}
+                blockedMessage={getBlockedMessage()}
               />
             </div>
           )}
@@ -178,6 +228,8 @@ function App() {
               step={step}
               setStep={setStep}
               onRecordOrder={handleRecordOrder}
+              canProceed={canProceedCurrentStep}
+              blockedMessage={getBlockedMessage()}
             />
           </div>
         )}

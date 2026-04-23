@@ -1,10 +1,6 @@
 //File Path: JojoLechonBookingSystem/src/pages/step1.jsx
-import { useState } from "react";
-import { lechonPackageProducts } from "../data/lechon-package-data";
-import { bellyPackageProducts } from "../data/belly-package-data";
+import { useEffect, useState } from "react";
 import { dishProducts } from "../data/dishes-data";
-import { lechonDataProducts } from "../data/lechon-data";
-import { bellyDataProducts } from "../data/belly-data";
 import { deliveryCharges } from "../data/deliveryfee-data";
 
 export default function Step1({ orderState }) {
@@ -32,27 +28,84 @@ export default function Step1({ orderState }) {
 
   // Modal is UI-only, stays local
   const [showModal, setShowModal] = useState(false);
+  const [productTypes, setProductTypes] = useState([]);
+  const [products, setProducts] = useState([]);
+  const [selectedProductTypeId, setSelectedProductTypeId] = useState("");
+  const [isLoadingTypes, setIsLoadingTypes] = useState(false);
+  const [isLoadingProducts, setIsLoadingProducts] = useState(false);
 
-  const getProducts = () => {
-    switch (productType) {
-      case "lechon_package":
-        return lechonPackageProducts;
-      case "belly_package":
-        return bellyPackageProducts;
-      case "lechon_only":
-        return lechonDataProducts;
-      case "belly_only":
-        return bellyDataProducts;
-      case "dish_only":
-        return dishProducts;
-      default:
-        return [];
+  useEffect(() => {
+    const fetchProductTypes = async () => {
+      setIsLoadingTypes(true);
+      try {
+        const response = await fetch("/api/products/types");
+        if (!response.ok) throw new Error("Failed to fetch product types.");
+        const data = await response.json();
+        setProductTypes(data ?? []);
+      } catch (error) {
+        console.error("Product type fetch error:", error);
+        setProductTypes([]);
+      } finally {
+        setIsLoadingTypes(false);
+      }
+    };
+
+    fetchProductTypes();
+  }, []);
+
+  useEffect(() => {
+    // Keep the dropdown ID in sync with the existing productType name state.
+    if (!productType || productType === "dish_only") {
+      setSelectedProductTypeId("");
+      return;
     }
-  };
 
-  const products = getProducts();
+    const selectedType = productTypes.find((type) => type.typeName === productType);
+    setSelectedProductTypeId(selectedType ? String(selectedType.id) : "");
+  }, [productType, productTypes]);
+
+  useEffect(() => {
+    const fetchProductsByType = async () => {
+      if (!selectedProductTypeId) {
+        setProducts([]);
+        return;
+      }
+
+      setIsLoadingProducts(true);
+      try {
+        const response = await fetch(`/api/products?productTypeId=${selectedProductTypeId}`);
+        if (!response.ok) throw new Error("Failed to fetch products.");
+
+        const data = await response.json();
+        const mappedProducts = (data ?? []).map((product) => ({
+          id: product.id,
+          productName: product.productName,
+          amount: product.amount,
+          promoAmount: product.promoAmount,
+          NoOfDishes: product.noOfIncludedDishes ?? 0,
+          freebies: (product.freebies ?? []).map((f) => f.freebieName),
+        }));
+
+        setProducts(mappedProducts);
+      } catch (error) {
+        console.error("Products fetch error:", error);
+        setProducts([]);
+      } finally {
+        setIsLoadingProducts(false);
+      }
+    };
+
+    fetchProductsByType();
+  }, [selectedProductTypeId]);
+
   const selectedProduct =
-    selectedProductIndex !== "" ? products[selectedProductIndex] : null;
+    selectedProductIndex !== ""
+      ? products.find((p) => String(p.id) === String(selectedProductIndex)) ?? null
+      : null;
+
+  useEffect(() => {
+    setSelectedProduct(selectedProduct);
+  }, [selectedProduct, setSelectedProduct]);
 
   // Logic Flags
   const showProductDropdown = productType !== "" && productType !== "dish_only";
@@ -205,9 +258,15 @@ export default function Step1({ orderState }) {
             </label>
             <select
               className="w-full p-3 border rounded-xl"
-              value={productType}
+              value={selectedProductTypeId}
+              disabled={isLoadingTypes}
               onChange={(e) => {
-                setProductType(e.target.value);
+                const selectedId = e.target.value;
+                setSelectedProductTypeId(selectedId);
+                const selectedType = productTypes.find(
+                  (type) => String(type.id) === String(selectedId),
+                );
+                setProductType(selectedType?.typeName ?? "");
                 setSelectedProductIndex("");
                 setSelectedProduct(null);
                 setRequiredDishes([]);
@@ -215,11 +274,14 @@ export default function Step1({ orderState }) {
               }}
             >
               <option value="">— Select a product type —</option>
-              <option value="lechon_package">Lechon Package</option>
-              <option value="belly_package">Belly Package</option>
-              <option value="lechon_only">Lechon Only</option>
-              <option value="belly_only">Belly Only</option>
-              <option value="dish_only">Dish Only</option>
+              {productTypes.map((type) => (
+                <option key={type.id} value={type.id}>
+                  {type.typeName
+                    .split("_")
+                    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+                    .join(" ")}
+                </option>
+              ))}
             </select>
           </div>
 
@@ -232,11 +294,14 @@ export default function Step1({ orderState }) {
               <select
                 className="w-full p-3 border border-red-500 rounded-xl"
                 value={selectedProductIndex}
+                disabled={isLoadingProducts}
                 onChange={(e) => {
-                  const index = e.target.value;
-                  setSelectedProductIndex(index);
-                  if (index !== "") {
-                    const product = products[index];
+                  const selectedId = e.target.value;
+                  setSelectedProductIndex(selectedId);
+                  if (selectedId !== "") {
+                    const product = products.find(
+                      (p) => String(p.id) === String(selectedId),
+                    );
                     setSelectedProduct(product);
                     setRequiredDishes(Array(product?.NoOfDishes || 0).fill(""));
                   } else {
@@ -246,8 +311,8 @@ export default function Step1({ orderState }) {
                 }}
               >
                 <option value="">— Select a product —</option>
-                {products.map((item, index) => (
-                  <option key={index} value={index}>
+                {products.map((item) => (
+                  <option key={item.id} value={item.id}>
                     {item.productName} — ₱{item.amount}
                   </option>
                 ))}

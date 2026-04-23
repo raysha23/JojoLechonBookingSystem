@@ -1,4 +1,6 @@
 using api.data;
+using api.Interfaces;
+using api.Repository;
 using Microsoft.EntityFrameworkCore;
 
 
@@ -9,6 +11,7 @@ var builder = WebApplication.CreateBuilder(args);
 // Database
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+builder.Services.AddScoped<IProductRepository, ProductRepository>();
 
 // ✅ Swagger services (MISSING BEFORE)
 builder.Services.AddControllers();
@@ -33,7 +36,9 @@ using (var scope = app.Services.CreateScope())
 {
     var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 
-    context.Database.EnsureCreated();
+    // Use migrations so schema updates (like ProductTypes) are applied
+    // to existing databases. EnsureCreated does not evolve an existing DB.
+    context.Database.Migrate();
 
     // ROLES
     if (!context.Roles.Any())
@@ -60,10 +65,19 @@ using (var scope = app.Services.CreateScope())
         context.SaveChanges();
     }
 
+    // PRODUCT TYPES
+    if (!context.ProductTypes.Any())
+    {
+        var productTypes = SeedData.GetProductTypes();
+        context.ProductTypes.AddRange(productTypes);
+        context.SaveChanges();
+    }
+
     // PRODUCTS
     if (!context.Products.Any())
     {
-        var products = SeedData.GetProducts();
+        var productTypes = context.ProductTypes.ToList();
+        var products = SeedData.GetProducts(productTypes);
         context.Products.AddRange(products);
         context.SaveChanges();
     }
@@ -94,7 +108,12 @@ app.UseSwagger();
 app.UseSwaggerUI();
 
 // Middleware
-app.UseHttpsRedirection();
+// Avoid forcing HTTP->HTTPS in local development because the frontend
+// proxy currently targets HTTP and may fail with cert/redirect issues.
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHttpsRedirection();
+}
 
 // Test endpoint
 app.MapGet("/", () => "API is running...");

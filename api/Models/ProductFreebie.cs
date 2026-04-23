@@ -1,4 +1,5 @@
 using System;
+using System.Text.Json.Serialization;
 
 namespace api.Models
 {
@@ -11,6 +12,7 @@ namespace api.Models
         public int ProductId { get; set; }
 
         // Navigation
+        [JsonIgnore]
         public Product Product { get; set; } = null!;
     }
 }

@@ -25,29 +25,48 @@
       }
     },
     "/api/order": {
-      "post": {
+      "get": {
         "tags": [
           "Order"
         ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/CreateOrderRequestDTO"
-              }
-            },
-            "text/json": {
-              "schema": {
-                "$ref": "#/components/schemas/CreateOrderRequestDTO"
-              }
-            },
-            "application/*+json": {
-              "schema": {
-                "$ref": "#/components/schemas/CreateOrderRequestDTO"
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/OrderDTO"
+                  }
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/OrderDTO"
+                  }
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/OrderDTO"
+                  }
+                }
               }
             }
           }
-        },
+        }
+      }
+    },
+    "/api/products": {
+      "get": {
+        "tags": [
+          "Product"
+        ],
         "responses": {
           "200": {
             "description": "OK"
@@ -58,7 +77,7 @@
   },
   "components": {
     "schemas": {
-      "CreateOrderRequestDTO": {
+      "OrderDTO": {
         "type": "object",
         "properties": {
           "customerName": {
@@ -106,8 +125,7 @@
           },
           "productId": {
             "type": "integer",
-            "format": "int32",
-            "nullable": true
+            "format": "int32"
           }
         },
         "additionalProperties": false
@@ -120,6 +138,9 @@
     },
     {
       "name": "Order"
+    },
+    {
+      "name": "Product"
     }
   ]
 }
