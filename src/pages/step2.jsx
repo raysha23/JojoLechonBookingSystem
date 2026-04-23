@@ -23,12 +23,19 @@ export default function Step2({ orderState }) {
     setErrors({ ...errors, name: !isValid });
   };
 
+  const validatePhone = (value) => /^09\d{0,9}$/.test(value);
+  const validatePhoneComplete = (value) => /^09\d{9}$/.test(value);
+
   const handleContactChange = (index, value) => {
-    const isValid = /^[0-9]*$/.test(value);
+    const numeric = value.replace(/\D/g, "").slice(0, 11);
     const newContacts = [...contacts];
-    newContacts[index] = value;
+    newContacts[index] = numeric;
     setContacts(newContacts);
-    setErrors({ ...errors, contact: !isValid });
+
+    const invalid = newContacts.some(
+      (contact) => contact !== "" && !validatePhone(contact),
+    );
+    setErrors({ ...errors, contact: invalid });
   };
 
   const addContact = () => setContacts([...contacts, ""]);
@@ -36,14 +43,29 @@ export default function Step2({ orderState }) {
   const removeContact = (index) =>
     setContacts(contacts.filter((_, i) => i !== index));
 
+  const normalizeFacebookUrl = (value) => {
+    const trimmed = value.trim();
+    if (!trimmed) return "";
+    if (/^https?:\/\//i.test(trimmed)) return trimmed;
+    return `https://${trimmed}`;
+  };
+
   const handleFbChange = (e) => {
     const value = e.target.value;
     const isValid =
       value === "" ||
-      value.includes("facebook.com") ||
-      value.includes("fb.com");
+      /^(https?:\/\/)?(www\.)?(facebook\.com|fb\.com)\/.+/i.test(value.trim());
     setFacebookProfile(value);
     setErrors({ ...errors, fb: !isValid });
+  };
+
+  const handleFbBlur = () => {
+    if (!facebookProfile) return;
+    if (/^(https?:\/\/)?(www\.)?(facebook\.com|fb\.com)\/.+/i.test(
+      facebookProfile.trim(),
+    )) {
+      setFacebookProfile(normalizeFacebookUrl(facebookProfile));
+    }
   };
 
   return (
@@ -80,10 +102,10 @@ export default function Step2({ orderState }) {
           {contacts.map((contact, index) => (
             <div key={index} className="flex items-center gap-2">
               <input
-                type="text"
+                type="tel"
                 value={contact}
                 onChange={(e) => handleContactChange(index, e.target.value)}
-                placeholder={`Contact number ${index + 1}`}
+                placeholder={`09XXXXXXXXX`}
                 maxLength="11"
                 className="w-full p-4 bg-white border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-red-500 text-gray-600 italic"
               />
@@ -100,7 +122,7 @@ export default function Step2({ orderState }) {
         </div>
         {errors.contact && (
           <p className="mt-2 text-xs text-red-500 font-medium">
-            ⚠ Contact number must contain numbers only.
+            ⚠ Contact numbers must start with 09 and be 11 digits long.
           </p>
         )}
         <button
@@ -117,10 +139,11 @@ export default function Step2({ orderState }) {
           Facebook Profile (Optional)
         </label>
         <input
-          type="text"
+          type="url"
           value={facebookProfile}
           onChange={handleFbChange}
-          placeholder="https://facebook.com/..."
+          onBlur={handleFbBlur}
+          placeholder="https://facebook.com/yourpage"
           className={`w-full p-4 bg-white border rounded-xl outline-none focus:ring-2 focus:ring-red-500 text-gray-600 italic ${
             errors.fb ? "border-red-500" : "border-gray-200"
           }`}

@@ -151,6 +151,10 @@ function App() {
           : 0;
         return packageTotal + extraTotal + deliveryFee - discount;
       })(),
+      dishes: {
+        required: requiredDishes.filter(Boolean).map(Number),
+        extra: extraDishes.filter(Boolean).map(Number),
+      },
     };
 
     try {

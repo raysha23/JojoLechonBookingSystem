@@ -100,6 +100,123 @@ export default function Step1({ orderState }) {
     setSelectedProductTypeId(selectedType ? String(selectedType.id) : "");
   }, [productType, productTypes]);
 
+  // ── AUTO-DETECT ZONE FROM ADDRESS KEYWORDS ───
+  const zoneKeywords = {
+    "Near Talisay": [
+      "talisay",
+      "liburon",
+      "laya",
+      "batasan",
+      "tangke",
+      "tayud",
+    ],
+    Inayawan: ["inayawan", "basac", "basak"],
+    Minglanilla: ["minglanilla", "tampo"],
+    "Naga Proper": [
+      "naga",
+      "babag",
+      "buhisan",
+      "danao",
+      "tigbao",
+      "naga proper",
+    ],
+    Carcar: ["carcar", "binaliw", "buwakan", "canlumot"],
+    "San Fernando": ["san fernando"],
+    "Naga Mountains": ["naga mountains", "sungod", "bugnay"],
+    Pardo: ["pardo", "balili", "banay", "labogon", "sanza"],
+    Basak: ["basak", "apas"],
+    Quiot: ["quiot", "banilad", "kalubihan"],
+    Mambaling: ["mambaling", "malubog", "potao", "sawang", "kulasihan"],
+    Pasil: ["pasil", "kasambagan", "kangitngit"],
+    Tisa: ["tisa", "bulacao", "kalungsod", "tomonoy"],
+    Banawa: ["banawa", "cambinocot", "manlibod"],
+    Sambag: ["sambag", "pamulak", "putol"],
+    "V. Rama": ["v. rama", "v rama", "v.rama", "vrama"],
+    Fuente: ["fuente", "logon", "tejero"],
+    Lahug: ["lahug", "busay", "calizon"],
+    Mabolo: ["mabolo", "bulacao north", "pulcahan"],
+    Talamban: ["talamban", "cansaga", "sirao"],
+    "Pit-os": ["pit-os", "pitos", "langub", "sapangdaku"],
+  };
+
+  useEffect(() => {
+    if (!address || orderType !== "delivery") {
+      return;
+    }
+
+    const lowerAddress = address.toLowerCase();
+
+    // Check if any keyword matches
+    for (const [zoneName, keywords] of Object.entries(zoneKeywords)) {
+      if (keywords.some((keyword) => lowerAddress.includes(keyword))) {
+        setZone(zoneName);
+        return; // Stop after finding first match
+      }
+    }
+  }, [address, orderType]);
+
+  // ── GET AVAILABLE TIMES (with 5-hour processing buffer) ──
+  const getAvailableTimes = () => {
+    const allTimes = [
+      "12:00 AM",
+      "1:00 AM",
+      "2:00 AM",
+      "3:00 AM",
+      "4:00 AM",
+      "5:00 AM",
+      "6:00 AM",
+      "7:00 AM",
+      "8:00 AM",
+      "9:00 AM",
+      "10:00 AM",
+      "11:00 AM",
+      "12:00 PM",
+      "1:00 PM",
+      "2:00 PM",
+      "3:00 PM",
+      "4:00 PM",
+      "5:00 PM",
+      "6:00 PM",
+      "7:00 PM",
+      "8:00 PM",
+      "9:00 PM",
+      "10:00 PM",
+      "11:00 PM",
+    ];
+
+    if (!deliveryDate) return allTimes;
+
+    const today = new Date().toISOString().split("T")[0];
+    const isToday = deliveryDate === today;
+
+    if (!isToday) {
+      return allTimes; // Future dates: all times available
+    }
+
+    // TODAY: Filter times that are at least 5 hours from now
+    const now = new Date();
+    const currentHour = now.getHours();
+    const currentMinutes = now.getMinutes();
+    const cutoffHour = currentHour + 5;
+
+    return allTimes.filter((timeStr) => {
+      const [time, period] = timeStr.split(" ");
+      let [hours, minutes] = time.split(":").map(Number);
+
+      // Convert to 24-hour format
+      if (period === "PM" && hours !== 12) hours += 12;
+      if (period === "AM" && hours === 12) hours = 0;
+
+      // Check if time is at least 5 hours away
+      if (hours > cutoffHour) return true;
+      if (hours === cutoffHour && minutes >= currentMinutes) return true;
+
+      return false;
+    });
+  };
+
+  const availableTimes = getAvailableTimes();
+
   const selectedProduct =
     selectedProductIndex !== ""
       ? (products.find((p) => String(p.id) === String(selectedProductIndex)) ??
@@ -232,49 +349,7 @@ export default function Step1({ orderState }) {
               </div>
             )}
 
-            {/* TIME */}
-            <div>
-              <label className="block text-sm font-bold text-gray-700 mb-2">
-                Time
-              </label>
-              <select
-                className="w-full p-3 border border-gray-200 rounded-xl"
-                value={deliveryTime}
-                onChange={(e) => setDeliveryTime(e.target.value)}
-              >
-                <option value="">Select time</option>
-                {[
-                  "12:00 AM",
-                  "1:00 AM",
-                  "2:00 AM",
-                  "3:00 AM",
-                  "4:00 AM",
-                  "5:00 AM",
-                  "6:00 AM",
-                  "7:00 AM",
-                  "8:00 AM",
-                  "9:00 AM",
-                  "10:00 AM",
-                  "11:00 AM",
-                  "12:00 PM",
-                  "1:00 PM",
-                  "2:00 PM",
-                  "3:00 PM",
-                  "4:00 PM",
-                  "5:00 PM",
-                  "6:00 PM",
-                  "7:00 PM",
-                  "8:00 PM",
-                  "9:00 PM",
-                  "10:00 PM",
-                  "11:00 PM",
-                ].map((t) => (
-                  <option key={t}>{t}</option>
-                ))}
-              </select>
-            </div>
-
-            {/* DATE */}
+            {/* DATE - FIRST */}
             <div>
               <label className="block text-sm font-bold text-gray-700 mb-2">
                 Delivery Date
@@ -286,7 +361,39 @@ export default function Step1({ orderState }) {
                 min={new Date().toISOString().split("T")[0]}
                 className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-red-500 outline-none"
               />
+              {deliveryDate === new Date().toISOString().split("T")[0] && (
+                <p className="text-xs text-amber-600 mt-1">
+                  ⏱️ Processing time: 5 hours. Available times shown below.
+                </p>
+              )}
             </div>
+
+            {/* TIME - SHOWN ONLY AFTER DATE IS SELECTED */}
+            {deliveryDate && (
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-2">
+                  Delivery Time
+                </label>
+                {availableTimes.length === 0 ? (
+                  <div className="w-full p-3 border border-red-200 bg-red-50 rounded-xl text-sm text-red-600 font-medium">
+                    ❌ No available times for today. Please select a future date.
+                  </div>
+                ) : (
+                  <select
+                    className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-red-500 outline-none"
+                    value={deliveryTime}
+                    onChange={(e) => setDeliveryTime(e.target.value)}
+                  >
+                    <option value="">Select time</option>
+                    {availableTimes.map((t) => (
+                      <option key={t} value={t}>
+                        {t}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </div>
+            )}
 
             {/* PRODUCT TYPE */}
             <div>
