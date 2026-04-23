@@ -8,6 +8,13 @@ namespace api.DTOs.Order
     // What the server sends back to the client when an order is created or retrieved
     public class OrderDTO
     {
+        public int Id { get; set; }
+        public string OrderNumber { get; set; } = string.Empty;
+        public DateTime CreatedAt { get; set; }
+        public DateTime? DeletedAt { get; set; }
+        public bool IsPrinted { get; set; }
+        public DateTime? PrintedAt { get; set; }
+
         public string? CustomerName { get; set; }
         public List<string>? Contacts { get; set; }
         public string? FacebookProfile { get; set; }
@@ -23,6 +30,6 @@ namespace api.DTOs.Order
         public decimal TotalAmount { get; set; }
 
         public int? ProductId { get; set; }
-
+        public string? ProductName { get; set; }
     }
 }

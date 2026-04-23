@@ -21,14 +21,25 @@ namespace api.Controllers
         }
 
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<OrderDTO>>> GetOrders()
+        public async Task<ActionResult<IEnumerable<OrderDTO>>> GetOrders([FromQuery] string? date = null)
         {
-            var orders = await _context.Orders
+            IQueryable<Order> query = _context.Orders
                 .Include(o => o.Customer)
                     .ThenInclude(c => c.Contacts)
-                .Include(o => o.Product)
-                .ToListAsync();
+                .Include(o => o.Product);
 
+            // Filter by delivery date if provided
+            if (!string.IsNullOrEmpty(date))
+            {
+                if (DateTime.TryParse(date, out var filterDate))
+                {
+                    var startOfDay = filterDate.Date;
+                    var endOfDay = startOfDay.AddDays(1);
+                    query = query.Where(o => o.DeliveryDate >= startOfDay && o.DeliveryDate < endOfDay);
+                }
+            }
+
+            var orders = await query.ToListAsync();
             var orderDTOs = orders.Select(OrderMappers.ToOrderDTO).ToList();
             return Ok(orderDTOs);
         }
@@ -95,6 +106,90 @@ namespace api.Controllers
             }
 
             return Created($"/api/order/{createdOrder.Id}", createdOrder.ToOrderDTO());
+        }
+
+        [HttpPut("{id}")]
+        public async Task<ActionResult<OrderDTO>> UpdateOrder(int id, [FromBody] UpdateOrderDTO updateOrderDto)
+        {
+            var order = await _context.Orders.FindAsync(id);
+            if (order == null)
+            {
+                return NotFound($"Order with ID {id} not found.");
+            }
+
+            // Update basic fields
+            if (!string.IsNullOrEmpty(updateOrderDto.OrderType))
+                order.OrderType = updateOrderDto.OrderType;
+            
+            if (updateOrderDto.DeliveryDate != default)
+                order.DeliveryDate = updateOrderDto.DeliveryDate;
+            
+            if (!string.IsNullOrEmpty(updateOrderDto.DeliveryTime))
+                order.DeliveryTime = updateOrderDto.DeliveryTime;
+            
+            if (!string.IsNullOrEmpty(updateOrderDto.PaymentMethod))
+                order.PaymentMethod = updateOrderDto.PaymentMethod;
+            
+            if (updateOrderDto.TotalAmount > 0)
+                order.TotalAmount = updateOrderDto.TotalAmount;
+            
+            if (updateOrderDto.IsPrinted.HasValue)
+                order.IsPrinted = updateOrderDto.IsPrinted.Value;
+
+            _context.Orders.Update(order);
+            await _context.SaveChangesAsync();
+
+            var updatedOrder = await _context.Orders
+                .Include(o => o.Customer)
+                    .ThenInclude(c => c.Contacts)
+                .Include(o => o.Product)
+                .FirstOrDefaultAsync(o => o.Id == id);
+
+            return Ok(updatedOrder?.ToOrderDTO());
+        }
+
+        [HttpDelete("{id}")]
+        public async Task<ActionResult> DeleteOrder(int id)
+        {
+            var order = await _context.Orders.FindAsync(id);
+            if (order == null)
+            {
+                return NotFound($"Order with ID {id} not found.");
+            }
+
+            // Soft delete - mark with DeletedAt timestamp
+            order.DeletedAt = DateTime.UtcNow;
+            order.Status = "deleted";
+
+            _context.Orders.Update(order);
+            await _context.SaveChangesAsync();
+
+            return NoContent();
+        }
+
+        [HttpPost("{id}/restore")]
+        public async Task<ActionResult<OrderDTO>> RestoreOrder(int id)
+        {
+            var order = await _context.Orders.FindAsync(id);
+            if (order == null)
+            {
+                return NotFound($"Order with ID {id} not found.");
+            }
+
+            // Restore - clear DeletedAt and set status back to active
+            order.DeletedAt = null;
+            order.Status = "active";
+
+            _context.Orders.Update(order);
+            await _context.SaveChangesAsync();
+
+            var restoredOrder = await _context.Orders
+                .Include(o => o.Customer)
+                    .ThenInclude(c => c.Contacts)
+                .Include(o => o.Product)
+                .FirstOrDefaultAsync(o => o.Id == id);
+
+            return Ok(restoredOrder?.ToOrderDTO());
         }
 
     }

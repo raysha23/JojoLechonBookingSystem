@@ -100,6 +100,24 @@ using (var scope = app.Services.CreateScope())
         context.ProductDefaultDishes.AddRange(defaults);
         context.SaveChanges();
     }
+
+    // CUSTOMERS
+    if (!context.Customers.Any())
+    {
+        var customers = SeedData.GetCustomers();
+        context.Customers.AddRange(customers);
+        context.SaveChanges();
+    }
+
+    // ORDERS
+    if (!context.Orders.Any())
+    {
+        var customers = context.Customers.ToList();
+        var products = context.Products.ToList();
+        var orders = SeedData.GetOrders(customers, products);
+        context.Orders.AddRange(orders);
+        context.SaveChanges();
+    }
 }
 app.UseCors("AllowReactApp");
 

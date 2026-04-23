@@ -134,16 +134,104 @@ namespace api.data
             var friedRice = dishes.First(d => d.DishName == "Fried Rice");
 
             return new List<ProductDefaultDish>
-    {
-        new ProductDefaultDish { ProductId = lechonA.Id, DishId = shanghai.Id },
-        new ProductDefaultDish { ProductId = lechonA.Id, DishId = pancit.Id },
+            {
+                new ProductDefaultDish { ProductId = lechonA.Id, DishId = shanghai.Id },
+                new ProductDefaultDish { ProductId = lechonA.Id, DishId = pancit.Id },
 
-        new ProductDefaultDish { ProductId = lechonB.Id, DishId = shanghai.Id },
-        new ProductDefaultDish { ProductId = lechonB.Id, DishId = chopsuey.Id },
+                new ProductDefaultDish { ProductId = lechonB.Id, DishId = shanghai.Id },
+                new ProductDefaultDish { ProductId = lechonB.Id, DishId = chopsuey.Id },
 
-        new ProductDefaultDish { ProductId = bellyA.Id, DishId = pancit.Id },
-        new ProductDefaultDish { ProductId = bellyA.Id, DishId = friedRice.Id }
-    };
+                new ProductDefaultDish { ProductId = bellyA.Id, DishId = pancit.Id },
+                new ProductDefaultDish { ProductId = bellyA.Id, DishId = friedRice.Id }
+            };
+        }
+        public static List<Customer> GetCustomers()
+        {
+            return new List<Customer>
+            {
+                new Customer
+                {
+                    Name = "Maria Santos",
+                    FacebookProfile = "https://facebook.com/maria.santos",
+                    Contacts = new List<CustomerContact>
+                    {
+                        new CustomerContact { ContactNumber = "09171234567" }
+                    }
+                },
+                new Customer
+                {
+                    Name = "Juan Dela Cruz",
+                    FacebookProfile = "https://facebook.com/juan.delacruz",
+                    Contacts = new List<CustomerContact>
+                    {
+                        new CustomerContact { ContactNumber = "09181234567" }
+                    }
+                },
+                new Customer
+                {
+                    Name = "Ana Reyes",
+                    FacebookProfile = "https://facebook.com/ana.reyes",
+                    Contacts = new List<CustomerContact>
+                    {
+                        new CustomerContact { ContactNumber = "09191234567" }
+                    }
+                }
+            };
+        }
+        public static List<Order> GetOrders(List<Customer> customers, List<Product> products)
+        {
+            return new List<Order>
+            {
+                new Order
+                {
+                    OrderNumber = "ORD-001",
+                    OrderType = "delivery",
+                    Address = "123 Mango St., Cebu City",
+                    Zone = "Zone 1",
+                    DeliveryDate = DateTime.Today, // Today's date
+                    DeliveryTime = "10:00 AM",
+                    PaymentMethod = "gcash",
+                    TotalAmount = 14450,
+                    SubmittedByType = "customer",
+                    Status = "active",
+                    IsPrinted = false,
+                    CreatedAt = DateTime.UtcNow,
+                    CustomerId = customers.First().Id,
+                    ProductId = products.First().Id
+                },
+                new Order
+                {
+                    OrderNumber = "ORD-002",
+                    OrderType = "pickup",
+                    DeliveryDate = DateTime.Today, // Today's date
+                    DeliveryTime = "2:00 PM",
+                    PaymentMethod = "cod",
+                    TotalAmount = 15950,
+                    SubmittedByType = "customer",
+                    Status = "active",
+                    IsPrinted = true,
+                    CreatedAt = DateTime.UtcNow.AddHours(-2),
+                    CustomerId = customers.Skip(1).First().Id,
+                    ProductId = products.Skip(1).First().Id
+                },
+                new Order
+                {
+                    OrderNumber = "ORD-003",
+                    OrderType = "delivery",
+                    Address = "456 Pineapple Ave., Cebu City",
+                    Zone = "Zone 2",
+                    DeliveryDate = DateTime.Today.AddDays(1), // Tomorrow's date
+                    DeliveryTime = "11:30 AM",
+                    PaymentMethod = "gcash",
+                    TotalAmount = 13950,
+                    SubmittedByType = "customer",
+                    Status = "active",
+                    IsPrinted = false,
+                    CreatedAt = DateTime.UtcNow.AddHours(-1),
+                    CustomerId = customers.Skip(2).First().Id,
+                    ProductId = products.First().Id
+                }
+            };
         }
     }
 }

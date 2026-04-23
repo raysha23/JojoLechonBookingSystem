@@ -66,14 +66,14 @@ export default function AdminDashboard() {
   const [filterDate, setFilterDate] = useState(getToday());
   const [printFilter, setPrintFilter] = useState("all");
 
-  const loadBookings = async () => {
-    const data = await getOrders({ showDeleted });
+  const loadBookings = async (date = filterDate) => {
+    const data = await getOrders({ date });
     setBookings(data);
   };
 
   useEffect(() => {
-    loadBookings();
-  }, [showDeleted]);
+    loadBookings(filterDate);
+  }, [filterDate]);
 
   const handleLogout = () => {
     localStorage.removeItem("adminToken");
@@ -83,26 +83,27 @@ export default function AdminDashboard() {
   const handleDelete = async () => {
     await softDeleteOrder(deleteTarget.id);
     setDeleteTarget(null);
-    loadBookings();
+    loadBookings(filterDate);
   };
 
   const handleRestore = async () => {
     await restoreOrder(restoreTarget.id);
     setRestoreTarget(null);
-    loadBookings();
+    loadBookings(filterDate);
   };
 
   const handleUpdate = async (updatedData) => {
     await updateOrder(editingBooking.id, updatedData);
     setEditingBooking(null);
-    loadBookings();
+    loadBookings(filterDate);
   };
 
   const filtered = bookings
     .filter((b) => {
-      const matchDate = filterDate ? b.order.deliveryDate === filterDate : true;
+      // Remove frontend date filtering since API already filters by date
+      const matchDate = true; // API handles date filtering
       const matchSearch = search
-        ? b.customer.name.toLowerCase().includes(search.toLowerCase())
+        ? b.customerName.toLowerCase().includes(search.toLowerCase())
         : true;
       const matchPrint =
         printFilter === "all"
@@ -115,27 +116,27 @@ export default function AdminDashboard() {
     })
     .sort(
       (a, b) =>
-        parseTime(a.order.deliveryTime) - parseTime(b.order.deliveryTime),
+        parseTime(a.deliveryTime) - parseTime(b.deliveryTime),
     );
 
   const unprintedCount = bookings.filter(
     (b) =>
-      !b.isPrinted && (filterDate ? b.order.deliveryDate === filterDate : true),
+      !b.isPrinted && (filterDate ? new Date(b.deliveryDate).toISOString().split('T')[0] === filterDate : true),
   ).length;
 
   const printedCount = bookings.filter(
     (b) =>
-      b.isPrinted && (filterDate ? b.order.deliveryDate === filterDate : true),
+      b.isPrinted && (filterDate ? new Date(b.deliveryDate).toISOString().split('T')[0] === filterDate : true),
   ).length;
 
   const grandTotal = filtered.reduce(
-    (sum, b) => sum + (b.payment.total || 0),
+    (sum, b) => sum + (b.totalAmount || 0),
     0,
   );
   const activeCount = bookings.filter((b) => !b.deletedAt).length;
   const deletedCount = bookings.filter((b) => b.deletedAt).length;
   const gcashCount = bookings.filter(
-    (b) => b.payment.method === "gcash",
+    (b) => b.paymentMethod === "gcash",
   ).length;
 
   return (
@@ -557,7 +558,7 @@ export default function AdminDashboard() {
       {deleteTarget && (
         <ConfirmModal
           title="Delete Booking"
-          message={`Delete the booking for "${deleteTarget.customer.name}"? This can be restored later.`}
+          message={`Delete the booking for "${deleteTarget.customerName}"? This can be restored later.`}
           confirmLabel="Delete"
           confirmColor="red"
           onConfirm={handleDelete}
@@ -567,7 +568,7 @@ export default function AdminDashboard() {
       {restoreTarget && (
         <ConfirmModal
           title="Restore Booking"
-          message={`Restore the booking for "${restoreTarget.customer.name}"?`}
+          message={`Restore the booking for "${restoreTarget.customerName}"?`}
           confirmLabel="Restore"
           confirmColor="green"
           onConfirm={handleRestore}
@@ -602,7 +603,7 @@ function Th({ children, wide, className = "" }) {
 function BookingRow({ booking, onView, onEdit, onDelete, onRestore }) {
   const extraDishes = booking.dishes?.extra?.filter(Boolean) || [];
   const discount = Math.abs(Number(booking.product?.promoAmount || 0));
-  const processTime = getProcessTime(booking.order.deliveryTime);
+  const processTime = getProcessTime(booking.deliveryTime);
 
   return (
     <tr
@@ -611,14 +612,14 @@ function BookingRow({ booking, onView, onEdit, onDelete, onRestore }) {
       {/* DELIVERY TIME */}
       <td className="px-5 py-4 whitespace-nowrap border border-gray-200">
         <span className="font-black text-gray-800 text-sm">
-          {booking.order.deliveryTime || "—"}
+          {booking.deliveryTime || "—"}
         </span>
       </td>
 
       {/* CUSTOMER */}
       <td className="px-5 py-4 whitespace-nowrap border border-gray-200">
         <p className="font-black text-gray-900 text-sm">
-          {booking.customer.name}
+          {booking.customerName}
         </p>
       </td>
 
@@ -626,12 +627,12 @@ function BookingRow({ booking, onView, onEdit, onDelete, onRestore }) {
       <td className="px-5 py-4 border border-gray-200">
         <span
           className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${
-            booking.order.orderType === "delivery"
+            booking.orderType === "delivery"
               ? "bg-blue-50 text-blue-600"
               : "bg-amber-50 text-amber-600"
           }`}
         >
-          {booking.order.orderType === "delivery" ? "Delivery" : "Pickup"}
+          {booking.orderType === "delivery" ? "Delivery" : "Pickup"}
         </span>
       </td>
 
@@ -682,7 +683,7 @@ function BookingRow({ booking, onView, onEdit, onDelete, onRestore }) {
       {/* TOTAL AMOUNT */}
       <td className="px-5 py-4 whitespace-nowrap border border-gray-200">
         <p className="text-base font-black text-gray-900">
-          {fmt(booking.payment.total)}
+          {fmt(booking.totalAmount)}
         </p>
         {discount > 0 && (
           <p className="text-xs text-emerald-500 font-bold mt-0.5">
@@ -700,14 +701,14 @@ function BookingRow({ booking, onView, onEdit, onDelete, onRestore }) {
 
       {/* LOCATION */}
       <td className="px-5 py-4 min-w-[120px] border border-gray-200">
-        {booking.order.orderType === "delivery" ? (
+        {booking.orderType === "delivery" ? (
           <div>
             <p className="text-sm  text-gray-500">
-              {booking.order.zone || "—"}
+              {booking.zone || "—"}
             </p>
-            {booking.order.address && (
+            {booking.address && (
               <p className="text-xs text-black font-bold mt-0.5 max-w-[160px]">
-                {booking.order.address}
+                {booking.address}
               </p>
             )}
           </div>
@@ -718,9 +719,9 @@ function BookingRow({ booking, onView, onEdit, onDelete, onRestore }) {
 
       {/* FACEBOOK */}
       <td className="px-5 py-4 border border-gray-200 print-hidden">
-        {booking.customer.facebookProfile ? (
+        {booking.facebookProfile ? (
           <a
-            href={booking.customer.facebookProfile}
+            href={booking.facebookProfile}
             target="_blank"
             rel="noreferrer"
             className="text-sm font-bold text-blue-500 hover:text-blue-700 hover:underline transition-colors"
@@ -735,7 +736,7 @@ function BookingRow({ booking, onView, onEdit, onDelete, onRestore }) {
       {/* CONTACT */}
       <td className="px-5 py-4 whitespace-nowrap border border-gray-200">
         <p className="text-sm font-bold text-gray-700">
-          {booking.customer.contacts.filter(Boolean).join(", ") || "—"}
+          {booking.contacts?.filter(Boolean).join(", ") || "—"}
         </p>
       </td>
 
@@ -743,12 +744,12 @@ function BookingRow({ booking, onView, onEdit, onDelete, onRestore }) {
       <td className="px-5 py-4 whitespace-nowrap border border-gray-200">
         <span
           className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${
-            booking.payment.method === "gcash"
+            booking.paymentMethod === "gcash"
               ? "bg-blue-50 text-blue-600"
               : "bg-green-50 text-green-600"
           }`}
         >
-          {booking.payment.method === "gcash" ? "GCash" : "COD"}
+          {booking.paymentMethod === "gcash" ? "GCash" : "COD"}
         </span>
       </td>
       <td className="px-5 py-4 print-only">
@@ -864,7 +865,7 @@ function ViewModal({ booking, onClose }) {
   const extraDishes = booking.dishes?.extra?.filter(Boolean) || [];
   const extraTotal = extraDishes.length * EXTRA_DISH_PRICE;
   const discount = Math.abs(Number(booking.product?.promoAmount || 0));
-  const processTime = getProcessTime(booking.order.deliveryTime);
+  const processTime = getProcessTime(booking.deliveryTime);
 
   return (
     <Modal onClose={onClose}>
@@ -875,21 +876,21 @@ function ViewModal({ booking, onClose }) {
       />
       <div className="p-6 space-y-5 max-h-[65vh] overflow-y-auto">
         <Section title="Customer" icon="👤">
-          <Row label="Name" value={booking.customer.name} />
-          <Row label="Contact" value={booking.customer.contacts.join(", ")} />
-          {booking.customer.facebookProfile && (
-            <Row label="Facebook" value={booking.customer.facebookProfile} />
+          <Row label="Name" value={booking.customerName} />
+          <Row label="Contact" value={booking.contacts?.join(", ")} />
+          {booking.facebookProfile && (
+            <Row label="Facebook" value={booking.facebookProfile} />
           )}
         </Section>
         <Section title="Delivery" icon="🚚">
-          <Row label="Type" value={booking.order.orderType} highlight />
-          <Row label="Delivery Date" value={booking.order.deliveryDate} />
-          <Row label="Delivery Time" value={booking.order.deliveryTime} />
+          <Row label="Type" value={booking.orderType} highlight />
+          <Row label="Delivery Date" value={new Date(booking.deliveryDate).toLocaleDateString()} />
+          <Row label="Delivery Time" value={booking.deliveryTime} />
           <Row label="Process Time" value={processTime} highlight />
-          {booking.order.orderType === "delivery" && (
+          {booking.orderType === "delivery" && (
             <>
-              <Row label="Address" value={booking.order.address} />
-              <Row label="Zone" value={booking.order.zone} />
+              <Row label="Address" value={booking.address} />
+              <Row label="Zone" value={booking.zone} />
             </>
           )}
         </Section>
@@ -923,7 +924,7 @@ function ViewModal({ booking, onClose }) {
           <div className="flex justify-between items-center pt-3 border-t border-gray-100 mt-1">
             <span className="text-sm font-black text-gray-800">Total</span>
             <span className="text-base font-black text-red-600">
-              {fmt(booking.payment.total)}
+              {fmt(booking.totalAmount)}
             </span>
           </div>
         </Section>
@@ -931,7 +932,7 @@ function ViewModal({ booking, onClose }) {
           <Row
             label="Method"
             value={
-              booking.payment.method === "gcash"
+              booking.paymentMethod === "gcash"
                 ? "📱 GCash"
                 : "💵 Cash on Delivery"
             }
@@ -945,34 +946,27 @@ function ViewModal({ booking, onClose }) {
 // ── EDIT MODAL ────────────────────────────────────────────────────
 function EditModal({ booking, onClose, onSave }) {
   const [form, setForm] = useState({
-    customerName: booking.customer.name,
-    contact: booking.customer.contacts[0] || "",
-    facebookProfile: booking.customer.facebookProfile || "",
-    deliveryDate: booking.order.deliveryDate,
-    deliveryTime: booking.order.deliveryTime,
-    address: booking.order.address,
-    zone: booking.order.zone,
-    paymentMethod: booking.payment.method,
+    customerName: booking.customerName,
+    contact: booking.contacts?.[0] || "",
+    facebookProfile: booking.facebookProfile || "",
+    deliveryDate: new Date(booking.deliveryDate).toISOString().split('T')[0],
+    deliveryTime: booking.deliveryTime,
+    address: booking.address,
+    zone: booking.zone,
+    paymentMethod: booking.paymentMethod,
   });
 
   const set = (key, val) => setForm((f) => ({ ...f, [key]: val }));
 
   const handleSave = () => {
     onSave({
-      customer: {
-        ...booking.customer,
-        name: form.customerName,
-        contacts: [form.contact],
-        facebookProfile: form.facebookProfile,
-      },
-      order: {
-        ...booking.order,
-        deliveryDate: form.deliveryDate,
-        deliveryTime: form.deliveryTime,
-        address: form.address,
-        zone: form.zone,
-      },
-      payment: { ...booking.payment, method: form.paymentMethod },
+      orderType: form.orderType || booking.orderType,
+      deliveryDate: form.deliveryDate,
+      deliveryTime: form.deliveryTime,
+      address: form.address,
+      zone: form.zone,
+      paymentMethod: form.paymentMethod,
+      totalAmount: booking.totalAmount, // Keep existing total
     });
   };
 

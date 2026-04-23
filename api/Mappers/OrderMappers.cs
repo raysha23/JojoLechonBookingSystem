@@ -10,6 +10,12 @@ namespace api.Mappers
         {
             return new OrderDTO
             {
+                Id = order.Id,
+                OrderNumber = order.OrderNumber,
+                CreatedAt = order.CreatedAt,
+                DeletedAt = order.DeletedAt,
+                IsPrinted = order.IsPrinted,
+                PrintedAt = order.PrintedAt,
                 CustomerName = order.Customer.Name,
                 Contacts = order.Customer.Contacts
                     .Select(c => c.ContactNumber).ToList(),
@@ -21,7 +27,8 @@ namespace api.Mappers
                 DeliveryTime = order.DeliveryTime,
                 PaymentMethod = order.PaymentMethod,
                 TotalAmount = order.TotalAmount,
-                ProductId = order.ProductId
+                ProductId = order.ProductId,
+                ProductName = order.Product?.ProductName ?? null
             };
         }
 

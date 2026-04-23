@@ -1,46 +1,89 @@
-import { mockBookings } from "../data/mockBookings.js";
-// In-memory store so edits/deletes persist during the session
-let bookings = [...mockBookings];
+// ── GET ALL ORDERS (with optional date filter) ────────────────────
+export const getOrders = async ({ date = null } = {}) => {
+  const apiUrl = new URL("http://localhost:5194/api/order");
+  
+  // If no date provided, use today's date
+  if (!date) {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, "0");
+    const day = String(today.getDate()).padStart(2, "0");
+    apiUrl.searchParams.append("date", `${year}-${month}-${day}`);
+  } else {
+    apiUrl.searchParams.append("date", date);
+  }
 
-// ── GET ALL ────────────────────────────────────────────────────────
-export const getOrders = async ({ showDeleted = false } = {}) => {
-  return bookings.filter((b) =>
-    showDeleted ? b.deletedAt !== null : b.deletedAt === null,
-  );
-};
-
-// ── GET SINGLE ────────────────────────────────────────────────────
-export const getOrderById = async (id) => {
-  return bookings.find((b) => b.id === id) || null;
-};
-
-// ── UPDATE ────────────────────────────────────────────────────────
-export const updateOrder = async (id, updatedData) => {
-  bookings = bookings.map((b) => (b.id === id ? { ...b, ...updatedData } : b));
-  return bookings.find((b) => b.id === id);
-};
-
-// ── SOFT DELETE ───────────────────────────────────────────────────
-export const softDeleteOrder = async (id) => {
-  bookings = bookings.map((b) =>
-    b.id === id ? { ...b, deletedAt: new Date().toISOString() } : b,
-  );
-};
-
-// ── RESTORE ───────────────────────────────────────────────────────
-export const restoreOrder = async (id) => {
-  bookings = bookings.map((b) => (b.id === id ? { ...b, deletedAt: null } : b));
-};
-
-/*
-  ─── WHEN BACKEND IS READY ────────────────────────────────────────
-  Replace each function body above with a real fetch call. Example:
-
-  export const getOrders = async ({ showDeleted = false } = {}) => {
-    const res = await fetch(`/api/orders?showDeleted=${showDeleted}`, {
-      headers: { Authorization: `Bearer ${localStorage.getItem("adminToken")}` }
+  try {
+    const res = await fetch(apiUrl.toString(), {
+      headers: { Authorization: `Bearer ${localStorage.getItem("adminToken")}` },
     });
-    return res.json();
-  };
-  ──────────────────────────────────────────────────────────────────
-*/
+    if (!res.ok) throw new Error(`API error: ${res.status}`);
+    return await res.json();
+  } catch (error) {
+    console.error("Failed to fetch orders:", error);
+    return [];
+  }
+};
+
+// ── GET SINGLE ORDER ────────────────────────────────────────────
+export const getOrderById = async (id) => {
+  try {
+    const res = await fetch(`http://localhost:5194/api/order/${id}`, {
+      headers: { Authorization: `Bearer ${localStorage.getItem("adminToken")}` },
+    });
+    if (!res.ok) throw new Error(`API error: ${res.status}`);
+    return await res.json();
+  } catch (error) {
+    console.error("Failed to fetch order:", error);
+    return null;
+  }
+};
+
+// ── UPDATE ORDER ────────────────────────────────────────────────────
+export const updateOrder = async (id, updatedData) => {
+  try {
+    const res = await fetch(`http://localhost:5194/api/order/${id}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${localStorage.getItem("adminToken")}`,
+      },
+      body: JSON.stringify(updatedData),
+    });
+    if (!res.ok) throw new Error(`API error: ${res.status}`);
+    return await res.json();
+  } catch (error) {
+    console.error("Failed to update order:", error);
+    return null;
+  }
+};
+
+// ── SOFT DELETE ORDER ────────────────────────────────────────────
+export const softDeleteOrder = async (id) => {
+  try {
+    const res = await fetch(`http://localhost:5194/api/order/${id}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${localStorage.getItem("adminToken")}` },
+    });
+    if (!res.ok) throw new Error(`API error: ${res.status}`);
+    return await res.json();
+  } catch (error) {
+    console.error("Failed to delete order:", error);
+    return null;
+  }
+};
+
+// ── RESTORE ORDER ───────────────────────────────────────────────
+export const restoreOrder = async (id) => {
+  try {
+    const res = await fetch(`http://localhost:5194/api/order/${id}/restore`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${localStorage.getItem("adminToken")}` },
+    });
+    if (!res.ok) throw new Error(`API error: ${res.status}`);
+    return await res.json();
+  } catch (error) {
+    console.error("Failed to restore order:", error);
+    return null;
+  }
+};
