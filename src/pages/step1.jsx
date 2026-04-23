@@ -1,7 +1,5 @@
 //File Path: JojoLechonBookingSystem/src/pages/step1.jsx
 import { useEffect, useState } from "react";
-import { dishProducts } from "../data/dishes-data";
-import { deliveryCharges } from "../data/deliveryfee-data";
 
 export default function Step1({ orderState }) {
   const {
@@ -28,86 +26,90 @@ export default function Step1({ orderState }) {
 
   // Modal is UI-only, stays local
   const [showModal, setShowModal] = useState(false);
+
+  // ── FETCHED ONCE ON LOAD ─────────────────────
   const [productTypes, setProductTypes] = useState([]);
-  const [products, setProducts] = useState([]);
+  const [allProducts, setAllProducts] = useState([]); // ALL products, fetched once
+  const [dishes, setDishes] = useState([]);
+  const [deliveryCharges, setDeliveryCharges] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+
   const [selectedProductTypeId, setSelectedProductTypeId] = useState("");
-  const [isLoadingTypes, setIsLoadingTypes] = useState(false);
-  const [isLoadingProducts, setIsLoadingProducts] = useState(false);
 
+  // ── Fetch everything once when the page loads ─
   useEffect(() => {
-    const fetchProductTypes = async () => {
-      setIsLoadingTypes(true);
+    const fetchAll = async () => {
+      setIsLoading(true);
       try {
-        const response = await fetch("/api/products/types");
-        if (!response.ok) throw new Error("Failed to fetch product types.");
-        const data = await response.json();
-        setProductTypes(data ?? []);
-      } catch (error) {
-        console.error("Product type fetch error:", error);
-        setProductTypes([]);
-      } finally {
-        setIsLoadingTypes(false);
-      }
-    };
+        const [typesRes, productsRes, dishesRes, chargesRes] =
+          await Promise.all([
+            fetch("/api/products/types"),
+            fetch("/api/products"), // fetch ALL products at once
+            fetch("/api/products/dishes"),
+            fetch("/api/products/delivery-charges"),
+          ]);
 
-    fetchProductTypes();
-  }, []);
+        const [typesData, productsData, dishesData, chargesData] =
+          await Promise.all([
+            typesRes.json(),
+            productsRes.json(),
+            dishesRes.json(),
+            chargesRes.json(),
+          ]);
 
-  useEffect(() => {
-    // Keep the dropdown ID in sync with the existing productType name state.
-    if (!productType || productType === "dish_only") {
-      setSelectedProductTypeId("");
-      return;
-    }
+        setProductTypes(typesData ?? []);
+        setDishes(dishesData ?? []);
+        setDeliveryCharges(chargesData ?? []);
 
-    const selectedType = productTypes.find((type) => type.typeName === productType);
-    setSelectedProductTypeId(selectedType ? String(selectedType.id) : "");
-  }, [productType, productTypes]);
-
-  useEffect(() => {
-    const fetchProductsByType = async () => {
-      if (!selectedProductTypeId) {
-        setProducts([]);
-        return;
-      }
-
-      setIsLoadingProducts(true);
-      try {
-        const response = await fetch(`/api/products?productTypeId=${selectedProductTypeId}`);
-        if (!response.ok) throw new Error("Failed to fetch products.");
-
-        const data = await response.json();
-        const mappedProducts = (data ?? []).map((product) => ({
+        // Map products once here, not on every type change
+        const mapped = (productsData ?? []).map((product) => ({
           id: product.id,
           productName: product.productName,
           amount: product.amount,
           promoAmount: product.promoAmount,
+          productTypeId: product.productTypeId,
           NoOfDishes: product.noOfIncludedDishes ?? 0,
           freebies: (product.freebies ?? []).map((f) => f.freebieName),
         }));
-
-        setProducts(mappedProducts);
+        setAllProducts(mapped);
       } catch (error) {
-        console.error("Products fetch error:", error);
-        setProducts([]);
+        console.error("Failed to load data:", error);
       } finally {
-        setIsLoadingProducts(false);
+        setIsLoading(false);
       }
     };
 
-    fetchProductsByType();
-  }, [selectedProductTypeId]);
+    fetchAll();
+  }, []); // ← runs ONCE only on page load
+
+  // ── Filter products locally — NO API call ────
+  const products = selectedProductTypeId
+    ? allProducts.filter(
+        (p) => String(p.productTypeId) === String(selectedProductTypeId),
+      )
+    : [];
+
+  // ── Keep productType name in sync ────────────
+  useEffect(() => {
+    if (!productType || productType === "dish_only") {
+      setSelectedProductTypeId("");
+      return;
+    }
+    const selectedType = productTypes.find((t) => t.typeName === productType);
+    setSelectedProductTypeId(selectedType ? String(selectedType.id) : "");
+  }, [productType, productTypes]);
 
   const selectedProduct =
     selectedProductIndex !== ""
-      ? products.find((p) => String(p.id) === String(selectedProductIndex)) ?? null
+      ? (products.find((p) => String(p.id) === String(selectedProductIndex)) ??
+        null)
       : null;
 
   useEffect(() => {
     setSelectedProduct(selectedProduct);
   }, [selectedProduct, setSelectedProduct]);
 
-  // Logic Flags
+  // ── Logic Flags ──────────────────────────────
   const showProductDropdown = productType !== "" && productType !== "dish_only";
   const showDishes =
     productType === "lechon_package" ||
@@ -146,180 +148,206 @@ export default function Step1({ orderState }) {
           </h2>
         </div>
 
-        {/* FORM */}
-        <div className="flex flex-col space-y-5">
-          {/* ORDER TYPE */}
-          <div>
-            <label className="block text-sm font-bold text-gray-700 mb-2">
-              Order Type
-            </label>
-            <select
-              className="w-full p-3 border rounded-xl"
-              value={orderType}
-              onChange={(e) => setOrderType(e.target.value)}
+        {/* LOADING STATE */}
+        {isLoading ? (
+          <div className="flex items-center justify-center py-12 text-gray-400">
+            <svg
+              className="animate-spin w-6 h-6 mr-2"
+              fill="none"
+              viewBox="0 0 24 24"
             >
-              <option value="pickup">Pickup</option>
-              <option value="delivery">Delivery</option>
-            </select>
+              <circle
+                className="opacity-25"
+                cx="12"
+                cy="12"
+                r="10"
+                stroke="currentColor"
+                strokeWidth="4"
+              />
+              <path
+                className="opacity-75"
+                fill="currentColor"
+                d="M4 12a8 8 0 018-8v8z"
+              />
+            </svg>
+            <span className="text-sm font-medium">Loading...</span>
           </div>
-
-          {/* DELIVERY FIELDS */}
-          {orderType === "delivery" && (
-            <div className="space-y-2">
-              <label className="block text-sm font-bold text-gray-700">
-                Delivery Details
-              </label>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <input
-                  type="text"
-                  placeholder="Enter address"
-                  value={address}
-                  onChange={(e) => setAddress(e.target.value)}
-                  className="md:col-span-2 w-full p-3 border rounded-xl"
-                />
-                <select
-                  value={zone}
-                  onChange={(e) => setZone(e.target.value)}
-                  className="w-full p-3 border rounded-xl"
-                >
-                  <option value="">Select Zone</option>
-                  {deliveryCharges.map((charge, i) =>
-                    charge.zones.map((zoneName) => (
-                      <option key={`${i}-${zoneName}`} value={zoneName}>
-                        {zoneName} — ₱{charge.minAmount}
-                      </option>
-                    )),
-                  )}
-                </select>
-              </div>
-            </div>
-          )}
-
-          {/* TIME */}
-          <div>
-            <label className="block text-sm font-bold text-gray-700 mb-2">
-              Time
-            </label>
-            <select
-              className="w-full p-3 border border-gray-200 rounded-xl"
-              value={deliveryTime}
-              onChange={(e) => setDeliveryTime(e.target.value)}
-            >
-              <option value="">Select time</option>
-              {[
-                "12:00 AM",
-                "1:00 AM",
-                "2:00 AM",
-                "3:00 AM",
-                "4:00 AM",
-                "5:00 AM",
-                "6:00 AM",
-                "7:00 AM",
-                "8:00 AM",
-                "9:00 AM",
-                "10:00 AM",
-                "11:00 AM",
-                "12:00 PM",
-                "1:00 PM",
-                "2:00 PM",
-                "3:00 PM",
-                "4:00 PM",
-                "5:00 PM",
-                "6:00 PM",
-                "7:00 PM",
-                "8:00 PM",
-                "9:00 PM",
-                "10:00 PM",
-                "11:00 PM",
-              ].map((t) => (
-                <option key={t}>{t}</option>
-              ))}
-            </select>
-          </div>
-
-          {/* DATE */}
-          <div>
-            <label className="block text-sm font-bold text-gray-700 mb-2">
-              Delivery Date
-            </label>
-            <input
-              type="date"
-              value={deliveryDate}
-              onChange={(e) => setDeliveryDate(e.target.value)}
-              min={new Date().toISOString().split("T")[0]}
-              className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-red-500 outline-none"
-            />
-          </div>
-
-          {/* PRODUCT TYPE */}
-          <div>
-            <label className="block text-sm font-bold text-gray-700 mb-2">
-              Product Type
-            </label>
-            <select
-              className="w-full p-3 border rounded-xl"
-              value={selectedProductTypeId}
-              disabled={isLoadingTypes}
-              onChange={(e) => {
-                const selectedId = e.target.value;
-                setSelectedProductTypeId(selectedId);
-                const selectedType = productTypes.find(
-                  (type) => String(type.id) === String(selectedId),
-                );
-                setProductType(selectedType?.typeName ?? "");
-                setSelectedProductIndex("");
-                setSelectedProduct(null);
-                setRequiredDishes([]);
-                setExtraDishes([]);
-              }}
-            >
-              <option value="">— Select a product type —</option>
-              {productTypes.map((type) => (
-                <option key={type.id} value={type.id}>
-                  {type.typeName
-                    .split("_")
-                    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-                    .join(" ")}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* PRODUCT SELECT */}
-          {showProductDropdown && (
+        ) : (
+          <div className="flex flex-col space-y-5">
+            {/* ORDER TYPE */}
             <div>
               <label className="block text-sm font-bold text-gray-700 mb-2">
-                Select Product
+                Order Type
               </label>
               <select
-                className="w-full p-3 border border-red-500 rounded-xl"
-                value={selectedProductIndex}
-                disabled={isLoadingProducts}
+                className="w-full p-3 border rounded-xl"
+                value={orderType}
+                onChange={(e) => setOrderType(e.target.value)}
+              >
+                <option value="pickup">Pickup</option>
+                <option value="delivery">Delivery</option>
+              </select>
+            </div>
+
+            {/* DELIVERY FIELDS */}
+            {orderType === "delivery" && (
+              <div className="space-y-2">
+                <label className="block text-sm font-bold text-gray-700">
+                  Delivery Details
+                </label>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <input
+                    type="text"
+                    placeholder="Enter address"
+                    value={address}
+                    onChange={(e) => setAddress(e.target.value)}
+                    className="md:col-span-2 w-full p-3 border rounded-xl"
+                  />
+                  <select
+                    value={zone}
+                    onChange={(e) => setZone(e.target.value)}
+                    className="w-full p-3 border rounded-xl"
+                  >
+                    <option value="">Select Zone</option>
+                    {deliveryCharges.map((charge) => (
+                      <option key={charge.id} value={charge.zoneName}>
+                        {charge.zoneName} — ₱{charge.minAmount}
+                        {charge.maxAmount ? ` - ₱${charge.maxAmount}` : ""}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            )}
+
+            {/* TIME */}
+            <div>
+              <label className="block text-sm font-bold text-gray-700 mb-2">
+                Time
+              </label>
+              <select
+                className="w-full p-3 border border-gray-200 rounded-xl"
+                value={deliveryTime}
+                onChange={(e) => setDeliveryTime(e.target.value)}
+              >
+                <option value="">Select time</option>
+                {[
+                  "12:00 AM",
+                  "1:00 AM",
+                  "2:00 AM",
+                  "3:00 AM",
+                  "4:00 AM",
+                  "5:00 AM",
+                  "6:00 AM",
+                  "7:00 AM",
+                  "8:00 AM",
+                  "9:00 AM",
+                  "10:00 AM",
+                  "11:00 AM",
+                  "12:00 PM",
+                  "1:00 PM",
+                  "2:00 PM",
+                  "3:00 PM",
+                  "4:00 PM",
+                  "5:00 PM",
+                  "6:00 PM",
+                  "7:00 PM",
+                  "8:00 PM",
+                  "9:00 PM",
+                  "10:00 PM",
+                  "11:00 PM",
+                ].map((t) => (
+                  <option key={t}>{t}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* DATE */}
+            <div>
+              <label className="block text-sm font-bold text-gray-700 mb-2">
+                Delivery Date
+              </label>
+              <input
+                type="date"
+                value={deliveryDate}
+                onChange={(e) => setDeliveryDate(e.target.value)}
+                min={new Date().toISOString().split("T")[0]}
+                className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-red-500 outline-none"
+              />
+            </div>
+
+            {/* PRODUCT TYPE */}
+            <div>
+              <label className="block text-sm font-bold text-gray-700 mb-2">
+                Product Type
+              </label>
+              <select
+                className="w-full p-3 border rounded-xl"
+                value={selectedProductTypeId}
                 onChange={(e) => {
                   const selectedId = e.target.value;
-                  setSelectedProductIndex(selectedId);
-                  if (selectedId !== "") {
-                    const product = products.find(
-                      (p) => String(p.id) === String(selectedId),
-                    );
-                    setSelectedProduct(product);
-                    setRequiredDishes(Array(product?.NoOfDishes || 0).fill(""));
-                  } else {
-                    setSelectedProduct(null);
-                    setRequiredDishes([]);
-                  }
+                  setSelectedProductTypeId(selectedId);
+                  const selectedType = productTypes.find(
+                    (type) => String(type.id) === String(selectedId),
+                  );
+                  setProductType(selectedType?.typeName ?? "");
+                  setSelectedProductIndex("");
+                  setSelectedProduct(null);
+                  setRequiredDishes([]);
+                  setExtraDishes([]);
                 }}
               >
-                <option value="">— Select a product —</option>
-                {products.map((item) => (
-                  <option key={item.id} value={item.id}>
-                    {item.productName} — ₱{item.amount}
+                <option value="">— Select a product type —</option>
+                {productTypes.map((type) => (
+                  <option key={type.id} value={type.id}>
+                    {type.typeName
+                      .split("_")
+                      .map(
+                        (part) => part.charAt(0).toUpperCase() + part.slice(1),
+                      )
+                      .join(" ")}
                   </option>
                 ))}
               </select>
             </div>
-          )}
-        </div>
+
+            {/* PRODUCT SELECT — instant, no loading needed */}
+            {showProductDropdown && (
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-2">
+                  Select Product
+                </label>
+                <select
+                  className="w-full p-3 border border-red-500 rounded-xl"
+                  value={selectedProductIndex}
+                  onChange={(e) => {
+                    const selectedId = e.target.value;
+                    setSelectedProductIndex(selectedId);
+                    if (selectedId !== "") {
+                      const product = products.find(
+                        (p) => String(p.id) === String(selectedId),
+                      );
+                      setSelectedProduct(product);
+                      setRequiredDishes(
+                        Array(product?.NoOfDishes || 0).fill(""),
+                      );
+                    } else {
+                      setSelectedProduct(null);
+                      setRequiredDishes([]);
+                    }
+                  }}
+                >
+                  <option value="">— Select a product —</option>
+                  {products.map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {item.productName} — ₱{item.amount}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* DISH SECTION */}
@@ -363,11 +391,7 @@ export default function Step1({ orderState }) {
               }}
               className="bg-red-600 text-white px-6 py-2.5 rounded-full font-bold flex items-center justify-center hover:bg-red-700 transition-colors md:w-64"
             >
-              <span>
-                {productType === "dish_only"
-                  ? "+ Add Dish"
-                  : "+ Add Extra Dish"}
-              </span>
+              {productType === "dish_only" ? "+ Add Dish" : "+ Add Extra Dish"}
             </button>
           </div>
 
@@ -434,9 +458,9 @@ export default function Step1({ orderState }) {
                       }}
                     >
                       <option value="">— Select Dish —</option>
-                      {dishProducts.map((dish, i) => (
-                        <option key={i} value={i}>
-                          {dish.productName}
+                      {dishes.map((dish) => (
+                        <option key={dish.id} value={dish.id}>
+                          {dish.dishName}
                         </option>
                       ))}
                     </select>
@@ -463,9 +487,9 @@ export default function Step1({ orderState }) {
                         }}
                       >
                         <option value="">— Select Dish —</option>
-                        {dishProducts.map((dishItem, i) => (
-                          <option key={i} value={i}>
-                            {dishItem.productName} — ₱{dishItem.amount}
+                        {dishes.map((dishItem) => (
+                          <option key={dishItem.id} value={dishItem.id}>
+                            {dishItem.dishName} — ₱{dishItem.amount}
                           </option>
                         ))}
                       </select>

@@ -108,13 +108,21 @@ using (var scope = app.Services.CreateScope())
         context.Customers.AddRange(customers);
         context.SaveChanges();
     }
+    // DELIVERY CHARGES
+    if (!context.DeliveryCharges.Any())
+    {
+        var charges = SeedData.GetDeliveryCharges();
+        context.DeliveryCharges.AddRange(charges);
+        context.SaveChanges();
+    }
 
     // ORDERS
     if (!context.Orders.Any())
     {
         var customers = context.Customers.ToList();
         var products = context.Products.ToList();
-        var orders = SeedData.GetOrders(customers, products);
+        var deliveryCharges = context.DeliveryCharges.ToList();
+        var orders = SeedData.GetOrders(customers, products, deliveryCharges);
         context.Orders.AddRange(orders);
         context.SaveChanges();
     }

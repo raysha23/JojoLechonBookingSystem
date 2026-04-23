@@ -40,5 +40,6 @@ namespace api.data
         public DbSet<ProductDefaultDish> ProductDefaultDishes { get; set; }
         public DbSet<Order> Orders { get; set; }
         public DbSet<OrderDish> OrderDishes { get; set; }
+        public DbSet<DeliveryCharge> DeliveryCharges { get; set; }
     }
 }

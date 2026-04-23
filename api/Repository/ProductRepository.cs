@@ -33,18 +33,14 @@ namespace api.Repository
                 .AsQueryable();
 
             if (productTypeId.HasValue)
-            {
                 query = query.Where(p => p.ProductTypeId == productTypeId.Value);
-            }
             else if (!string.IsNullOrWhiteSpace(productTypeName))
             {
-                var normalizedTypeName = productTypeName.Trim().ToLower();
-                query = query.Where(p => p.ProductType.TypeName.ToLower() == normalizedTypeName);
+                var normalized = productTypeName.Trim().ToLower();
+                query = query.Where(p => p.ProductType.TypeName.ToLower() == normalized);
             }
 
-            return await query
-                .OrderBy(p => p.ProductName)
-                .ToListAsync();
+            return await query.OrderBy(p => p.ProductName).ToListAsync();
         }
 
         public async Task<Product?> GetByIdAsync(int productId)
@@ -55,6 +51,23 @@ namespace api.Repository
                 .Include(p => p.DefaultDishes)
                     .ThenInclude(pd => pd.Dish)
                 .FirstOrDefaultAsync(p => p.Id == productId && p.IsActive);
+        }
+
+        // ── NEW ──────────────────────────────────────
+
+        public async Task<List<Dish>> GetDishesAsync()
+        {
+            return await _context.Dishes
+                .Where(d => d.IsActive)
+                .OrderBy(d => d.DishName)
+                .ToListAsync();
+        }
+
+        public async Task<List<DeliveryCharge>> GetDeliveryChargesAsync()
+        {
+            return await _context.DeliveryCharges
+                .OrderBy(dc => dc.ZoneName)
+                .ToListAsync();
         }
     }
 }

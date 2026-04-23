@@ -1,7 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using api.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 
@@ -19,10 +15,11 @@ namespace api.Controllers
         }
 
         [HttpGet]
-        public async Task<IActionResult> GetProducts([FromQuery] int? productTypeId = null, [FromQuery] string? productTypeName = null)
+        public async Task<IActionResult> GetProducts(
+            [FromQuery] int? productTypeId = null,
+            [FromQuery] string? productTypeName = null)
         {
             var products = await _productRepository.GetProductsAsync(productTypeId, productTypeName);
-
             return Ok(products);
         }
 
@@ -31,6 +28,22 @@ namespace api.Controllers
         {
             var productTypes = await _productRepository.GetProductTypesAsync();
             return Ok(productTypes);
+        }
+
+        // ── NEW ──────────────────────────────────────
+
+        [HttpGet("dishes")]
+        public async Task<IActionResult> GetDishes()
+        {
+            var dishes = await _productRepository.GetDishesAsync();
+            return Ok(dishes);
+        }
+
+        [HttpGet("delivery-charges")]
+        public async Task<IActionResult> GetDeliveryCharges()
+        {
+            var charges = await _productRepository.GetDeliveryChargesAsync();
+            return Ok(charges);
         }
     }
 }
