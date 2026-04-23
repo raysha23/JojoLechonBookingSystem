@@ -9,6 +9,7 @@ import AdminLogin from "./admin/pages/AdminLogin.jsx";
 import AdminDashboard from "./admin/pages/AdminDashboard.jsx";
 import ProtectedRoute from "./admin/components/protectedRoutes.jsx";
 
+
 createRoot(document.getElementById("root")).render(
   <StrictMode>
     <HashRouter>

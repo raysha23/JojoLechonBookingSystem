@@ -1,14 +1,11 @@
 import React from "react";
-import { deliveryCharges } from "../../data/deliveryfee-data";
 
 const EXTRA_DISH_PRICE = 700;
 
-function getDeliveryFee(zone) {
-  if (!zone) return 0;
-  for (const charge of deliveryCharges) {
-    if (charge.zones.includes(zone)) return charge.minAmount;
-  }
-  return 0;
+function getDeliveryFee(zone, deliveryCharges = []) {
+  if (!zone || deliveryCharges.length === 0) return 0;
+  const charge = deliveryCharges.find((item) => item.zoneName === zone);
+  return charge ? Number(charge.minAmount || 0) : 0;
 }
 
 export default function OrderSummary({ orderState }) {
@@ -21,6 +18,7 @@ export default function OrderSummary({ orderState }) {
     extraDishes,
     paymentMethod,
     setPaymentMethod,
+    deliveryCharges,
   } = orderState;
 
   const fmt = (n) =>
@@ -30,14 +28,16 @@ export default function OrderSummary({ orderState }) {
   const packageTotal = selectedProduct ? selectedProduct.amount : 0;
 
   // Required dishes come included in the package price (₱0 each)
-  const requiredDishCount = selectedProduct?.NoOfDishes || 0;
+  const requiredDishCount = productType === "dish_only"
+    ? (requiredDishes || []).filter(Boolean).length
+    : selectedProduct?.NoOfDishes || 0;
 
   // Extra dishes: only count slots that have an actual dish selected
   const filledExtraDishes = (extraDishes || []).filter((d) => d !== "");
   const extraDishesTotal = filledExtraDishes.length * EXTRA_DISH_PRICE;
 
   // Delivery fee
-  const deliveryFee = orderType === "delivery" ? getDeliveryFee(zone) : 0;
+  const deliveryFee = orderType === "delivery" ? getDeliveryFee(zone, deliveryCharges) : 0;
 
   // Discount — promoAmount is stored as a string like "-1000", "-500", or "0"
   const discount = selectedProduct?.promoAmount

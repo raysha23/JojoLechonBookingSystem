@@ -6,7 +6,6 @@ import {
   restoreOrder,
   updateOrder,
 } from "../services/orderServices.jsx";
-import { exportBookingsToExcel } from "../../utils/exportExcel.js";
 
 const EXTRA_DISH_PRICE = 700;
 

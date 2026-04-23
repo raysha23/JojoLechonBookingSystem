@@ -1,4 +1,4 @@
-//File Path: JojoLechonBookingSystem/src/pages/step1.jsx
+// File Path: JojoLechonBookingSystem/src/pages/step1.jsx
 import { useEffect, useState } from "react";
 
 export default function Step1({ orderState }) {
@@ -22,73 +22,16 @@ export default function Step1({ orderState }) {
     setRequiredDishes,
     extraDishes,
     setExtraDishes,
+    productTypes,
+    products,
+    dishes,
+    deliveryCharges,
+    isLoading,
   } = orderState;
 
   // Modal is UI-only, stays local
   const [showModal, setShowModal] = useState(false);
-
-  // ── FETCHED ONCE ON LOAD ─────────────────────
-  const [productTypes, setProductTypes] = useState([]);
-  const [allProducts, setAllProducts] = useState([]); // ALL products, fetched once
-  const [dishes, setDishes] = useState([]);
-  const [deliveryCharges, setDeliveryCharges] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
-
   const [selectedProductTypeId, setSelectedProductTypeId] = useState("");
-
-  // ── Fetch everything once when the page loads ─
-  useEffect(() => {
-    const fetchAll = async () => {
-      setIsLoading(true);
-      try {
-        const [typesRes, productsRes, dishesRes, chargesRes] =
-          await Promise.all([
-            fetch("/api/products/types"),
-            fetch("/api/products"), // fetch ALL products at once
-            fetch("/api/products/dishes"),
-            fetch("/api/products/delivery-charges"),
-          ]);
-
-        const [typesData, productsData, dishesData, chargesData] =
-          await Promise.all([
-            typesRes.json(),
-            productsRes.json(),
-            dishesRes.json(),
-            chargesRes.json(),
-          ]);
-
-        setProductTypes(typesData ?? []);
-        setDishes(dishesData ?? []);
-        setDeliveryCharges(chargesData ?? []);
-
-        // Map products once here, not on every type change
-        const mapped = (productsData ?? []).map((product) => ({
-          id: product.id,
-          productName: product.productName,
-          amount: product.amount,
-          promoAmount: product.promoAmount,
-          productTypeId: product.productTypeId,
-          NoOfDishes: product.noOfIncludedDishes ?? 0,
-          freebies: (product.freebies ?? []).map((f) => f.freebieName),
-          defaultDishes: product.defaultDishes ?? [],
-        }));
-        setAllProducts(mapped);
-      } catch (error) {
-        console.error("Failed to load data:", error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchAll();
-  }, []); // ← runs ONCE only on page load
-
-  // ── Filter products locally — NO API call ────
-  const products = selectedProductTypeId
-    ? allProducts.filter(
-        (p) => String(p.productTypeId) === String(selectedProductTypeId),
-      )
-    : [];
 
   // ── Keep productType name in sync ────────────
   useEffect(() => {
@@ -140,20 +83,26 @@ export default function Step1({ orderState }) {
   };
 
   useEffect(() => {
-    if (!address || orderType !== "delivery") {
-      return;
-    }
-
+    if (!address || orderType !== "delivery") return;
     const lowerAddress = address.toLowerCase();
-
-    // Check if any keyword matches
     for (const [zoneName, keywords] of Object.entries(zoneKeywords)) {
       if (keywords.some((keyword) => lowerAddress.includes(keyword))) {
         setZone(zoneName);
-        return; // Stop after finding first match
+        return;
       }
     }
   }, [address, orderType]);
+
+  // ── Sync selectedProduct to parent state ─────
+  const selectedProduct =
+    selectedProductIndex !== ""
+      ? (products.find((p) => String(p.id) === String(selectedProductIndex)) ??
+        null)
+      : null;
+
+  useEffect(() => {
+    setSelectedProduct(selectedProduct);
+  }, [selectedProduct, setSelectedProduct]);
 
   // ── GET AVAILABLE TIMES (with 5-hour processing buffer) ──
   const getAvailableTimes = () => {
@@ -188,12 +137,8 @@ export default function Step1({ orderState }) {
 
     const today = new Date().toISOString().split("T")[0];
     const isToday = deliveryDate === today;
+    if (!isToday) return allTimes;
 
-    if (!isToday) {
-      return allTimes; // Future dates: all times available
-    }
-
-    // TODAY: Filter times that are at least 5 hours from now
     const now = new Date();
     const currentHour = now.getHours();
     const currentMinutes = now.getMinutes();
@@ -202,30 +147,15 @@ export default function Step1({ orderState }) {
     return allTimes.filter((timeStr) => {
       const [time, period] = timeStr.split(" ");
       let [hours, minutes] = time.split(":").map(Number);
-
-      // Convert to 24-hour format
       if (period === "PM" && hours !== 12) hours += 12;
       if (period === "AM" && hours === 12) hours = 0;
-
-      // Check if time is at least 5 hours away
       if (hours > cutoffHour) return true;
       if (hours === cutoffHour && minutes >= currentMinutes) return true;
-
       return false;
     });
   };
 
   const availableTimes = getAvailableTimes();
-
-  const selectedProduct =
-    selectedProductIndex !== ""
-      ? (products.find((p) => String(p.id) === String(selectedProductIndex)) ??
-        null)
-      : null;
-
-  useEffect(() => {
-    setSelectedProduct(selectedProduct);
-  }, [selectedProduct, setSelectedProduct]);
 
   // ── Logic Flags ──────────────────────────────
   const showProductDropdown = productType !== "" && productType !== "dish_only";
@@ -234,22 +164,12 @@ export default function Step1({ orderState }) {
     productType === "belly_package" ||
     (productType === "dish_only" &&
       (selectedProductIndex !== "" || productType === "dish_only"));
+
   const showFreebies =
     productType === "lechon_package" ||
     productType === "belly_package" ||
     productType === "lechon_only" ||
     (productType === "belly_only" && selectedProductIndex !== "");
-
-  const getDefaultDishesForProduct = (productId) => {
-    const defaults = productTypes.length
-      ? [] // optional safety
-      : [];
-
-    // You should fetch from backend OR include in products response
-    const product = allProducts.find((p) => p.id === productId);
-
-    return product?.defaultDishes ?? [];
-  };
 
   return (
     <div className="grid gap-6">
@@ -349,7 +269,7 @@ export default function Step1({ orderState }) {
               </div>
             )}
 
-            {/* DATE - FIRST */}
+            {/* DATE */}
             <div>
               <label className="block text-sm font-bold text-gray-700 mb-2">
                 Delivery Date
@@ -368,7 +288,7 @@ export default function Step1({ orderState }) {
               )}
             </div>
 
-            {/* TIME - SHOWN ONLY AFTER DATE IS SELECTED */}
+            {/* TIME — shown only after date is selected */}
             {deliveryDate && (
               <div>
                 <label className="block text-sm font-bold text-gray-700 mb-2">
@@ -376,7 +296,8 @@ export default function Step1({ orderState }) {
                 </label>
                 {availableTimes.length === 0 ? (
                   <div className="w-full p-3 border border-red-200 bg-red-50 rounded-xl text-sm text-red-600 font-medium">
-                    ❌ No available times for today. Please select a future date.
+                    ❌ No available times for today. Please select a future
+                    date.
                   </div>
                 ) : (
                   <select
@@ -430,13 +351,12 @@ export default function Step1({ orderState }) {
               </select>
             </div>
 
-            {/* PRODUCT SELECT — instant, no loading needed */}
+            {/* PRODUCT SELECT */}
             {showProductDropdown && (
               <div>
                 <label className="block text-sm font-bold text-gray-700 mb-2">
                   Select Product
                 </label>
-
                 <select
                   className="w-full p-3 border border-red-500 rounded-xl"
                   value={selectedProductIndex}
@@ -448,34 +368,8 @@ export default function Step1({ orderState }) {
                       const product = products.find(
                         (p) => String(p.id) === String(selectedId),
                       );
-
                       setSelectedProduct(product);
 
-                      // 🔍 DEBUG LOGS
-                      console.log("========== PRODUCT DEBUG ==========");
-                      console.log("Selected Product ID:", product?.id);
-                      console.log(
-                        "Selected Product Name:",
-                        product?.productName,
-                      );
-                      console.log("Raw defaultDishes:", product?.defaultDishes);
-
-                      const normalizedDefaults = (
-                        product?.defaultDishes ?? []
-                      ).map((d) => {
-                        return {
-                          id: d.dishId,
-                          name: d.dish?.dishName ?? d.dish?.name ?? "UNKNOWN",
-                        };
-                      });
-
-                      console.log(
-                        "Normalized default dishes:",
-                        normalizedDefaults,
-                      );
-                      console.log("===================================");
-
-                      // fill required dishes based on product slots
                       const defaultDishIds = (product?.defaultDishes ?? []).map(
                         (d) => d.dishId,
                       );
@@ -483,7 +377,6 @@ export default function Step1({ orderState }) {
                         { length: product?.NoOfDishes || 0 },
                         (_, index) => defaultDishIds[index] ?? "",
                       );
-
                       setRequiredDishes(filledRequired);
                     } else {
                       setSelectedProduct(null);
@@ -492,12 +385,17 @@ export default function Step1({ orderState }) {
                   }}
                 >
                   <option value="">— Select a product —</option>
-
-                  {products.map((item) => (
-                    <option key={item.id} value={item.id}>
-                      {item.productName} — ₱{item.amount}
-                    </option>
-                  ))}
+                  {products
+                    .filter(
+                      (p) =>
+                        String(p.productTypeId) ===
+                        String(selectedProductTypeId),
+                    )
+                    .map((item) => (
+                      <option key={item.id} value={item.id}>
+                        {item.productName} — ₱{item.amount}
+                      </option>
+                    ))}
                 </select>
               </div>
             )}

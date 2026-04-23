@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import StepBar from "./components/stepper/StepBar";
 import OrderSummary from "./components/summary/OrderSummary";
@@ -8,17 +8,20 @@ import ConfirmOrderModal from "./components/confirmationModal/confirmationOrderM
 import Step1 from "./pages/Step1";
 import Step2 from "./pages/Step2";
 import Step3 from "./pages/Step3";
-import { deliveryCharges } from "./data/deliveryfee-data";
 
-function getDeliveryFee(zone) {
-  if (!zone) return 0;
-  for (const charge of deliveryCharges) {
-    if (charge.zones.includes(zone)) return charge.minAmount;
-  }
-  return 0;
+function getDeliveryFee(zone, deliveryCharges = []) {
+  if (!zone || deliveryCharges.length === 0) return 0;
+  const charge = deliveryCharges.find((item) => item.zoneName === zone);
+  return charge ? Number(charge.minAmount || 0) : 0;
 }
+
 function App() {
   const [step, setStep] = useState(1);
+  const [productTypes, setProductTypes] = useState([]);
+  const [allProducts, setAllProducts] = useState([]);
+  const [dishes, setDishes] = useState([]);
+  const [deliveryCharges, setDeliveryCharges] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   // ─── SHARED ORDER STATE ───────────────────────────────────────────
   const [orderType, setOrderType] = useState("delivery");
@@ -41,6 +44,53 @@ function App() {
   // ─── MODAL STATE ──────────────────────────────────────────────────
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    const fetchClientData = async () => {
+      setIsLoading(true);
+      try {
+        const [typesRes, productsRes, dishesRes, chargesRes] =
+          await Promise.all([
+            fetch("/api/products/types"),
+            fetch("/api/products"),
+            fetch("/api/products/dishes"),
+            fetch("/api/products/delivery-charges"),
+          ]);
+
+        const [typesData, productsData, dishesData, chargesData] =
+          await Promise.all([
+            typesRes.json(),
+            productsRes.json(),
+            dishesRes.json(),
+            chargesRes.json(),
+          ]);
+
+        setProductTypes(typesData ?? []);
+        setDishes(dishesData ?? []);
+        setDeliveryCharges(chargesData ?? []);
+
+        const mappedProducts = (productsData ?? []).map((product) => ({
+          id: product.id,
+          productName: product.productName,
+          amount: product.amount,
+          promoAmount: product.promoAmount,
+          productTypeId: product.productTypeId,
+          NoOfDishes: product.noOfIncludedDishes ?? 0,
+          freebies: (product.freebies ?? []).map((f) => f.freebieName),
+          defaultDishes: product.defaultDishes ?? [],
+        }));
+
+        setAllProducts(mappedProducts);
+      } catch (error) {
+        console.error("Failed to load client data:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchClientData();
+  }, []);
+
   // ─────────────────────────────────────────────────────────────────
 
   const hasValidContacts = contacts.some(
@@ -54,13 +104,18 @@ function App() {
     facebookProfile.includes("facebook.com") ||
     facebookProfile.includes("fb.com");
 
+  const allDishesSelected =
+    requiredDishes.every((d) => d !== "") && extraDishes.every((d) => d !== "");
+
   const isStep1Valid =
     orderType &&
     deliveryDate &&
     deliveryTime &&
     productType &&
     (productType === "dish_only" || selectedProduct !== null) &&
-    (orderType !== "delivery" || (address.trim() !== "" && zone.trim() !== ""));
+    (orderType !== "delivery" ||
+      (address.trim() !== "" && zone.trim() !== "")) &&
+    allDishesSelected;
 
   const isStep2Valid =
     customerName.trim() !== "" &&
@@ -115,6 +170,11 @@ function App() {
     setContacts,
     facebookProfile,
     setFacebookProfile,
+    productTypes,
+    products: allProducts,
+    dishes,
+    deliveryCharges,
+    isLoading,
   };
 
   // Opens the confirmation modal
@@ -143,10 +203,11 @@ function App() {
       productId: selectedProduct?.id ?? null,
       paymentMethod,
       totalAmount: (() => {
-        const deliveryFee = orderType === "delivery" ? getDeliveryFee(zone) : 0;
+        const deliveryFee =
+          orderType === "delivery" ? getDeliveryFee(zone, deliveryCharges) : 0;
         const packageTotal = selectedProduct?.amount ?? 0;
         const extraTotal = extraDishes.filter(Boolean).length * 700;
-        const discount = selectedProduct?.promoAmount 
+        const discount = selectedProduct?.promoAmount
           ? Math.abs(Number(selectedProduct.promoAmount))
           : 0;
         return packageTotal + extraTotal + deliveryFee - discount;

@@ -1,15 +1,11 @@
 import React from "react";
-import { dishProducts } from "../data/dishes-data";
-import { deliveryCharges } from "../data/deliveryfee-data";
 
 const EXTRA_DISH_PRICE = 700;
 
-function getDeliveryFee(zone) {
-  if (!zone) return 0;
-  for (const charge of deliveryCharges) {
-    if (charge.zones.includes(zone)) return charge.minAmount;
-  }
-  return 0;
+function getDeliveryFee(zone, deliveryCharges = []) {
+  if (!zone || deliveryCharges.length === 0) return 0;
+  const charge = deliveryCharges.find((item) => item.zoneName === zone);
+  return charge ? Number(charge.minAmount || 0) : 0;
 }
 
 export default function Step3({ orderState }) {
@@ -25,13 +21,17 @@ export default function Step3({ orderState }) {
     customerName,
     contacts,
     facebookProfile,
+    dishes,
+    deliveryCharges,
   } = orderState;
 
-  const deliveryFee = orderType === "delivery" ? getDeliveryFee(zone) : 0;
+  const deliveryFee = orderType === "delivery" ? getDeliveryFee(zone, deliveryCharges) : 0;
   const filledExtraDishes = (extraDishes || []).filter((d) => d !== "");
   const dishesTotal = filledExtraDishes.length * EXTRA_DISH_PRICE;
   const packageTotal = selectedProduct ? selectedProduct.amount : 0;
-  const discount = selectedProduct?.discount || 0;
+  const discount = selectedProduct?.promoAmount
+    ? Math.abs(Number(selectedProduct.promoAmount))
+    : 0;
   const total = packageTotal + dishesTotal + deliveryFee - discount;
 
   const fmt = (n) =>
@@ -165,14 +165,20 @@ export default function Step3({ orderState }) {
               </div>
               <div className="space-y-3">
                 {filledExtraDishes.map((dishIndex, i) => {
-                  const dish = dishProducts[dishIndex];
+                  const dish = dishes.find((item) => String(item.id) === String(dishIndex));
                   return dish ? (
                     <ItemRow
                       key={i}
-                      name={dish.productName}
+                      name={dish.dishName || dish.productName || "Selected Dish"}
                       price={fmt(EXTRA_DISH_PRICE)}
                     />
-                  ) : null;
+                  ) : (
+                    <ItemRow
+                      key={i}
+                      name="Unknown dish"
+                      price={fmt(EXTRA_DISH_PRICE)}
+                    />
+                  );
                 })}
               </div>
             </div>
