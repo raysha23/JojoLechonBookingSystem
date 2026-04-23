@@ -28,6 +28,7 @@ namespace api.Models
         public int? DeliveryChargeId { get; set; }
 
         // Navigation
+        public DeliveryCharge? DeliveryCharge { get; set; }
         public Customer Customer { get; set; } = null!;
         public Product? Product { get; set; }
         public User? SubmittedByUser { get; set; }

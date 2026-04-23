@@ -122,7 +122,9 @@ using (var scope = app.Services.CreateScope())
         var customers = context.Customers.ToList();
         var products = context.Products.ToList();
         var deliveryCharges = context.DeliveryCharges.ToList();
-        var orders = SeedData.GetOrders(customers, products, deliveryCharges);
+        var dishes = context.Dishes.ToList();
+        var productDefaultDishes = context.ProductDefaultDishes.ToList();
+        var orders = SeedData.GetOrders(customers, products, deliveryCharges, dishes, productDefaultDishes);
         context.Orders.AddRange(orders);
         context.SaveChanges();
     }

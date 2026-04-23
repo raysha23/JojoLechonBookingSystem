@@ -350,10 +350,17 @@ namespace api.data
         // ─────────────────────────────────────────────
         // ORDERS  (kept as sample data)
         // ─────────────────────────────────────────────
-        public static List<Order> GetOrders(List<Customer> customers, List<Product> products, List<DeliveryCharge> deliveryCharges)
+        public static List<Order> GetOrders(
+            List<Customer> customers,
+            List<Product> products,
+            List<DeliveryCharge> deliveryCharges,
+            List<Dish> dishes, List<ProductDefaultDish> productDefaultDishes)
         {
             var inayawan = deliveryCharges.First(dc => dc.ZoneName == "Inayawan");
             var lahug = deliveryCharges.First(dc => dc.ZoneName == "Lahug");
+
+            var firstProduct = products.First();
+            var secondProduct = products.Skip(1).First();
 
             return new List<Order>
             {
@@ -373,8 +380,24 @@ namespace api.data
                     IsPrinted       = false,
                     CreatedAt       = DateTime.UtcNow,
                     CustomerId      = customers.First().Id,
-                    ProductId       = products.First().Id
+                    ProductId       = firstProduct.Id,
+
+                    // 🔥 FIX: INCLUDED DISHES
+                    OrderDishes = new List<OrderDish>
+                    {
+                        new OrderDish
+                        {
+                            DishId = dishes.First().Id,
+                            DishType = "included"
+                        },
+                        new OrderDish
+                        {
+                            DishId = dishes.Skip(1).First().Id,
+                            DishType = "extra"
+                        }
+                    }
                 },
+
                 new Order
                 {
                     OrderNumber     = "ORD-002",
@@ -388,8 +411,18 @@ namespace api.data
                     IsPrinted       = true,
                     CreatedAt       = DateTime.UtcNow.AddHours(-2),
                     CustomerId      = customers.Skip(1).First().Id,
-                    ProductId       = products.Skip(1).First().Id
+                    ProductId       = secondProduct.Id,
+
+                    OrderDishes = new List<OrderDish>
+                    {
+                        new OrderDish
+                        {
+                            DishId = dishes.Skip(2).First().Id,
+                            DishType = "included"
+                        }
+                    }
                 },
+
                 new Order
                 {
                     OrderNumber     = "ORD-003",
@@ -406,7 +439,16 @@ namespace api.data
                     IsPrinted       = false,
                     CreatedAt       = DateTime.UtcNow.AddHours(-1),
                     CustomerId      = customers.Skip(2).First().Id,
-                    ProductId       = products.First().Id
+                    ProductId       = firstProduct.Id,
+
+                    OrderDishes = new List<OrderDish>
+                    {
+                        new OrderDish
+                        {
+                            DishId = dishes.Skip(3).First().Id,
+                            DishType = "extra"
+                        }
+                    }
                 }
             };
         }

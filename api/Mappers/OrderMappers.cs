@@ -1,4 +1,5 @@
 using api.DTOs.Order;
+using api.DTOs.Product;
 using api.Models;
 
 namespace api.Mappers
@@ -16,19 +17,40 @@ namespace api.Mappers
                 DeletedAt = order.DeletedAt,
                 IsPrinted = order.IsPrinted,
                 PrintedAt = order.PrintedAt,
+
                 CustomerName = order.Customer.Name,
                 Contacts = order.Customer.Contacts
                     .Select(c => c.ContactNumber).ToList(),
+
                 FacebookProfile = order.Customer.FacebookProfile,
                 OrderType = order.OrderType,
                 Address = order.Address,
                 Zone = order.Zone,
-                DeliveryDate = order.DeliveryDate, // ✅ fixed
+                DeliveryDate = order.DeliveryDate,
                 DeliveryTime = order.DeliveryTime,
                 PaymentMethod = order.PaymentMethod,
                 TotalAmount = order.TotalAmount,
+
                 ProductId = order.ProductId,
-                ProductName = order.Product?.ProductName ?? null
+                ProductName = order.Product?.ProductName,
+
+                // ✅ THIS FIXES YOUR UI
+                Dishes = new DishesDTO
+                {
+                    Required = order.OrderDishes?
+                    .Where(od => od.DishType == "included")
+                    .Select(od => od.DishId)
+                    .ToList() ?? new List<int>(),
+
+                                Extra = order.OrderDishes?
+                    .Where(od => od.DishType == "extra")
+                    .Select(od => od.DishId)
+                    .ToList() ?? new List<int>()
+                },
+                Freebies = new FreebiesDTO
+                {
+                    Freebies = order.Product?.Freebies.Select(f => f.FreebieName).ToList()
+                }
             };
         }
 

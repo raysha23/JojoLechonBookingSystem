@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using api.DTOs.Product;
 
 namespace api.DTOs.Order
 {
@@ -19,5 +20,7 @@ namespace api.DTOs.Order
         public decimal TotalAmount { get; set; }
 
         public int? ProductId { get; set; }
+        public DishesDTO? Dishes { get; set; }
+
     }
 }

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using api.DTOs.Product;
 
 namespace api.DTOs.Order
 {
@@ -31,5 +32,8 @@ namespace api.DTOs.Order
 
         public int? ProductId { get; set; }
         public string? ProductName { get; set; }
+        public DishesDTO Dishes { get; set; } = new();
+        public FreebiesDTO Freebies { get; set; } = new();
+
     }
 }

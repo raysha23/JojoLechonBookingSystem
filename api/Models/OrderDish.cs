@@ -14,5 +14,6 @@ namespace api.Models
         // Navigation
         public Order Order { get; set; } = null!;
         public Dish Dish { get; set; } = null!;
+        public bool IsExtra { get; set; } = false; // true if extra dish, false if included dish
     }
 }

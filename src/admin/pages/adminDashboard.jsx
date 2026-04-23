@@ -114,30 +114,28 @@ export default function AdminDashboard() {
 
       return matchDate && matchSearch && matchPrint;
     })
-    .sort(
-      (a, b) =>
-        parseTime(a.deliveryTime) - parseTime(b.deliveryTime),
-    );
+    .sort((a, b) => parseTime(a.deliveryTime) - parseTime(b.deliveryTime));
 
   const unprintedCount = bookings.filter(
     (b) =>
-      !b.isPrinted && (filterDate ? new Date(b.deliveryDate).toISOString().split('T')[0] === filterDate : true),
+      !b.isPrinted &&
+      (filterDate
+        ? new Date(b.deliveryDate).toISOString().split("T")[0] === filterDate
+        : true),
   ).length;
 
   const printedCount = bookings.filter(
     (b) =>
-      b.isPrinted && (filterDate ? new Date(b.deliveryDate).toISOString().split('T')[0] === filterDate : true),
+      b.isPrinted &&
+      (filterDate
+        ? new Date(b.deliveryDate).toISOString().split("T")[0] === filterDate
+        : true),
   ).length;
 
-  const grandTotal = filtered.reduce(
-    (sum, b) => sum + (b.totalAmount || 0),
-    0,
-  );
+  const grandTotal = filtered.reduce((sum, b) => sum + (b.totalAmount || 0), 0);
   const activeCount = bookings.filter((b) => !b.deletedAt).length;
   const deletedCount = bookings.filter((b) => b.deletedAt).length;
-  const gcashCount = bookings.filter(
-    (b) => b.paymentMethod === "gcash",
-  ).length;
+  const gcashCount = bookings.filter((b) => b.paymentMethod === "gcash").length;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -640,7 +638,7 @@ function BookingRow({ booking, onView, onEdit, onDelete, onRestore }) {
       <td className="px-5 py-4 min-w-[420px] border border-gray-200">
         {/* Product */}
         <p className="text-base font-black text-gray-900 mb-2">
-          {booking.product?.productName || "—"}
+          {booking.productName || "—"}
         </p>
 
         {/* Included dishes */}
@@ -668,13 +666,13 @@ function BookingRow({ booking, onView, onEdit, onDelete, onRestore }) {
         )}
 
         {/* Freebies */}
-        {booking.product?.freebies?.length > 0 && (
+        {booking.freebies.freebies?.length > 0 && (
           <div>
             <p className="text-[10px] font-black text-emerald-500 uppercase tracking-wider mb-1">
               Freebies
             </p>
             <p className="text-sm text-black font-bold leading-relaxed">
-              {booking.product.freebies.join(" · ")}
+              {booking.freebies.freebies.join(" · ")}
             </p>
           </div>
         )}
@@ -703,9 +701,7 @@ function BookingRow({ booking, onView, onEdit, onDelete, onRestore }) {
       <td className="px-5 py-4 min-w-[120px] border border-gray-200">
         {booking.orderType === "delivery" ? (
           <div>
-            <p className="text-sm  text-gray-500">
-              {booking.zone || "—"}
-            </p>
+            <p className="text-sm  text-gray-500">{booking.zone || "—"}</p>
             {booking.address && (
               <p className="text-xs text-black font-bold mt-0.5 max-w-[160px]">
                 {booking.address}
@@ -884,7 +880,10 @@ function ViewModal({ booking, onClose }) {
         </Section>
         <Section title="Delivery" icon="🚚">
           <Row label="Type" value={booking.orderType} highlight />
-          <Row label="Delivery Date" value={new Date(booking.deliveryDate).toLocaleDateString()} />
+          <Row
+            label="Delivery Date"
+            value={new Date(booking.deliveryDate).toLocaleDateString()}
+          />
           <Row label="Delivery Time" value={booking.deliveryTime} />
           <Row label="Process Time" value={processTime} highlight />
           {booking.orderType === "delivery" && (
@@ -895,20 +894,25 @@ function ViewModal({ booking, onClose }) {
           )}
         </Section>
         <Section title="Order" icon="🍖">
-          <Row label="Product" value={booking.product?.productName} />
-          {booking.dishes?.required?.filter(Boolean).length > 0 && (
-            <Row
-              label="Included Dishes"
-              value={booking.dishes.required.filter(Boolean).join(", ")}
-            />
-          )}
+          <Row label="Product" value={booking.productName} />
+
+          <Row
+            label="Included Dishes"
+            value={
+              booking.dishes?.required?.length > 0
+                ? booking.dishes.required.join(", ")
+                : "None"
+            }
+          />
+
           {extraDishes.length > 0 && (
             <Row label="Extra Dishes" value={extraDishes.join(", ")} />
           )}
-          {booking.product?.freebies?.length > 0 && (
+
+          {booking.freebies.freebies?.length > 0 && (
             <Row
               label="Freebies"
-              value={booking.product.freebies.join(", ")}
+              value={booking.freebies.freebies.join(", ")}
               green
             />
           )}
@@ -949,7 +953,7 @@ function EditModal({ booking, onClose, onSave }) {
     customerName: booking.customerName,
     contact: booking.contacts?.[0] || "",
     facebookProfile: booking.facebookProfile || "",
-    deliveryDate: new Date(booking.deliveryDate).toISOString().split('T')[0],
+    deliveryDate: new Date(booking.deliveryDate).toISOString().split("T")[0],
     deliveryTime: booking.deliveryTime,
     address: booking.address,
     zone: booking.zone,

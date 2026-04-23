@@ -24,9 +24,15 @@ namespace api.Controllers
         public async Task<ActionResult<IEnumerable<OrderDTO>>> GetOrders([FromQuery] string? date = null)
         {
             IQueryable<Order> query = _context.Orders
-                .Include(o => o.Customer)
-                    .ThenInclude(c => c.Contacts)
-                .Include(o => o.Product);
+            .Include(o => o.Customer)
+            .ThenInclude(c => c.Contacts)
+            .Include(o => o.Product)
+            .ThenInclude(p => p.ProductType)        // ← product type name
+            .Include(o => o.Product)
+            .ThenInclude(p => p.Freebies)           // ← freebies
+            .Include(o => o.OrderDishes)                // ← dishes on the order
+            .ThenInclude(od => od.Dish)
+            .Include(o => o.DeliveryCharge);            // ← delivery charge + zone
 
             // Filter by delivery date if provided
             if (!string.IsNullOrEmpty(date))
@@ -45,6 +51,7 @@ namespace api.Controllers
         }
 
         [HttpPost]
+        [HttpPost]
         public async Task<ActionResult<OrderDTO>> CreateOrder([FromBody] CreateOrderDTO createOrderDto)
         {
             if (string.IsNullOrWhiteSpace(createOrderDto.CustomerName))
@@ -57,12 +64,13 @@ namespace api.Controllers
                 return BadRequest("Delivery date is required.");
             }
 
-            // Treat 0 or negative product ids as "no selected package"
+            // Treat invalid product ID as null
             if (createOrderDto.ProductId.HasValue && createOrderDto.ProductId.Value <= 0)
             {
                 createOrderDto.ProductId = null;
             }
 
+            // Validate product exists
             if (createOrderDto.ProductId.HasValue)
             {
                 var productExists = await _context.Products
@@ -74,30 +82,78 @@ namespace api.Controllers
                 }
             }
 
+            // -------------------------
+            // 1. Create Customer
+            // -------------------------
             var customer = new Customer
             {
                 Name = createOrderDto.CustomerName,
                 FacebookProfile = createOrderDto.FacebookProfile,
-                Contacts = createOrderDto.Contacts
+                Contacts = createOrderDto.Contacts?
                     .Where(c => !string.IsNullOrWhiteSpace(c))
                     .Select(c => new CustomerContact
                     {
                         ContactNumber = c.Trim()
                     })
-                    .ToList()
+                    .ToList() ?? new List<CustomerContact>()
             };
 
             _context.Customers.Add(customer);
             await _context.SaveChangesAsync();
 
+            // -------------------------
+            // 2. Create Order
+            // -------------------------
             var order = createOrderDto.ToOrderFromCreateDTO(customer.Id);
-            _context.Orders.Add(order);
-            await _context.SaveChangesAsync();
 
+            _context.Orders.Add(order);
+            await _context.SaveChangesAsync(); // IMPORTANT: generates order.Id
+
+            // -------------------------
+            // 3. Create Order Dishes (🔥 FIXED PART)
+            // -------------------------
+            if (createOrderDto.Dishes != null)
+            {
+                // REQUIRED DISHES (included)
+                if (createOrderDto.Dishes.Required != null && createOrderDto.Dishes.Required.Any())
+                {
+                    foreach (var dishId in createOrderDto.Dishes.Required)
+                    {
+                        _context.OrderDishes.Add(new OrderDish
+                        {
+                            OrderId = order.Id,
+                            DishId = dishId,
+                            DishType = "included"
+                        });
+                    }
+                }
+
+                // EXTRA DISHES
+                if (createOrderDto.Dishes.Extra != null && createOrderDto.Dishes.Extra.Any())
+                {
+                    foreach (var dishId in createOrderDto.Dishes.Extra)
+                    {
+                        _context.OrderDishes.Add(new OrderDish
+                        {
+                            OrderId = order.Id,
+                            DishId = dishId,
+                            DishType = "extra"
+                        });
+                    }
+                }
+
+                await _context.SaveChangesAsync();
+            }
+
+            // -------------------------
+            // 4. Reload created order
+            // -------------------------
             var createdOrder = await _context.Orders
                 .Include(o => o.Customer)
                     .ThenInclude(c => c.Contacts)
                 .Include(o => o.Product)
+                .Include(o => o.OrderDishes)
+                    .ThenInclude(od => od.Dish)
                 .FirstOrDefaultAsync(o => o.Id == order.Id);
 
             if (createdOrder == null)
@@ -120,19 +176,19 @@ namespace api.Controllers
             // Update basic fields
             if (!string.IsNullOrEmpty(updateOrderDto.OrderType))
                 order.OrderType = updateOrderDto.OrderType;
-            
+
             if (updateOrderDto.DeliveryDate != default)
                 order.DeliveryDate = updateOrderDto.DeliveryDate;
-            
+
             if (!string.IsNullOrEmpty(updateOrderDto.DeliveryTime))
                 order.DeliveryTime = updateOrderDto.DeliveryTime;
-            
+
             if (!string.IsNullOrEmpty(updateOrderDto.PaymentMethod))
                 order.PaymentMethod = updateOrderDto.PaymentMethod;
-            
+
             if (updateOrderDto.TotalAmount > 0)
                 order.TotalAmount = updateOrderDto.TotalAmount;
-            
+
             if (updateOrderDto.IsPrinted.HasValue)
                 order.IsPrinted = updateOrderDto.IsPrinted.Value;
 
