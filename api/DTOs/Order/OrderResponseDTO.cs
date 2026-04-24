@@ -7,7 +7,7 @@ using api.DTOs.Product;
 namespace api.DTOs.Order
 {
     // What the server sends back to the client when an order is created or retrieved
-    public class OrderDTO
+    public class OrderResponseDTO
     {
         public int Id { get; set; }
         public string OrderNumber { get; set; } = string.Empty;

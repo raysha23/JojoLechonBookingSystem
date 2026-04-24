@@ -5,7 +5,7 @@ using api.DTOs.Product;
 namespace api.DTOs.Order
 {
     //What the client sends to the server when creating a new order
-    public class CreateOrderDTO
+    public class CreateOrderRequestDTO
     {
         public string CustomerName { get; set; } = string.Empty;
         public List<string> Contacts { get; set; } = new();
@@ -21,6 +21,9 @@ namespace api.DTOs.Order
 
         public int? ProductId { get; set; }
         public DishesDTO? Dishes { get; set; }
+        
+
+        public int? SubmittedByUserId { get; set; }
 
     }
 }

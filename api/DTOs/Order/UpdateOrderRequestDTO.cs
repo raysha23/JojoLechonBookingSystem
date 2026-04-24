@@ -3,7 +3,7 @@ using System;
 namespace api.DTOs.Order
 {
     //What the client sends to the server when updating an order
-    public class UpdateOrderDTO
+    public class UpdateOrderRequestDTO
     {
         public string? OrderType { get; set; }   // delivery or pickup
         public DateTime DeliveryDate { get; set; }

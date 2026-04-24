@@ -22,7 +22,7 @@ namespace api.Controllers
         }
 
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<OrderDTO>>> GetOrders([FromQuery] string? date = null)
+        public async Task<ActionResult<IEnumerable<OrderResponseDTO>>> GetOrders([FromQuery] string? date = null)
         {
             IQueryable<Order> query = _context.Orders
             .Include(o => o.Customer)
@@ -52,7 +52,7 @@ namespace api.Controllers
         }
 
         [HttpPost]
-        public async Task<ActionResult<OrderDTO>> CreateOrder([FromBody] CreateOrderDTO createOrderDto)
+        public async Task<ActionResult<OrderResponseDTO>> CreateOrder([FromBody] CreateOrderRequestDTO createOrderDto)
         {
             // -------------------------
             // 1. VALIDATION
@@ -196,7 +196,7 @@ namespace api.Controllers
         }
 
         [HttpPut("{id}")]
-        public async Task<ActionResult<OrderDTO>> UpdateOrder(int id, [FromBody] UpdateOrderDTO updateOrderDto)
+        public async Task<ActionResult<OrderResponseDTO>> UpdateOrder(int id, [FromBody] UpdateOrderRequestDTO updateOrderDto)
         {
             var order = await _context.Orders.FindAsync(id);
             if (order == null)
@@ -255,7 +255,7 @@ namespace api.Controllers
         }
 
         [HttpPost("{id}/restore")]
-        public async Task<ActionResult<OrderDTO>> RestoreOrder(int id)
+        public async Task<ActionResult<OrderResponseDTO>> RestoreOrder(int id)
         {
             var order = await _context.Orders.FindAsync(id);
             if (order == null)

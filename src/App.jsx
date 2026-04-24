@@ -15,7 +15,7 @@ function getDeliveryFee(zone, deliveryCharges = []) {
   return charge ? Number(charge.minAmount || 0) : 0;
 }
 
-function App() {
+function App({ submittedByUserId = null, encoderName = null }) {
   const [step, setStep] = useState(1);
   const [productTypes, setProductTypes] = useState([]);
   const [allProducts, setAllProducts] = useState([]);
@@ -215,6 +215,7 @@ function App() {
         required: requiredDishes.filter(Boolean).map(Number),
         extra: extraDishes.filter(Boolean).map(Number),
       },
+      submittedByUserId: submittedByUserId,
     };
 
     try {
@@ -260,18 +261,55 @@ function App() {
   return (
     <div className="p-6 max-w-6xl mx-auto">
       <div className="max-w-6xl mx-auto">
-        <header className="flex items-center space-x-3 mb-6 md:mb-8">
-          <div className="w-10 h-10 md:w-14 md:h-14 bg-red-700 rounded-full flex items-center justify-center border-2 border-white shadow-md overflow-hidden flex-shrink-0">
-            <span className="text-xl md:text-3xl">🐷</span>
+        <header className="flex items-center justify-between mb-6 md:mb-8">
+          {/* LEFT — Brand */}
+          <div className="flex items-center space-x-3">
+            <div className="w-10 h-10 md:w-14 md:h-14 bg-red-700 rounded-full flex items-center justify-center border-2 border-white shadow-md overflow-hidden flex-shrink-0">
+              <span className="text-xl md:text-3xl">🐷</span>
+            </div>
+            <div>
+              <h1 className="text-xl md:text-3xl font-extrabold text-red-900 tracking-tight leading-none">
+                Jojo's Lechon
+              </h1>
+              <p className="text-gray-500 font-medium mt-1 text-[10px] md:text-sm uppercase tracking-wider">
+                Order Encoder Dashboard
+              </p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-xl md:text-3xl font-extrabold text-red-900 tracking-tight leading-none">
-              Jojo's Lechon
-            </h1>
-            <p className="text-gray-500 font-medium mt-1 text-[10px] md:text-sm uppercase tracking-wider">
-              Order Encoder Dashboard
-            </p>
-          </div>
+
+          {/* RIGHT — Encoder badge + logout */}
+          {encoderName && (
+            <div className="flex items-center gap-3">
+              <div className="text-right hidden sm:block">
+                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                  Logged in as
+                </p>
+                <p className="text-sm font-black text-red-700">{encoderName}</p>
+              </div>
+              <button
+                onClick={() => {
+                  sessionStorage.removeItem("encoder");
+                  window.location.href = "/#/encoder/login";
+                }}
+                className="flex items-center gap-2 px-4 py-2 rounded-2xl border-2 border-red-100 text-red-600 font-bold text-xs hover:bg-red-50 hover:border-red-300 transition-all"
+              >
+                <svg
+                  className="w-3.5 h-3.5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2.5"
+                    d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
+                  />
+                </svg>
+                Logout
+              </button>
+            </div>
+          )}
         </header>
 
         <StepBar currentStep={step} />

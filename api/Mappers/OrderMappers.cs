@@ -7,9 +7,9 @@ namespace api.Mappers
     public static class OrderMappers
     {
         // Order → OrderDTO (for GET responses)
-        public static OrderDTO ToOrderDTO(this Order order)
+        public static OrderResponseDTO ToOrderDTO(this Order order)
         {
-            return new OrderDTO
+            return new OrderResponseDTO
             {
                 Id = order.Id,
                 OrderNumber = order.OrderNumber,
@@ -35,7 +35,7 @@ namespace api.Mappers
                 ProductName = order.Product?.ProductName,
 
                 // ✅ THIS FIXES YOUR UI - Return dish NAMES not IDs
-                Dishes = new OrderDTO.DishesResponse
+                Dishes = new OrderResponseDTO.DishesResponse
                 {
                     Required = order.OrderDishes?
                     .Where(od => od.DishType == "included")
@@ -55,7 +55,7 @@ namespace api.Mappers
         }
 
         // CreateOrderDTO → Order (for POST saving)
-        public static Order ToOrderFromCreateDTO(this CreateOrderDTO dto, int customerId)
+        public static Order ToOrderFromCreateDTO(this CreateOrderRequestDTO dto, int customerId)
         {
             return new Order
             {
@@ -67,14 +67,15 @@ namespace api.Mappers
                 DeliveryTime = dto.DeliveryTime,
                 PaymentMethod = dto.PaymentMethod,
                 TotalAmount = dto.TotalAmount,
-                SubmittedByType = "customer",
+                SubmittedByType = dto.SubmittedByUserId.HasValue ? "encoder" : "customer",
+                SubmittedByUserId = dto.SubmittedByUserId,
                 Status = "active",
                 IsPrinted = false,
                 CreatedAt = DateTime.UtcNow,
-                CustomerId = customerId, // ✅ passed in from controller
+                CustomerId = customerId,
                 ProductId = dto.ProductId.HasValue && dto.ProductId.Value > 0
-                    ? dto.ProductId
-                    : null
+                                        ? dto.ProductId
+                                        : null
             };
         }
     }
