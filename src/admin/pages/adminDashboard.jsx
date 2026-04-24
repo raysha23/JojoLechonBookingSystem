@@ -99,8 +99,7 @@ export default function AdminDashboard() {
 
   const filtered = bookings
     .filter((b) => {
-      // Remove frontend date filtering since API already filters by date
-      const matchDate = true; // API handles date filtering
+      const matchDeleted = showDeleted ? !!b.deletedAt : !b.deletedAt;
       const matchSearch = search
         ? b.customerName.toLowerCase().includes(search.toLowerCase())
         : true;
@@ -111,7 +110,7 @@ export default function AdminDashboard() {
             ? !b.isPrinted
             : b.isPrinted;
 
-      return matchDate && matchSearch && matchPrint;
+      return matchDeleted && matchSearch && matchPrint;
     })
     .sort((a, b) => parseTime(a.deliveryTime) - parseTime(b.deliveryTime));
 
@@ -948,89 +947,448 @@ function ViewModal({ booking, onClose }) {
 
 // ── EDIT MODAL ────────────────────────────────────────────────────
 function EditModal({ booking, onClose, onSave }) {
+  const EXTRA_DISH_PRICE = 700;
+
+  // ── FORM STATE ──────────────────────────────────────────────────
   const [form, setForm] = useState({
-    customerName: booking.customerName,
-    contact: booking.contacts?.[0] || "",
-    facebookProfile: booking.facebookProfile || "",
+    orderType: booking.orderType || "delivery",
     deliveryDate: new Date(booking.deliveryDate).toISOString().split("T")[0],
-    deliveryTime: booking.deliveryTime,
-    address: booking.address,
-    zone: booking.zone,
-    paymentMethod: booking.paymentMethod,
+    deliveryTime: booking.deliveryTime || "",
+    address: booking.address || "",
+    zone: booking.zone || "",
+    paymentMethod: booking.paymentMethod || "cod",
   });
+
+  // ── PRODUCT / DISH DATA ─────────────────────────────────────────
+  const [allProducts, setAllProducts] = useState([]);
+  const [allDishes, setAllDishes] = useState([]);
+  const [deliveryCharges, setDeliveryCharges] = useState([]);
+  const [productTypes, setProductTypes] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  // ── SELECTED PRODUCT STATE ──────────────────────────────────────
+  const [selectedProductId, setSelectedProductId] = useState(
+    booking.productId || null,
+  );
+  const [selectedProduct, setSelectedProduct] = useState(null);
+  const [requiredDishes, setRequiredDishes] = useState([]);
+  const [extraDishes, setExtraDishes] = useState([]);
 
   const set = (key, val) => setForm((f) => ({ ...f, [key]: val }));
 
+  // ── FETCH DATA ──────────────────────────────────────────────────
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [typesRes, productsRes, dishesRes, chargesRes] =
+          await Promise.all([
+            fetch("/api/products/types"),
+            fetch("/api/products"),
+            fetch("/api/products/dishes"),
+            fetch("/api/products/delivery-charges"),
+          ]);
+        const [types, products, dishes, charges] = await Promise.all([
+          typesRes.json(),
+          productsRes.json(),
+          dishesRes.json(),
+          chargesRes.json(),
+        ]);
+
+        setProductTypes(types ?? []);
+        setAllDishes(dishes ?? []);
+        setDeliveryCharges(charges ?? []);
+
+        const mapped = (products ?? []).map((p) => ({
+          id: p.id,
+          productName: p.productName,
+          amount: p.amount,
+          promoAmount: p.promoAmount,
+          productTypeId: p.productTypeId,
+          NoOfDishes: p.noOfIncludedDishes ?? 0,
+          freebies: (p.freebies ?? []).map((f) => f.freebieName),
+          defaultDishes: p.defaultDishes ?? [],
+        }));
+        setAllProducts(mapped);
+
+        // Pre-select the current product
+        if (booking.productId) {
+          const current = mapped.find((p) => p.id === booking.productId);
+          if (current) {
+            setSelectedProduct(current);
+            // Pre-fill dishes from existing booking (names → IDs)
+            const nameToId = Object.fromEntries(
+              (dishes ?? []).map((d) => [d.dishName, d.id]),
+            );
+            const requiredIds = (booking.dishes?.required ?? [])
+              .map((name) => nameToId[name])
+              .filter(Boolean);
+            const extraIds = (booking.dishes?.extra ?? [])
+              .map((name) => nameToId[name])
+              .filter(Boolean);
+
+            // Pad required slots to match NoOfDishes
+            const slots = current.NoOfDishes || 0;
+            const paddedRequired = [...requiredIds];
+            while (paddedRequired.length < slots) paddedRequired.push("");
+            setRequiredDishes(paddedRequired);
+            setExtraDishes(extraIds.map(String));
+          }
+        }
+      } catch (err) {
+        console.error("Failed to load edit data", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, []);
+
+  // ── WHEN PRODUCT CHANGES ────────────────────────────────────────
+  const handleProductChange = (productId) => {
+    const product = allProducts.find((p) => p.id === Number(productId));
+    setSelectedProductId(productId ? Number(productId) : null);
+    setSelectedProduct(product || null);
+
+    if (product) {
+      const slots = product.NoOfDishes || 0;
+      setRequiredDishes(Array(slots).fill(""));
+    } else {
+      setRequiredDishes([]);
+    }
+    setExtraDishes([]);
+  };
+
+  // ── DELIVERY FEE ────────────────────────────────────────────────
+  const deliveryFee =
+    form.orderType === "delivery"
+      ? (() => {
+          const charge = deliveryCharges.find((c) => c.zoneName === form.zone);
+          return charge ? Number(charge.minAmount || 0) : 0;
+        })()
+      : 0;
+
+  // ── TOTAL CALCULATION ───────────────────────────────────────────
+  const packageTotal = selectedProduct?.amount ?? 0;
+  const extraTotal = extraDishes.filter(Boolean).length * EXTRA_DISH_PRICE;
+  const discount = selectedProduct?.promoAmount
+    ? Math.abs(Number(selectedProduct.promoAmount))
+    : 0;
+  const total = packageTotal + extraTotal + deliveryFee - discount;
+
+  // ── SAVE ────────────────────────────────────────────────────────
   const handleSave = () => {
     onSave({
-      orderType: form.orderType || booking.orderType,
+      orderType: form.orderType,
       deliveryDate: form.deliveryDate,
       deliveryTime: form.deliveryTime,
       address: form.address,
       zone: form.zone,
       paymentMethod: form.paymentMethod,
-      totalAmount: booking.totalAmount, // Keep existing total
+      totalAmount: total,
+      productId: selectedProductId,
+      dishes: {
+        required: requiredDishes.filter(Boolean).map(Number),
+        extra: extraDishes.filter(Boolean).map(Number),
+      },
     });
   };
+
+  // ── GROUP PRODUCTS BY TYPE ──────────────────────────────────────
+  const productsByType = productTypes
+    .map((pt) => ({
+      ...pt,
+      products: allProducts.filter((p) => p.productTypeId === pt.id),
+    }))
+    .filter((pt) => pt.products.length > 0);
+
+  if (loading) {
+    return (
+      <Modal onClose={onClose}>
+        <ModalHeader
+          title="Edit Booking"
+          subtitle={`#${booking.id}`}
+          onClose={onClose}
+        />
+        <div className="p-12 text-center text-gray-400 font-bold">
+          Loading order data...
+        </div>
+      </Modal>
+    );
+  }
 
   return (
     <Modal onClose={onClose}>
       <ModalHeader
         title="Edit Booking"
-        subtitle={booking.id}
+        subtitle={`#${booking.id}`}
         onClose={onClose}
       />
-      <div className="p-6 space-y-4 max-h-[60vh] overflow-y-auto">
-        <EditField
-          label="Customer Name"
-          value={form.customerName}
-          onChange={(v) => set("customerName", v)}
-        />
-        <EditField
-          label="Contact"
-          value={form.contact}
-          onChange={(v) => set("contact", v)}
-        />
-        <EditField
-          label="Facebook Profile"
-          value={form.facebookProfile}
-          onChange={(v) => set("facebookProfile", v)}
-        />
-        <EditField
-          label="Delivery Date"
-          value={form.deliveryDate}
-          onChange={(v) => set("deliveryDate", v)}
-          type="date"
-        />
-        <EditField
-          label="Delivery Time"
-          value={form.deliveryTime}
-          onChange={(v) => set("deliveryTime", v)}
-        />
-        <EditField
-          label="Address"
-          value={form.address}
-          onChange={(v) => set("address", v)}
-        />
-        <EditField
-          label="Zone"
-          value={form.zone}
-          onChange={(v) => set("zone", v)}
-        />
-        <div>
-          <label className="block text-xs font-black text-gray-500 uppercase tracking-widest mb-1.5">
-            Payment Method
-          </label>
-          <select
-            value={form.paymentMethod}
-            onChange={(e) => set("paymentMethod", e.target.value)}
-            className="w-full p-3 border border-gray-200 rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-red-500"
+
+      <div className="p-6 space-y-6 max-h-[70vh] overflow-y-auto">
+        {/* ── DELIVERY DETAILS ─────────────────────────────────── */}
+        <Section title="Delivery Details" icon="🚚">
+          <div className="pt-2 space-y-3">
+            {/* Order Type */}
+            <div className="grid grid-cols-2 gap-2">
+              {["delivery", "pickup"].map((type) => (
+                <button
+                  key={type}
+                  onClick={() => set("orderType", type)}
+                  className={`py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all border-2 ${
+                    form.orderType === type
+                      ? "bg-red-600 text-white border-red-600"
+                      : "bg-white text-gray-500 border-gray-200 hover:border-gray-300"
+                  }`}
+                >
+                  {type === "delivery" ? "🚚 Delivery" : "🏪 Pickup"}
+                </button>
+              ))}
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <EditField
+                label="Date"
+                value={form.deliveryDate}
+                onChange={(v) => set("deliveryDate", v)}
+                type="date"
+              />
+              <EditField
+                label="Time"
+                value={form.deliveryTime}
+                onChange={(v) => set("deliveryTime", v)}
+              />
+            </div>
+
+            {form.orderType === "delivery" && (
+              <>
+                <EditField
+                  label="Address"
+                  value={form.address}
+                  onChange={(v) => set("address", v)}
+                />
+                <div>
+                  <label className="block text-xs font-black text-gray-500 uppercase tracking-widest mb-1.5">
+                    Zone
+                  </label>
+                  <select
+                    value={form.zone}
+                    onChange={(e) => set("zone", e.target.value)}
+                    className="w-full p-3 border border-gray-200 rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-red-500"
+                  >
+                    <option value="">Select zone</option>
+                    {deliveryCharges.map((c) => (
+                      <option key={c.zoneName} value={c.zoneName}>
+                        {c.zoneName} — ₱{c.minAmount}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </>
+            )}
+
+            <div>
+              <label className="block text-xs font-black text-gray-500 uppercase tracking-widest mb-1.5">
+                Payment Method
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  ["cod", "💵 Cash on Delivery"],
+                  ["gcash", "📱 GCash"],
+                ].map(([val, label]) => (
+                  <button
+                    key={val}
+                    onClick={() => set("paymentMethod", val)}
+                    className={`py-2.5 rounded-xl text-xs font-black transition-all border-2 ${
+                      form.paymentMethod === val
+                        ? "bg-red-600 text-white border-red-600"
+                        : "bg-white text-gray-500 border-gray-200 hover:border-gray-300"
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </Section>
+
+        {/* ── PACKAGE SELECTION ────────────────────────────────── */}
+        <Section title="Package" icon="🍖">
+          <div className="pt-2">
+            <label className="block text-xs font-black text-gray-500 uppercase tracking-widest mb-1.5">
+              Select Package
+            </label>
+            <select
+              value={selectedProductId || ""}
+              onChange={(e) => handleProductChange(e.target.value)}
+              className="w-full p-3 border border-gray-200 rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-red-500"
+            >
+              <option value="">No package</option>
+              {productsByType.map((pt) => (
+                <optgroup
+                  key={pt.id}
+                  label={pt.typeName?.replace("_", " ").toUpperCase()}
+                >
+                  {pt.products.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.productName} — ₱{Number(p.amount).toLocaleString()}
+                    </option>
+                  ))}
+                </optgroup>
+              ))}
+            </select>
+
+            {/* Freebies */}
+            {selectedProduct?.freebies?.length > 0 && (
+              <div className="mt-3 bg-emerald-50 rounded-xl px-4 py-3">
+                <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-1.5">
+                  Freebies
+                </p>
+                <p className="text-xs font-bold text-emerald-800">
+                  {selectedProduct.freebies.join(" · ")}
+                </p>
+              </div>
+            )}
+          </div>
+        </Section>
+
+        {/* ── INCLUDED DISHES ──────────────────────────────────── */}
+        {requiredDishes.length > 0 && (
+          <Section
+            title={`Included Dishes (${requiredDishes.length} slots)`}
+            icon="🥘"
           >
-            <option value="gcash">GCash</option>
-            <option value="cod">Cash on Delivery</option>
-          </select>
+            <div className="pt-2 space-y-2">
+              {requiredDishes.map((dishId, i) => (
+                <div key={i}>
+                  <label className="block text-[10px] font-black text-gray-400 uppercase mb-1">
+                    Dish {i + 1}
+                  </label>
+                  <select
+                    value={dishId}
+                    onChange={(e) => {
+                      const updated = [...requiredDishes];
+                      updated[i] = e.target.value;
+                      setRequiredDishes(updated);
+                    }}
+                    className="w-full p-2.5 border border-gray-200 rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-red-400"
+                  >
+                    <option value="">Select dish</option>
+                    {allDishes.map((d) => (
+                      <option key={d.id} value={d.id}>
+                        {d.dishName}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              ))}
+            </div>
+          </Section>
+        )}
+
+        {/* ── EXTRA DISHES ─────────────────────────────────────── */}
+        {selectedProduct && (
+          <Section title="Extra Dishes" icon="➕">
+            <div className="pt-2 space-y-2">
+              {extraDishes.map((dishId, i) => (
+                <div key={i} className="flex gap-2 items-center">
+                  <select
+                    value={dishId}
+                    onChange={(e) => {
+                      const updated = [...extraDishes];
+                      updated[i] = e.target.value;
+                      setExtraDishes(updated);
+                    }}
+                    className="flex-1 p-2.5 border border-gray-200 rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-red-400"
+                  >
+                    <option value="">Select dish</option>
+                    {allDishes.map((d) => (
+                      <option key={d.id} value={d.id}>
+                        {d.dishName}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    onClick={() =>
+                      setExtraDishes(extraDishes.filter((_, idx) => idx !== i))
+                    }
+                    className="p-2 rounded-lg bg-red-50 text-red-500 hover:bg-red-100 transition-colors"
+                  >
+                    <svg
+                      className="w-4 h-4"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth="2"
+                        d="M6 18L18 6M6 6l12 12"
+                      />
+                    </svg>
+                  </button>
+                </div>
+              ))}
+              <button
+                onClick={() => setExtraDishes([...extraDishes, ""])}
+                className="w-full py-2.5 rounded-xl border-2 border-dashed border-gray-200 text-xs font-black text-gray-400 hover:border-red-300 hover:text-red-500 transition-all"
+              >
+                + Add Extra Dish (₱700 each)
+              </button>
+            </div>
+          </Section>
+        )}
+
+        {/* ── PRICING SUMMARY ──────────────────────────────────── */}
+        <div className="bg-gray-50 rounded-2xl p-4 space-y-2">
+          <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">
+            Pricing Summary
+          </p>
+          {selectedProduct && (
+            <div className="flex justify-between text-sm">
+              <span className="font-bold text-gray-500">Package</span>
+              <span className="font-black text-gray-800">
+                {fmt(packageTotal)}
+              </span>
+            </div>
+          )}
+          {extraDishes.filter(Boolean).length > 0 && (
+            <div className="flex justify-between text-sm">
+              <span className="font-bold text-gray-500">
+                Extra Dishes ({extraDishes.filter(Boolean).length})
+              </span>
+              <span className="font-black text-gray-800">
+                {fmt(extraTotal)}
+              </span>
+            </div>
+          )}
+          {form.orderType === "delivery" && (
+            <div className="flex justify-between text-sm">
+              <span className="font-bold text-gray-500">Delivery Fee</span>
+              <span className="font-black text-gray-800">
+                {fmt(deliveryFee)}
+              </span>
+            </div>
+          )}
+          {discount > 0 && (
+            <div className="flex justify-between text-sm">
+              <span className="font-bold text-emerald-600">Discount</span>
+              <span className="font-black text-emerald-600">
+                -{fmt(discount)}
+              </span>
+            </div>
+          )}
+          <div className="flex justify-between items-center pt-3 border-t-2 border-gray-200 mt-2">
+            <span className="text-sm font-black text-gray-800">Total</span>
+            <span className="text-lg font-black text-red-600">
+              {fmt(total)}
+            </span>
+          </div>
         </div>
       </div>
+
+      {/* ── FOOTER ───────────────────────────────────────────────── */}
       <div className="px-6 py-4 bg-gray-50 border-t border-gray-100 flex gap-3">
         <button
           onClick={onClose}

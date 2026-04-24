@@ -200,11 +200,9 @@ namespace api.Controllers
         {
             var order = await _context.Orders.FindAsync(id);
             if (order == null)
-            {
                 return NotFound($"Order with ID {id} not found.");
-            }
 
-            // Update basic fields
+            // ── BASIC FIELDS ──────────────────────────────────────────────
             if (!string.IsNullOrEmpty(updateOrderDto.OrderType))
                 order.OrderType = updateOrderDto.OrderType;
 
@@ -214,6 +212,12 @@ namespace api.Controllers
             if (!string.IsNullOrEmpty(updateOrderDto.DeliveryTime))
                 order.DeliveryTime = updateOrderDto.DeliveryTime;
 
+            if (!string.IsNullOrEmpty(updateOrderDto.Address))
+                order.Address = updateOrderDto.Address;
+
+            if (!string.IsNullOrEmpty(updateOrderDto.Zone))
+                order.Zone = updateOrderDto.Zone;
+
             if (!string.IsNullOrEmpty(updateOrderDto.PaymentMethod))
                 order.PaymentMethod = updateOrderDto.PaymentMethod;
 
@@ -221,19 +225,94 @@ namespace api.Controllers
                 order.TotalAmount = updateOrderDto.TotalAmount;
 
             if (updateOrderDto.IsPrinted.HasValue)
+            {
                 order.IsPrinted = updateOrderDto.IsPrinted.Value;
+                order.PrintedAt = updateOrderDto.IsPrinted.Value ? DateTime.UtcNow : null;
+            }
+
+            // ── PRODUCT ───────────────────────────────────────────────────
+            if (updateOrderDto.ProductId.HasValue)
+            {
+                var productExists = await _context.Products
+                    .AnyAsync(p => p.Id == updateOrderDto.ProductId.Value);
+
+                if (!productExists)
+                    return BadRequest($"Product with ID {updateOrderDto.ProductId.Value} does not exist.");
+
+                order.ProductId = updateOrderDto.ProductId.Value;
+            }
 
             _context.Orders.Update(order);
             await _context.SaveChangesAsync();
 
+            // ── DISHES ────────────────────────────────────────────────────
+            if (updateOrderDto.Dishes != null)
+            {
+                // Validate all dish IDs exist
+                var allDishIds = await _context.Dishes.Select(d => d.Id).ToListAsync();
+                var allRequested = updateOrderDto.Dishes.Required
+                    .Concat(updateOrderDto.Dishes.Extra).ToList();
+
+                foreach (var dishId in allRequested)
+                {
+                    if (!allDishIds.Contains(dishId))
+                        return BadRequest($"Dish with ID {dishId} does not exist.");
+                }
+
+                // Get default dishes for the new product
+                List<int> defaultDishIds = new();
+                if (order.ProductId.HasValue)
+                {
+                    defaultDishIds = await _context.ProductDefaultDishes
+                        .Where(pd => pd.ProductId == order.ProductId.Value)
+                        .Select(pd => pd.DishId)
+                        .ToListAsync();
+                }
+
+                // Delete all existing order dishes
+                var existingDishes = await _context.OrderDishes
+                    .Where(od => od.OrderId == id)
+                    .ToListAsync();
+                _context.OrderDishes.RemoveRange(existingDishes);
+                await _context.SaveChangesAsync();
+
+                // Re-create with new selections
+                var newDishes = new List<OrderDish>();
+
+                var includedIds = updateOrderDto.Dishes.Required.Union(defaultDishIds).ToList();
+                newDishes.AddRange(includedIds.Select(dishId => new OrderDish
+                {
+                    OrderId = id,
+                    DishId = dishId,
+                    DishType = "included",
+                    IsExtra = false
+                }));
+
+                newDishes.AddRange(updateOrderDto.Dishes.Extra.Select(dishId => new OrderDish
+                {
+                    OrderId = id,
+                    DishId = dishId,
+                    DishType = "extra",
+                    IsExtra = true
+                }));
+
+                _context.OrderDishes.AddRange(newDishes);
+                await _context.SaveChangesAsync();
+            }
+
+            // ── RELOAD & RETURN ───────────────────────────────────────────
             var updatedOrder = await _context.Orders
                 .Include(o => o.Customer)
                     .ThenInclude(c => c.Contacts)
                 .Include(o => o.Product)
+                    .ThenInclude(p => p!.Freebies)
+                .Include(o => o.OrderDishes)
+                    .ThenInclude(od => od.Dish)
                 .FirstOrDefaultAsync(o => o.Id == id);
 
             return Ok(updatedOrder?.ToOrderDTO());
         }
+
 
         [HttpDelete("{id}")]
         public async Task<ActionResult> DeleteOrder(int id)

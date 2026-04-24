@@ -1,15 +1,21 @@
 using System;
+using System.Collections.Generic;
 
 namespace api.DTOs.Order
 {
-    //What the client sends to the server when updating an order
     public class UpdateOrderRequestDTO
     {
-        public string? OrderType { get; set; }   // delivery or pickup
+        public string? OrderType { get; set; }
         public DateTime DeliveryDate { get; set; }
         public string? DeliveryTime { get; set; }
-        public string? PaymentMethod { get; set; } // gcash or cod
+        public string? Address { get; set; }
+        public string? Zone { get; set; }
+        public string? PaymentMethod { get; set; }
         public decimal TotalAmount { get; set; }
         public bool? IsPrinted { get; set; }
+
+        // ← NEW
+        public int? ProductId { get; set; }
+        public UpdateDishesDTO? Dishes { get; set; }
     }
 }
