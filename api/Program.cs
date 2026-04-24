@@ -102,12 +102,12 @@ using (var scope = app.Services.CreateScope())
     }
 
     // CUSTOMERS
-    if (!context.Customers.Any())
-    {
-        var customers = SeedData.GetCustomers();
-        context.Customers.AddRange(customers);
-        context.SaveChanges();
-    }
+    // if (!context.Customers.Any())
+    // {
+    //     var customers = SeedData.GetCustomers();
+    //     context.Customers.AddRange(customers);
+    //     context.SaveChanges();
+    // }
     // DELIVERY CHARGES
     if (!context.DeliveryCharges.Any())
     {
@@ -117,17 +117,17 @@ using (var scope = app.Services.CreateScope())
     }
 
     // ORDERS
-    if (!context.Orders.Any())
-    {
-        var customers = context.Customers.ToList();
-        var products = context.Products.ToList();
-        var deliveryCharges = context.DeliveryCharges.ToList();
-        var dishes = context.Dishes.ToList();
-        var productDefaultDishes = context.ProductDefaultDishes.ToList();
-        var orders = SeedData.GetOrders(customers, products, deliveryCharges, dishes, productDefaultDishes);
-        context.Orders.AddRange(orders);
-        context.SaveChanges();
-    }
+    // if (!context.Orders.Any())
+    // {
+    //     var customers = context.Customers.ToList();
+    //     var products = context.Products.ToList();
+    //     var deliveryCharges = context.DeliveryCharges.ToList();
+    //     var dishes = context.Dishes.ToList();
+    //     var productDefaultDishes = context.ProductDefaultDishes.ToList();
+    //     var orders = SeedData.GetOrders(customers, products, deliveryCharges, dishes, productDefaultDishes);
+    //     context.Orders.AddRange(orders);
+    //     context.SaveChanges();
+    // }
 }
 app.UseCors("AllowReactApp");
 

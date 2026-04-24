@@ -1,6 +1,156 @@
 // File Path: JojoLechonBookingSystem/src/pages/step1.jsx
 import { useEffect, useState } from "react";
 
+// ── ZONE KEYWORDS MAPPING ────────────────────────
+const zoneKeywords = [
+  // =========================
+  // TALISAY CITY
+  // =========================
+  {
+    zoneName: "Talisay-Proper",
+    city: "Talisay City",
+    areaType: "proper",
+    keywords: [
+      "talisay",
+      "liburon",
+      "laya",
+      "batasan",
+      "tangke",
+      "tayud",
+      "poblacion",
+    ],
+  },
+  {
+    zoneName: "Talisay-Mountain",
+    city: "Talisay City",
+    areaType: "mountain",
+    keywords: ["talisay mountain", "upland", "hill", "highland"],
+  },
+
+  // =========================
+  // MINGLANILLA
+  // =========================
+  {
+    zoneName: "Minglanilla-Proper",
+    city: "Minglanilla",
+    areaType: "proper",
+    keywords: ["minglanilla", "tampo"],
+  },
+  {
+    zoneName: "Minglanilla-Mountain",
+    city: "Minglanilla",
+    areaType: "mountain",
+    keywords: ["minglanilla mountain"],
+  },
+
+  // =========================
+  // NAGA CITY
+  // =========================
+  {
+    zoneName: "Naga-Proper",
+    city: "Naga City",
+    areaType: "proper",
+    keywords: ["naga proper", "naga city", "babag", "buhisan", "tigbao"],
+  },
+  {
+    zoneName: "Naga-Mountain",
+    city: "Naga City",
+    areaType: "mountain",
+    keywords: ["naga mountain", "sungod", "bugnay"],
+  },
+
+  // =========================
+  // CARCAR CITY
+  // =========================
+  {
+    zoneName: "Carcar-Proper",
+    city: "Carcar City",
+    areaType: "proper",
+    keywords: ["carcar", "binaliw", "canlumot"],
+  },
+  {
+    zoneName: "Carcar-Mountain",
+    city: "Carcar City",
+    areaType: "mountain",
+    keywords: ["carcar mountain"],
+  },
+
+  // =========================
+  // CEBU CITY (GROUPED BARANGAYS)
+  // =========================
+  {
+    zoneName: "Cebu-Proper",
+    city: "Cebu City",
+    areaType: "proper",
+    keywords: [
+      "pardo",
+      "basak",
+      "quiot",
+      "mambaling",
+      "pasil",
+      "tisa",
+      "banawa",
+      "sambag",
+      "v rama",
+      "fuente",
+      "lahug",
+      "mabolo",
+      "talamban",
+      "pit-os",
+    ],
+  },
+  {
+    zoneName: "Cebu-Mountain",
+    city: "Cebu City",
+    areaType: "mountain",
+    keywords: ["busay", "sirao", "transcentral", "mountain view"],
+  },
+
+  // =========================
+  // NEARBY CITIES
+  // =========================
+  {
+    zoneName: "Mandaue-Proper",
+    city: "Mandaue City",
+    areaType: "proper",
+    keywords: ["mandaue", "bakilid", "tipolo"],
+  },
+  {
+    zoneName: "LapuLapu-Proper",
+    city: "Lapu-Lapu City",
+    areaType: "proper",
+    keywords: ["lapu-lapu", "cordova", "mactan"],
+  },
+  {
+    zoneName: "Consolacion-Proper",
+    city: "Consolacion",
+    areaType: "proper",
+    keywords: ["consolacion"],
+  },
+
+  // =========================
+  // FAR AREAS
+  // =========================
+  {
+    zoneName: "Liloan-Proper",
+    city: "Liloan",
+    areaType: "proper",
+    keywords: ["liloan"],
+  },
+  {
+    zoneName: "Compostela-Proper",
+    city: "Compostela",
+    areaType: "proper",
+    keywords: ["compostela"],
+  },
+  {
+    zoneName: "Danao-Proper",
+    city: "Danao City",
+    areaType: "proper",
+    keywords: ["danao"],
+  },
+];
+
 export default function Step1({ orderState }) {
   const {
     orderType,
@@ -38,7 +188,7 @@ export default function Step1({ orderState }) {
 
   // ── Keep productType name in sync ────────────
   useEffect(() => {
-    if (!productType || productType === "dish_only") {
+    if (!productType) {
       setSelectedProductTypeId("");
       return;
     }
@@ -46,51 +196,12 @@ export default function Step1({ orderState }) {
     setSelectedProductTypeId(selectedType ? String(selectedType.id) : "");
   }, [productType, productTypes]);
 
-  // ── AUTO-DETECT ZONE FROM ADDRESS KEYWORDS ───
-  const zoneKeywords = {
-    "Near Talisay": [
-      "talisay",
-      "liburon",
-      "laya",
-      "batasan",
-      "tangke",
-      "tayud",
-    ],
-    Inayawan: ["inayawan", "basac", "basak"],
-    Minglanilla: ["minglanilla", "tampo"],
-    "Naga Proper": [
-      "naga",
-      "babag",
-      "buhisan",
-      "danao",
-      "tigbao",
-      "naga proper",
-    ],
-    Carcar: ["carcar", "binaliw", "buwakan", "canlumot"],
-    "San Fernando": ["san fernando"],
-    "Naga Mountains": ["naga mountains", "sungod", "bugnay"],
-    Pardo: ["pardo", "balili", "banay", "labogon", "sanza"],
-    Basak: ["basak", "apas"],
-    Quiot: ["quiot", "banilad", "kalubihan"],
-    Mambaling: ["mambaling", "malubog", "potao", "sawang", "kulasihan"],
-    Pasil: ["pasil", "kasambagan", "kangitngit"],
-    Tisa: ["tisa", "bulacao", "kalungsod", "tomonoy"],
-    Banawa: ["banawa", "cambinocot", "manlibod"],
-    Sambag: ["sambag", "pamulak", "putol"],
-    "V. Rama": ["v. rama", "v rama", "v.rama", "vrama"],
-    Fuente: ["fuente", "logon", "tejero"],
-    Lahug: ["lahug", "busay", "calizon"],
-    Mabolo: ["mabolo", "bulacao north", "pulcahan"],
-    Talamban: ["talamban", "cansaga", "sirao"],
-    "Pit-os": ["pit-os", "pitos", "langub", "sapangdaku"],
-  };
-
   useEffect(() => {
     if (!address || orderType !== "delivery") return;
     const lowerAddress = address.toLowerCase();
-    for (const [zoneName, keywords] of Object.entries(zoneKeywords)) {
-      if (keywords.some((keyword) => lowerAddress.includes(keyword))) {
-        setZone(zoneName);
+    for (const zone of zoneKeywords) {
+      if (zone.keywords.some((keyword) => lowerAddress.includes(keyword))) {
+        setZone(zone.zoneName);
         return;
       }
     }
@@ -263,8 +374,8 @@ export default function Step1({ orderState }) {
                     <option value="">Select Zone</option>
                     {deliveryCharges.map((charge) => (
                       <option key={charge.id} value={charge.zoneName}>
-                        {charge.zoneName} — ₱{charge.minAmount}
-                        {charge.maxAmount ? ` - ₱${charge.maxAmount}` : ""}
+                        {charge.zoneName} — ₱{charge.baseFee}
+                        {charge.surcharge ? ` + ₱${charge.surcharge} surcharge` : ""}
                       </option>
                     ))}
                   </select>

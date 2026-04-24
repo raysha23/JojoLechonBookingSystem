@@ -5,7 +5,7 @@ const EXTRA_DISH_PRICE = 700;
 function getDeliveryFee(zone, deliveryCharges = []) {
   if (!zone || deliveryCharges.length === 0) return 0;
   const charge = deliveryCharges.find((item) => item.zoneName === zone);
-  return charge ? Number(charge.minAmount || 0) : 0;
+  return charge ? Number(charge.baseFee || 0) + Number(charge.surcharge || 0) : 0;
 }
 
 export default function OrderSummary({ orderState }) {
