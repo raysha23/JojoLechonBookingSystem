@@ -95,3 +95,40 @@ export const restoreOrder = async (id) => {
     return null;
   }
 };
+// ── MARK ORDERS AS PRINTED ──────────────────────────────────────
+export const markOrdersAsPrinted = async (orderIds) => {
+  try {
+    const res = await fetch("http://localhost:5194/api/order/mark-printed", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${localStorage.getItem("adminToken")}`,
+      },
+      body: JSON.stringify(orderIds),
+    });
+    if (!res.ok) throw new Error(`API error: ${res.status}`);
+    return await res.json();
+  } catch (error) {
+    console.error("Failed to mark orders as printed:", error);
+    return null;
+  }
+};
+
+// ── TOGGLE SINGLE ORDER PRINT STATUS ───────────────────────────
+export const toggleOrderPrinted = async (id, isPrinted) => {
+  try {
+    const res = await fetch(`http://localhost:5194/api/order/${id}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${localStorage.getItem("adminToken")}`,
+      },
+      body: JSON.stringify({ isPrinted }),
+    });
+    if (!res.ok) throw new Error(`API error: ${res.status}`);
+    return await res.json();
+  } catch (error) {
+    console.error("Failed to toggle print status:", error);
+    return null;
+  }
+};

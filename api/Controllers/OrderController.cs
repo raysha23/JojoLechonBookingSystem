@@ -357,7 +357,26 @@ namespace api.Controllers
 
             return Ok(restoredOrder?.ToOrderDTO());
         }
+        
+        [HttpPost("mark-printed")]
+        public async Task<IActionResult> MarkOrdersAsPrinted([FromBody] List<int> orderIds)
+        {
+            if (orderIds == null || orderIds.Count == 0)
+                return BadRequest("No order IDs provided.");
 
+            var orders = await _context.Orders
+                .Where(o => orderIds.Contains(o.Id) && !o.IsPrinted)
+                .ToListAsync();
+
+            foreach (var order in orders)
+            {
+                order.IsPrinted = true;
+                order.PrintedAt = DateTime.UtcNow;
+            }
+
+            await _context.SaveChangesAsync();
+            return Ok(new { marked = orders.Count });
+        }
     }
 
 

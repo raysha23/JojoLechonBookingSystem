@@ -5,6 +5,8 @@ import {
   softDeleteOrder,
   restoreOrder,
   updateOrder,
+  markOrdersAsPrinted,
+  toggleOrderPrinted,
 } from "../services/orderServices.jsx";
 
 const EXTRA_DISH_PRICE = 700;
@@ -33,17 +35,12 @@ function getProcessTime(deliveryTime) {
 
 function parseTime(timeStr) {
   if (!timeStr) return 0;
-
   const [time, period] = timeStr.split(" ");
   let [hours, minutes] = time.split(":").map(Number);
-
   if (period === "PM" && hours !== 12) hours += 12;
   if (period === "AM" && hours === 12) hours = 0;
-
   return hours * 60 + minutes;
 }
-
-// ── MAIN ──────────────────────────────────────────────────────────
 
 const getToday = () => {
   const today = new Date();
@@ -53,6 +50,8 @@ const getToday = () => {
   return `${year}-${month}-${day}`;
 };
 
+// ── MAIN ──────────────────────────────────────────────────────────
+
 export default function AdminDashboard() {
   const navigate = useNavigate();
   const [bookings, setBookings] = useState([]);
@@ -61,6 +60,8 @@ export default function AdminDashboard() {
   const [editingBooking, setEditingBooking] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [restoreTarget, setRestoreTarget] = useState(null);
+  const [togglePrintTarget, setTogglePrintTarget] = useState(null);
+  const [printConfirm, setPrintConfirm] = useState(false);
   const [search, setSearch] = useState("");
   const [filterDate, setFilterDate] = useState(getToday());
   const [printFilter, setPrintFilter] = useState("all");
@@ -97,6 +98,32 @@ export default function AdminDashboard() {
     loadBookings(filterDate);
   };
 
+  // ── PRINT HANDLER ─────────────────────────────────────────────
+  const handlePrintOrders = async () => {
+    setPrintConfirm(false);
+    const unprintedIds = filtered
+      .filter((b) => !b.isPrinted && !b.deletedAt)
+      .map((b) => b.id);
+
+    if (unprintedIds.length > 0) {
+      await markOrdersAsPrinted(unprintedIds);
+      await loadBookings(filterDate);
+    }
+
+    window.print();
+  };
+
+  // ── TOGGLE PRINT STATUS (with confirm modal) ──────────────────
+  const handleTogglePrinted = async () => {
+    await toggleOrderPrinted(
+      togglePrintTarget.id,
+      !togglePrintTarget.isPrinted,
+    );
+    setTogglePrintTarget(null);
+    loadBookings(filterDate);
+  };
+
+  // ── FILTERED LIST ─────────────────────────────────────────────
   const filtered = bookings
     .filter((b) => {
       const matchDeleted = showDeleted ? !!b.deletedAt : !b.deletedAt;
@@ -109,31 +136,17 @@ export default function AdminDashboard() {
           : printFilter === "unprinted"
             ? !b.isPrinted
             : b.isPrinted;
-
       return matchDeleted && matchSearch && matchPrint;
     })
     .sort((a, b) => parseTime(a.deliveryTime) - parseTime(b.deliveryTime));
 
   const unprintedCount = bookings.filter(
-    (b) =>
-      !b.isPrinted &&
-      (filterDate
-        ? new Date(b.deliveryDate).toISOString().split("T")[0] === filterDate
-        : true),
+    (b) => !b.isPrinted && !b.deletedAt,
   ).length;
-
   const printedCount = bookings.filter(
-    (b) =>
-      b.isPrinted &&
-      (filterDate
-        ? new Date(b.deliveryDate).toISOString().split("T")[0] === filterDate
-        : true),
+    (b) => b.isPrinted && !b.deletedAt,
   ).length;
-
   const grandTotal = filtered.reduce((sum, b) => sum + (b.totalAmount || 0), 0);
-  const activeCount = bookings.filter((b) => !b.deletedAt).length;
-  const deletedCount = bookings.filter((b) => b.deletedAt).length;
-  const gcashCount = bookings.filter((b) => b.paymentMethod === "gcash").length;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -153,7 +166,6 @@ export default function AdminDashboard() {
               </p>
             </div>
           </div>
-
           <div className="flex items-center gap-3">
             <span className="text-sm text-gray-400 font-medium hidden sm:block">
               Logged in as{" "}
@@ -185,47 +197,18 @@ export default function AdminDashboard() {
       <main className="w-full px-16 py-8">
         {/* ── PAGE TITLE ── */}
         <div className="mb-8 print:hidden bg-red-600 text-white rounded-2xl px-6 py-5">
-          <h2 className="text-2xl font-black ">Bookings</h2>
-          <p className="text-sm  font-medium mt-0.5">
+          <h2 className="text-2xl font-black">Bookings</h2>
+          <p className="text-sm font-medium mt-0.5">
             View and manage all customer orders
           </p>
         </div>
 
-        {/* ── STAT CARDS ── */}
-        {/* <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8 print:hidden">
-          <StatCard
-            icon="📋"
-            label="Total Bookings"
-            value={bookings.length}
-            color="blue"
-          />
-          <StatCard
-            icon="✅"
-            label="Active"
-            value={activeCount}
-            color="green"
-          />
-          <StatCard
-            icon="🗑️"
-            label="Deleted"
-            value={deletedCount}
-            color="red"
-          />
-          <StatCard
-            icon="📱"
-            label="GCash Orders"
-            value={gcashCount}
-            color="purple"
-          />
-        </div> */}
-
-        {/* ── TOOLBAR ── */}
         {/* ── TOOLBAR ── */}
         <div className="bg-white rounded-[1.5rem] border border-slate-200/70 shadow-sm p-4 mb-8 print:hidden">
           <div className="flex flex-col lg:flex-row gap-4 items-center justify-between">
-            {/* LEFT: DATA CONTROLS (Search & Filter) */}
+            {/* LEFT */}
             <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
-              {/* 🔍 SEARCH COMPONENT */}
+              {/* SEARCH */}
               <div className="relative flex-1 sm:flex-none min-w-[260px]">
                 <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
                   <svg
@@ -269,7 +252,7 @@ export default function AdminDashboard() {
                 )}
               </div>
 
-              {/* 📅 DATE COMPONENT */}
+              {/* DATE */}
               <div className="flex items-center gap-2 bg-slate-50/50 border border-slate-200 rounded-xl px-2 py-1">
                 <input
                   type="date"
@@ -280,7 +263,7 @@ export default function AdminDashboard() {
                 {filterDate && filterDate !== getToday() && (
                   <button
                     onClick={() => setFilterDate(getToday())}
-                    className="p-1 hover:bg-white rounded-md text-slate-400 hover:text-red-500 transition-all shadow-none hover:shadow-sm"
+                    className="p-1 hover:bg-white rounded-md text-slate-400 hover:text-red-500 transition-all"
                   >
                     <svg
                       className="w-3.5 h-3.5"
@@ -300,9 +283,8 @@ export default function AdminDashboard() {
               </div>
             </div>
 
-            {/* RIGHT: SYSTEM ACTIONS */}
+            {/* RIGHT */}
             <div className="flex items-center gap-3 w-full lg:w-auto justify-end border-t lg:border-t-0 pt-4 lg:pt-0">
-              {/* RECORD COUNTER (SUBTLE) */}
               <div className="hidden xl:flex items-center px-3 py-1 bg-slate-100 rounded-full mr-2">
                 <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest leading-none">
                   {filtered.length}{" "}
@@ -310,7 +292,7 @@ export default function AdminDashboard() {
                 </span>
               </div>
 
-              {/* ARCHIVE TOGGLE */}
+              {/* TRASH TOGGLE */}
               <button
                 onClick={() => setShowDeleted(!showDeleted)}
                 className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all border ${
@@ -335,9 +317,9 @@ export default function AdminDashboard() {
                 {showDeleted ? "Viewing Trash" : "Trash"}
               </button>
 
-              {/* PRINT REPORT (THE 'HERO' ACTION) */}
+              {/* PRINT BUTTON */}
               <button
-                onClick={() => window.print()}
+                onClick={() => setPrintConfirm(true)}
                 className="flex items-center gap-2.5 bg-slate-900 text-white px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-[0.15em] hover:bg-black transition-all shadow-md active:scale-95"
               >
                 <svg
@@ -354,13 +336,23 @@ export default function AdminDashboard() {
                   />
                 </svg>
                 Print Orders
+                {filtered.filter((b) => !b.isPrinted && !b.deletedAt).length >
+                  0 && (
+                  <span className="bg-white/20 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full">
+                    {
+                      filtered.filter((b) => !b.isPrinted && !b.deletedAt)
+                        .length
+                    }{" "}
+                    new
+                  </span>
+                )}
               </button>
             </div>
           </div>
         </div>
+
         {/* ── PRINT STATUS TABS ── */}
         <div className="flex items-center gap-2 mb-6 print:hidden">
-          {/* ALL */}
           <button
             onClick={() => setPrintFilter("all")}
             className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all border ${
@@ -377,11 +369,10 @@ export default function AdminDashboard() {
                   : "bg-gray-100 text-gray-500"
               }`}
             >
-              {bookings.length}
+              {bookings.filter((b) => !b.deletedAt).length}
             </span>
           </button>
 
-          {/* NOT PRINTED */}
           <button
             onClick={() => setPrintFilter("unprinted")}
             className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all border ${
@@ -392,13 +383,13 @@ export default function AdminDashboard() {
           >
             <span className="relative flex h-2 w-2">
               {unprintedCount > 0 && printFilter !== "unprinted" && (
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
               )}
               <span
                 className={`relative inline-flex rounded-full h-2 w-2 ${
                   printFilter === "unprinted" ? "bg-white" : "bg-red-500"
                 }`}
-              ></span>
+              />
             </span>
             Not Printed
             <span
@@ -412,7 +403,6 @@ export default function AdminDashboard() {
             </span>
           </button>
 
-          {/* PRINTED */}
           <button
             onClick={() => setPrintFilter("printed")}
             className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all border ${
@@ -433,7 +423,8 @@ export default function AdminDashboard() {
             </span>
           </button>
         </div>
-        {/* ── PRINT HEADER (Refined Typography) ── */}
+
+        {/* ── PRINT HEADER ── */}
         <div className="hidden print:block mb-8 border-b-2 border-slate-900 pb-4">
           <div className="flex justify-between items-end">
             <div>
@@ -458,7 +449,7 @@ export default function AdminDashboard() {
         </div>
 
         {/* ── TABLE ── */}
-        <div className=" bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden print:shadow-none print:rounded-none ">
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden print:shadow-none print:rounded-none">
           <div className="overflow-x-auto">
             <table className="w-full text-sm print:text-xs border-collapse">
               <thead>
@@ -470,7 +461,7 @@ export default function AdminDashboard() {
                   <Th>Total Amount</Th>
                   <Th>Process Time</Th>
                   <Th>Location</Th>
-                  <Th className="print-hidden">Facebook</Th>
+                  <Th>Facebook</Th>
                   <Th>Contact</Th>
                   <Th>Payment</Th>
                   <Th>Status</Th>
@@ -481,7 +472,7 @@ export default function AdminDashboard() {
               <tbody className="divide-y divide-gray-50">
                 {filtered.length === 0 ? (
                   <tr>
-                    <td colSpan={11} className="py-20 text-center">
+                    <td colSpan={13} className="py-20 text-center">
                       <div className="flex flex-col items-center gap-2 opacity-40">
                         <svg
                           className="w-10 h-10 text-gray-300"
@@ -496,7 +487,7 @@ export default function AdminDashboard() {
                             d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
                           />
                         </svg>
-                        <p className="font-bold  text-base">
+                        <p className="font-bold text-base">
                           {filterDate
                             ? `No bookings for ${filterDate}`
                             : "No bookings found"}
@@ -513,6 +504,7 @@ export default function AdminDashboard() {
                       onEdit={() => setEditingBooking(booking)}
                       onDelete={() => setDeleteTarget(booking)}
                       onRestore={() => setRestoreTarget(booking)}
+                      onTogglePrinted={() => setTogglePrintTarget(booking)}
                     />
                   ))
                 )}
@@ -571,8 +563,37 @@ export default function AdminDashboard() {
           onCancel={() => setRestoreTarget(null)}
         />
       )}
+      {togglePrintTarget && (
+        <ConfirmModal
+          title={
+            togglePrintTarget.isPrinted
+              ? "Mark as Not Printed?"
+              : "Mark as Printed?"
+          }
+          message={
+            togglePrintTarget.isPrinted
+              ? `Remove printed status from "${togglePrintTarget.customerName}"? It will show as a new/rush order again.`
+              : `Mark "${togglePrintTarget.customerName}" as printed? This means they've been followed up.`
+          }
+          confirmLabel={
+            togglePrintTarget.isPrinted ? "Mark Not Printed" : "Mark Printed"
+          }
+          confirmColor={togglePrintTarget.isPrinted ? "red" : "green"}
+          onConfirm={handleTogglePrinted}
+          onCancel={() => setTogglePrintTarget(null)}
+        />
+      )}
+      {printConfirm && (
+        <ConfirmModal
+          title="Print Orders"
+          message={`Mark ${filtered.filter((b) => !b.isPrinted && !b.deletedAt).length} unprinted orders as printed and open print dialog?`}
+          confirmLabel="Print"
+          confirmColor="green"
+          onConfirm={handlePrintOrders}
+          onCancel={() => setPrintConfirm(false)}
+        />
+      )}
 
-      {/* PRINT STYLES */}
       <style>{`
         @media print {
           .print\\:hidden { display: none !important; }
@@ -588,7 +609,7 @@ export default function AdminDashboard() {
 function Th({ children, wide, className = "" }) {
   return (
     <th
-      className={`px-5 py-4 text-left text-base font-bold text-white  uppercase tracking-widest whitespace-nowrap  ${wide ? "min-w-[420px]" : ""} ${className}`}
+      className={`px-5 py-4 text-left text-base font-bold text-white uppercase tracking-widest whitespace-nowrap ${wide ? "min-w-[420px]" : ""} ${className}`}
     >
       {children}
     </th>
@@ -596,7 +617,14 @@ function Th({ children, wide, className = "" }) {
 }
 
 // ── BOOKING ROW ───────────────────────────────────────────────────
-function BookingRow({ booking, onView, onEdit, onDelete, onRestore }) {
+function BookingRow({
+  booking,
+  onView,
+  onEdit,
+  onDelete,
+  onRestore,
+  onTogglePrinted,
+}) {
   const extraDishes = booking.dishes?.extra?.filter(Boolean) || [];
   const discount = Math.abs(Number(booking.product?.promoAmount || 0));
   const processTime = getProcessTime(booking.deliveryTime);
@@ -634,12 +662,9 @@ function BookingRow({ booking, onView, onEdit, onDelete, onRestore }) {
 
       {/* ORDER DETAILS */}
       <td className="px-5 py-4 min-w-[420px] border border-gray-200">
-        {/* Product */}
         <p className="text-base font-black text-gray-900 mb-2">
           {booking.productName || "—"}
         </p>
-
-        {/* Included dishes */}
         {booking.dishes?.required?.filter(Boolean).length > 0 && (
           <div className="mb-2">
             <p className="text-[10px] font-black text-gray-400 uppercase tracking-wider mb-1">
@@ -650,8 +675,6 @@ function BookingRow({ booking, onView, onEdit, onDelete, onRestore }) {
             </p>
           </div>
         )}
-
-        {/* Extra dishes */}
         {extraDishes.length > 0 && (
           <div className="mb-2">
             <p className="text-[10px] font-black text-red-400 uppercase tracking-wider mb-1">
@@ -662,9 +685,7 @@ function BookingRow({ booking, onView, onEdit, onDelete, onRestore }) {
             </p>
           </div>
         )}
-
-        {/* Freebies */}
-        {booking.freebies.freebies?.length > 0 && (
+        {booking.freebies?.freebies?.length > 0 && (
           <div>
             <p className="text-[10px] font-black text-emerald-500 uppercase tracking-wider mb-1">
               Freebies
@@ -683,7 +704,7 @@ function BookingRow({ booking, onView, onEdit, onDelete, onRestore }) {
         </p>
         {discount > 0 && (
           <p className="text-xs text-emerald-500 font-bold mt-0.5">
-            {/* <p>Note:Deducted</p> */}-{fmt(discount)} disc.
+            -{fmt(discount)} disc.
           </p>
         )}
       </td>
@@ -699,7 +720,7 @@ function BookingRow({ booking, onView, onEdit, onDelete, onRestore }) {
       <td className="px-5 py-4 min-w-[120px] border border-gray-200">
         {booking.orderType === "delivery" ? (
           <div>
-            <p className="text-sm  text-gray-500">{booking.zone || "—"}</p>
+            <p className="text-sm text-gray-500">{booking.zone || "—"}</p>
             {booking.address && (
               <p className="text-xs text-black font-bold mt-0.5 max-w-[160px]">
                 {booking.address}
@@ -712,7 +733,7 @@ function BookingRow({ booking, onView, onEdit, onDelete, onRestore }) {
       </td>
 
       {/* FACEBOOK */}
-      <td className="px-5 py-4 border border-gray-200 print-hidden">
+      <td className="px-5 py-4 border border-gray-200">
         {booking.facebookProfile ? (
           <a
             href={booking.facebookProfile}
@@ -746,26 +767,41 @@ function BookingRow({ booking, onView, onEdit, onDelete, onRestore }) {
           {booking.paymentMethod === "gcash" ? "GCash" : "COD"}
         </span>
       </td>
-      <td className="px-5 py-4 print-only">
-        <p className="text-sm font-bold text-gray-700">&nbsp;</p>
-      </td>
+
+      {/* STATUS / PRINT BADGE — clickable */}
       <td className="px-5 py-4 whitespace-nowrap border border-gray-200">
-        {/* <p className="font-black text-gray-900 text-sm">
-          {booking.customer.name}
-        </p> */}
-        {/* PRINT BADGE */}
-        {booking.isPrinted ? (
-          <span className="text-[9px] font-black text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-full uppercase tracking-wider">
-            ✅ Printed
-          </span>
-        ) : (
-          <span className="text-[9px] font-black text-red-500 bg-red-50 px-1.5 py-0.5 rounded-full uppercase tracking-wider">
-            🔴 Not Printed
-          </span>
+        <button
+          onClick={onTogglePrinted}
+          title={
+            booking.isPrinted
+              ? "Click to mark as not printed"
+              : "Click to mark as printed"
+          }
+          className={`text-[9px] font-black px-2.5 py-1.5 rounded-full uppercase tracking-wider transition-all hover:scale-105 active:scale-95 ${
+            booking.isPrinted
+              ? "text-emerald-600 bg-emerald-50 hover:bg-emerald-100"
+              : "text-red-500 bg-red-50 hover:bg-red-100"
+          }`}
+        >
+          {booking.isPrinted ? "✅ Printed" : "🔴 Not Printed"}
+        </button>
+        {booking.isPrinted && booking.printedAt && (
+          <p className="text-[9px] text-gray-400 font-medium mt-1">
+            {new Date(booking.printedAt).toLocaleTimeString("en-PH", {
+              hour: "2-digit",
+              minute: "2-digit",
+            })}
+          </p>
         )}
       </td>
+
+      {/* RIDER (print only) */}
+      <td className="px-5 py-4 print-only border border-gray-200">
+        <p className="text-sm font-bold text-gray-700">&nbsp;</p>
+      </td>
+
       {/* ACTIONS */}
-      <td className="px-5 py-4 print:hidden border border-gray-200 print:hidden">
+      <td className="px-5 py-4 print:hidden border border-gray-200">
         <div className="flex items-center gap-1.5">
           <ActionBtn
             onClick={onView}
@@ -799,27 +835,6 @@ function BookingRow({ booking, onView, onEdit, onDelete, onRestore }) {
         </div>
       </td>
     </tr>
-  );
-}
-
-// ── STAT CARD ─────────────────────────────────────────────────────
-function StatCard({ icon, label, value, color }) {
-  const colors = {
-    blue: "text-blue-600",
-    green: "text-emerald-600",
-    red: "text-red-600",
-    purple: "text-purple-600",
-  };
-  return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-      <div className="flex items-center justify-between mb-3">
-        <span className="text-2xl">{icon}</span>
-      </div>
-      <p className={`text-3xl font-black ${colors[color]}`}>{value}</p>
-      <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mt-1">
-        {label}
-      </p>
-    </div>
   );
 }
 
@@ -865,7 +880,7 @@ function ViewModal({ booking, onClose }) {
     <Modal onClose={onClose}>
       <ModalHeader
         title="Booking Details"
-        subtitle={booking.id}
+        subtitle={booking.orderNumber}
         onClose={onClose}
       />
       <div className="p-6 space-y-5 max-h-[65vh] overflow-y-auto">
@@ -893,7 +908,6 @@ function ViewModal({ booking, onClose }) {
         </Section>
         <Section title="Order" icon="🍖">
           <Row label="Product" value={booking.productName} />
-
           <Row
             label="Included Dishes"
             value={
@@ -902,12 +916,10 @@ function ViewModal({ booking, onClose }) {
                 : "None"
             }
           />
-
           {extraDishes.length > 0 && (
             <Row label="Extra Dishes" value={extraDishes.join(", ")} />
           )}
-
-          {booking.freebies.freebies?.length > 0 && (
+          {booking.freebies?.freebies?.length > 0 && (
             <Row
               label="Freebies"
               value={booking.freebies.freebies.join(", ")}
@@ -949,7 +961,6 @@ function ViewModal({ booking, onClose }) {
 function EditModal({ booking, onClose, onSave }) {
   const EXTRA_DISH_PRICE = 700;
 
-  // ── FORM STATE ──────────────────────────────────────────────────
   const [form, setForm] = useState({
     orderType: booking.orderType || "delivery",
     deliveryDate: new Date(booking.deliveryDate).toISOString().split("T")[0],
@@ -959,14 +970,11 @@ function EditModal({ booking, onClose, onSave }) {
     paymentMethod: booking.paymentMethod || "cod",
   });
 
-  // ── PRODUCT / DISH DATA ─────────────────────────────────────────
   const [allProducts, setAllProducts] = useState([]);
   const [allDishes, setAllDishes] = useState([]);
   const [deliveryCharges, setDeliveryCharges] = useState([]);
   const [productTypes, setProductTypes] = useState([]);
   const [loading, setLoading] = useState(true);
-
-  // ── SELECTED PRODUCT STATE ──────────────────────────────────────
   const [selectedProductId, setSelectedProductId] = useState(
     booking.productId || null,
   );
@@ -976,7 +984,6 @@ function EditModal({ booking, onClose, onSave }) {
 
   const set = (key, val) => setForm((f) => ({ ...f, [key]: val }));
 
-  // ── FETCH DATA ──────────────────────────────────────────────────
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -1010,12 +1017,10 @@ function EditModal({ booking, onClose, onSave }) {
         }));
         setAllProducts(mapped);
 
-        // Pre-select the current product
         if (booking.productId) {
           const current = mapped.find((p) => p.id === booking.productId);
           if (current) {
             setSelectedProduct(current);
-            // Pre-fill dishes from existing booking (names → IDs)
             const nameToId = Object.fromEntries(
               (dishes ?? []).map((d) => [d.dishName, d.id]),
             );
@@ -1025,8 +1030,6 @@ function EditModal({ booking, onClose, onSave }) {
             const extraIds = (booking.dishes?.extra ?? [])
               .map((name) => nameToId[name])
               .filter(Boolean);
-
-            // Pad required slots to match NoOfDishes
             const slots = current.NoOfDishes || 0;
             const paddedRequired = [...requiredIds];
             while (paddedRequired.length < slots) paddedRequired.push("");
@@ -1043,22 +1046,18 @@ function EditModal({ booking, onClose, onSave }) {
     fetchData();
   }, []);
 
-  // ── WHEN PRODUCT CHANGES ────────────────────────────────────────
   const handleProductChange = (productId) => {
     const product = allProducts.find((p) => p.id === Number(productId));
     setSelectedProductId(productId ? Number(productId) : null);
     setSelectedProduct(product || null);
-
     if (product) {
-      const slots = product.NoOfDishes || 0;
-      setRequiredDishes(Array(slots).fill(""));
+      setRequiredDishes(Array(product.NoOfDishes || 0).fill(""));
     } else {
       setRequiredDishes([]);
     }
     setExtraDishes([]);
   };
 
-  // ── DELIVERY FEE ────────────────────────────────────────────────
   const deliveryFee =
     form.orderType === "delivery"
       ? (() => {
@@ -1067,7 +1066,6 @@ function EditModal({ booking, onClose, onSave }) {
         })()
       : 0;
 
-  // ── TOTAL CALCULATION ───────────────────────────────────────────
   const packageTotal = selectedProduct?.amount ?? 0;
   const extraTotal = extraDishes.filter(Boolean).length * EXTRA_DISH_PRICE;
   const discount = selectedProduct?.promoAmount
@@ -1075,7 +1073,6 @@ function EditModal({ booking, onClose, onSave }) {
     : 0;
   const total = packageTotal + extraTotal + deliveryFee - discount;
 
-  // ── SAVE ────────────────────────────────────────────────────────
   const handleSave = () => {
     onSave({
       orderType: form.orderType,
@@ -1093,7 +1090,6 @@ function EditModal({ booking, onClose, onSave }) {
     });
   };
 
-  // ── GROUP PRODUCTS BY TYPE ──────────────────────────────────────
   const productsByType = productTypes
     .map((pt) => ({
       ...pt,
@@ -1123,12 +1119,9 @@ function EditModal({ booking, onClose, onSave }) {
         subtitle={`#${booking.id}`}
         onClose={onClose}
       />
-
       <div className="p-6 space-y-6 max-h-[70vh] overflow-y-auto">
-        {/* ── DELIVERY DETAILS ─────────────────────────────────── */}
         <Section title="Delivery Details" icon="🚚">
           <div className="pt-2 space-y-3">
-            {/* Order Type */}
             <div className="grid grid-cols-2 gap-2">
               {["delivery", "pickup"].map((type) => (
                 <button
@@ -1144,7 +1137,6 @@ function EditModal({ booking, onClose, onSave }) {
                 </button>
               ))}
             </div>
-
             <div className="grid grid-cols-2 gap-3">
               <EditField
                 label="Date"
@@ -1158,7 +1150,6 @@ function EditModal({ booking, onClose, onSave }) {
                 onChange={(v) => set("deliveryTime", v)}
               />
             </div>
-
             {form.orderType === "delivery" && (
               <>
                 <EditField
@@ -1185,7 +1176,6 @@ function EditModal({ booking, onClose, onSave }) {
                 </div>
               </>
             )}
-
             <div>
               <label className="block text-xs font-black text-gray-500 uppercase tracking-widest mb-1.5">
                 Payment Method
@@ -1212,7 +1202,6 @@ function EditModal({ booking, onClose, onSave }) {
           </div>
         </Section>
 
-        {/* ── PACKAGE SELECTION ────────────────────────────────── */}
         <Section title="Package" icon="🍖">
           <div className="pt-2">
             <label className="block text-xs font-black text-gray-500 uppercase tracking-widest mb-1.5">
@@ -1237,8 +1226,6 @@ function EditModal({ booking, onClose, onSave }) {
                 </optgroup>
               ))}
             </select>
-
-            {/* Freebies */}
             {selectedProduct?.freebies?.length > 0 && (
               <div className="mt-3 bg-emerald-50 rounded-xl px-4 py-3">
                 <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-1.5">
@@ -1252,7 +1239,6 @@ function EditModal({ booking, onClose, onSave }) {
           </div>
         </Section>
 
-        {/* ── INCLUDED DISHES ──────────────────────────────────── */}
         {requiredDishes.length > 0 && (
           <Section
             title={`Included Dishes (${requiredDishes.length} slots)`}
@@ -1286,7 +1272,6 @@ function EditModal({ booking, onClose, onSave }) {
           </Section>
         )}
 
-        {/* ── EXTRA DISHES ─────────────────────────────────────── */}
         {selectedProduct && (
           <Section title="Extra Dishes" icon="➕">
             <div className="pt-2 space-y-2">
@@ -1340,7 +1325,6 @@ function EditModal({ booking, onClose, onSave }) {
           </Section>
         )}
 
-        {/* ── PRICING SUMMARY ──────────────────────────────────── */}
         <div className="bg-gray-50 rounded-2xl p-4 space-y-2">
           <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">
             Pricing Summary
@@ -1388,7 +1372,6 @@ function EditModal({ booking, onClose, onSave }) {
         </div>
       </div>
 
-      {/* ── FOOTER ───────────────────────────────────────────────── */}
       <div className="px-6 py-4 bg-gray-50 border-t border-gray-100 flex gap-3">
         <button
           onClick={onClose}
@@ -1420,11 +1403,17 @@ function ConfirmModal({
     red: "bg-red-600 hover:bg-red-700",
     green: "bg-emerald-600 hover:bg-emerald-700",
   };
+  const icons = {
+    red: "M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16",
+    green: "M5 13l4 4L19 7",
+  };
   return (
     <Modal onClose={onCancel}>
       <div className="p-8 text-center">
         <div
-          className={`w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4 ${confirmColor === "red" ? "bg-red-50" : "bg-emerald-50"}`}
+          className={`w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4 ${
+            confirmColor === "red" ? "bg-red-50" : "bg-emerald-50"
+          }`}
         >
           <svg
             className={`w-7 h-7 ${confirmColor === "red" ? "text-red-500" : "text-emerald-500"}`}
@@ -1436,11 +1425,7 @@ function ConfirmModal({
               strokeLinecap="round"
               strokeLinejoin="round"
               strokeWidth="2"
-              d={
-                confirmColor === "red"
-                  ? "M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                  : "M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-              }
+              d={icons[confirmColor]}
             />
           </svg>
         </div>
