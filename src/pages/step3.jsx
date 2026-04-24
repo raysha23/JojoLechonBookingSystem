@@ -23,6 +23,7 @@ export default function Step3({ orderState }) {
     facebookProfile,
     dishes,
     deliveryCharges,
+    upgradeAmount,
   } = orderState;
 
   const deliveryFee = orderType === "delivery" ? getDeliveryFee(zone, deliveryCharges) : 0;
@@ -32,10 +33,18 @@ export default function Step3({ orderState }) {
   const discount = selectedProduct?.promoAmount
     ? Math.abs(Number(selectedProduct.promoAmount))
     : 0;
-  const total = packageTotal + dishesTotal + deliveryFee - discount;
+  const upgradeTotal = upgradeAmount || 0;
+  const total = packageTotal + dishesTotal + deliveryFee + upgradeTotal - discount;
 
   const fmt = (n) =>
     "₱" + Number(n).toLocaleString("en-PH", { minimumFractionDigits: 2 });
+
+  const getUpgradeKg = (amount) => {
+    if (amount === 500) return "1kg";
+    if (amount === 1000) return "2-3kg";
+    if (amount === 2000) return "5-6kg";
+    return "";
+  };
 
   const paymentLabel = paymentMethod === "gcash" ? "GCash" : "Cash on Delivery";
   const paymentIcon = paymentMethod === "gcash" ? "📱" : "💵";
@@ -124,6 +133,18 @@ export default function Step3({ orderState }) {
                   {fmt(selectedProduct.amount)}
                 </span>
               </div>
+
+              {/* UPGRADE */}
+              {upgradeTotal > 0 && (
+                <div className="flex justify-between items-center mb-3">
+                  <span className="text-base font-black text-gray-900">
+                    Upgrade ({getUpgradeKg(upgradeAmount)})
+                  </span>
+                  <span className="text-base font-black text-gray-900">
+                    {fmt(upgradeTotal)}
+                  </span>
+                </div>
+              )}
 
               {/* Included dishes from package */}
               {selectedProduct.freebies &&

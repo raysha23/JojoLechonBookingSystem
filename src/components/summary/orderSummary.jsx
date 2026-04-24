@@ -19,10 +19,18 @@ export default function OrderSummary({ orderState }) {
     paymentMethod,
     setPaymentMethod,
     deliveryCharges,
+    upgradeAmount,
   } = orderState;
 
   const fmt = (n) =>
     "₱" + Number(n).toLocaleString("en-PH", { minimumFractionDigits: 2 });
+
+  const getUpgradeKg = (amount) => {
+    if (amount === 500) return "1kg";
+    if (amount === 1000) return "2-3kg";
+    if (amount === 2000) return "5-6kg";
+    return "";
+  };
 
   // ── CALCULATIONS ──────────────────────────────────────────────────
   const packageTotal = selectedProduct ? selectedProduct.amount : 0;
@@ -50,8 +58,10 @@ export default function OrderSummary({ orderState }) {
   // Freebies count
   const freebiesCount = selectedProduct?.freebies?.length || 0;
 
+  const upgradeTotal = upgradeAmount || 0;
+
   // Subtotal before discount, total after
-  const subtotal = packageTotal + extraDishesTotal + deliveryFee;
+  const subtotal = packageTotal + extraDishesTotal + deliveryFee + upgradeTotal;
   const total = subtotal - discount;
   // ─────────────────────────────────────────────────────────────────
 
@@ -96,6 +106,19 @@ export default function OrderSummary({ orderState }) {
                 </p>
               </div>
               <p className="font-bold text-lg">{fmt(extraDishesTotal)}</p>
+            </div>
+          )}
+
+          {/* UPGRADE TOTAL — only show when upgrade is selected */}
+          {upgradeTotal > 0 && (
+            <div className="flex justify-between items-start border-t border-gray-800 pt-4">
+              <div>
+                <p className="font-bold text-sm tracking-tight">Upgrade</p>
+                <p className="text-[10px] text-gray-500 font-medium">
+                  {getUpgradeKg(upgradeAmount)} additional weight
+                </p>
+              </div>
+              <p className="font-bold text-lg">{fmt(upgradeTotal)}</p>
             </div>
           )}
 

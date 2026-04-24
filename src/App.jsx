@@ -35,6 +35,7 @@ function App({ submittedByUserId = null, encoderName = null }) {
   const [requiredDishes, setRequiredDishes] = useState([]);
   const [extraDishes, setExtraDishes] = useState([]);
   const [paymentMethod, setPaymentMethod] = useState("gcash");
+  const [upgradeAmount, setUpgradeAmount] = useState(0);
 
   // ─── CUSTOMER STATE ───────────────────────────────────────────────
   const [customerName, setCustomerName] = useState("");
@@ -164,6 +165,8 @@ function App({ submittedByUserId = null, encoderName = null }) {
     setExtraDishes,
     paymentMethod,
     setPaymentMethod,
+    upgradeAmount,
+    setUpgradeAmount,
     customerName,
     setCustomerName,
     contacts,

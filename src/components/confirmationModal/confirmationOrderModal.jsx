@@ -30,6 +30,7 @@ export default function ConfirmOrderModal({
     paymentMethod,
     deliveryCharges,
     dishes,
+    upgradeAmount,
   } = orderState;
 
   const [orderSuccess, setOrderSuccess] = useState(false);
@@ -39,6 +40,13 @@ export default function ConfirmOrderModal({
   const fmt = (n) =>
     "PHP " + Number(n).toLocaleString("en-PH", { minimumFractionDigits: 2 });
 
+  const getUpgradeKg = (amount) => {
+    if (amount === 500) return "1kg";
+    if (amount === 1000) return "2-3kg";
+    if (amount === 2000) return "5-6kg";
+    return "";
+  };
+
   const filledExtraDishes = (extraDishes || []).filter((d) => d !== "");
   const extraDishesTotal = filledExtraDishes.length * EXTRA_DISH_PRICE;
   const packageTotal = selectedProduct ? selectedProduct.amount : 0;
@@ -47,7 +55,8 @@ export default function ConfirmOrderModal({
   const discount = selectedProduct?.promoAmount
     ? Math.abs(Number(selectedProduct.promoAmount))
     : 0;
-  const subtotal = packageTotal + extraDishesTotal + deliveryFee;
+  const upgradeTotal = upgradeAmount || 0;
+  const subtotal = packageTotal + extraDishesTotal + deliveryFee + upgradeTotal;
   const total = subtotal - discount;
 
   const resolvedRequiredDishes = (requiredDishes || [])
@@ -229,6 +238,16 @@ export default function ConfirmOrderModal({
       y += 9;
     }
 
+    // Upgrade
+    if (upgradeTotal > 0) {
+      y += 2;
+      setFont(8, "bold", DARK);
+      doc.text(`UPGRADE (${getUpgradeKg(upgradeAmount).toUpperCase()})`, margin + 4, y);
+      setFont(8, "bold", RED);
+      doc.text(fmt(upgradeTotal), W - margin - 4, y, { align: "right" });
+      y += 6;
+    }
+
     // Included dishes
     if (resolvedRequiredDishes.length > 0) {
       y += 2;
@@ -270,6 +289,7 @@ export default function ConfirmOrderModal({
     if (selectedProduct) row("Package", fmt(packageTotal));
     if (filledExtraDishes.length > 0)
       row("Extra Dishes", fmt(extraDishesTotal));
+    if (upgradeTotal > 0) row(`Upgrade (${getUpgradeKg(upgradeAmount)})`, fmt(upgradeTotal));
     if (orderType === "delivery") row("Delivery Fee", fmt(deliveryFee));
     if (discount > 0)
       row("Discount", `-${fmt(discount)}`, { valColor: GREEN, valBold: true });
@@ -310,29 +330,28 @@ export default function ConfirmOrderModal({
     const hiddenDiv = document.getElementById("receipt-full-capture");
     if (!hiddenDiv) return;
 
-    // Temporarily make it visible for capture
     hiddenDiv.style.display = "block";
+    try {
+      const canvas = await html2canvas(hiddenDiv, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: "#ffffff",
+      });
 
-    const canvas = await html2canvas(hiddenDiv, {
-      backgroundColor: "#ffffff",
-      scale: 2,
-      useCORS: true,
-    });
+      const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
+      if (!blob) return;
 
-    hiddenDiv.style.display = "none";
-
-    const blob = await new Promise((resolve) =>
-      canvas.toBlob(resolve, "image/png"),
-    );
-    if (!blob) return;
-
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(blob);
-    link.download = `JojosLechon_${orderNumber}.png`;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    URL.revokeObjectURL(link.href);
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `JojosLechon_${orderNumber}.png`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    } finally {
+      hiddenDiv.style.display = "none";
+    }
   };
 
   // Close on Escape
@@ -432,6 +451,12 @@ export default function ConfirmOrderModal({
                       value={selectedProduct.productName}
                     />
                   )}
+                  {upgradeTotal > 0 && (
+                    <ReceiptRow
+                      label={`Upgrade (${getUpgradeKg(upgradeAmount)})`}
+                      value={fmt(upgradeTotal)}
+                    />
+                  )}
                   {resolvedRequiredDishes.length > 0 && (
                     <div className="py-2 border-b border-gray-50">
                       <p className="text-[10px] font-black text-gray-400 uppercase mb-1.5">
@@ -476,6 +501,9 @@ export default function ConfirmOrderModal({
                       label="Extra Dishes"
                       value={fmt(extraDishesTotal)}
                     />
+                  )}
+                  {upgradeTotal > 0 && (
+                    <ReceiptRow label={`Upgrade (${getUpgradeKg(upgradeAmount)})`} value={fmt(upgradeTotal)} />
                   )}
                   {orderType === "delivery" && (
                     <ReceiptRow label="Delivery Fee" value={fmt(deliveryFee)} />
@@ -628,6 +656,12 @@ export default function ConfirmOrderModal({
                   label="Product"
                   value={selectedProduct ? selectedProduct.productName : "—"}
                 />
+                {upgradeTotal > 0 && (
+                  <Row
+                    label={`Upgrade (${getUpgradeKg(upgradeAmount)})`}
+                    value={fmt(upgradeTotal)}
+                  />
+                )}
                 {filledExtraDishes.length > 0 && (
                   <Row
                     label="Extra Dishes"
@@ -640,6 +674,12 @@ export default function ConfirmOrderModal({
                 <Row label="Package total" value={fmt(packageTotal)} />
                 {filledExtraDishes.length > 0 && (
                   <Row label="Extra dishes" value={fmt(extraDishesTotal)} />
+                )}
+                {upgradeTotal > 0 && (
+                  <Row
+                    label={`Upgrade (${getUpgradeKg(upgradeAmount)})`}
+                    value={fmt(upgradeTotal)}
+                  />
                 )}
                 {orderType === "delivery" && (
                   <Row label="Delivery fee" value={fmt(deliveryFee)} />
@@ -892,6 +932,12 @@ export default function ConfirmOrderModal({
                   ))}
                 </div>
               )}
+              {upgradeTotal > 0 && (
+                <CaptureRow
+                  label={`Upgrade (${getUpgradeKg(upgradeAmount)})`}
+                  value={fmt(upgradeTotal)}
+                />
+              )}
             </CaptureSection>
 
             {/* PRICING */}
@@ -903,6 +949,12 @@ export default function ConfirmOrderModal({
                 <CaptureRow
                   label="Extra Dishes"
                   value={fmt(extraDishesTotal)}
+                />
+              )}
+              {upgradeTotal > 0 && (
+                <CaptureRow
+                  label={`Upgrade (${getUpgradeKg(upgradeAmount)})`}
+                  value={fmt(upgradeTotal)}
                 />
               )}
               {orderType === "delivery" && (

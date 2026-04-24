@@ -22,6 +22,8 @@ export default function Step1({ orderState }) {
     setRequiredDishes,
     extraDishes,
     setExtraDishes,
+    upgradeAmount,
+    setUpgradeAmount,
     productTypes,
     products,
     dishes,
@@ -32,6 +34,7 @@ export default function Step1({ orderState }) {
   // Modal is UI-only, stays local
   const [showModal, setShowModal] = useState(false);
   const [selectedProductTypeId, setSelectedProductTypeId] = useState("");
+  const [showUpgrade, setShowUpgrade] = useState(false);
 
   // ── Keep productType name in sync ────────────
   useEffect(() => {
@@ -335,6 +338,8 @@ export default function Step1({ orderState }) {
                   setSelectedProduct(null);
                   setRequiredDishes([]);
                   setExtraDishes([]);
+                  setUpgradeAmount(0); // reset upgrade when changing type
+                  setShowUpgrade(false);
                 }}
               >
                 <option value="">— Select a product type —</option>
@@ -354,9 +359,19 @@ export default function Step1({ orderState }) {
             {/* PRODUCT SELECT */}
             {showProductDropdown && (
               <div>
-                <label className="block text-sm font-bold text-gray-700 mb-2">
-                  Select Product
-                </label>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="block text-sm font-bold text-gray-700">
+                    Select Product
+                  </label>
+                  {selectedProductIndex !== "" && (
+                    <button
+                      onClick={() => setShowUpgrade(!showUpgrade)}
+                      className="text-xs font-bold text-red-600 hover:text-red-700 underline"
+                    >
+                      Upgrade
+                    </button>
+                  )}
+                </div>
                 <select
                   className="w-full p-3 border border-red-500 rounded-xl"
                   value={selectedProductIndex}
@@ -382,6 +397,8 @@ export default function Step1({ orderState }) {
                       setSelectedProduct(null);
                       setRequiredDishes([]);
                     }
+                    setUpgradeAmount(0); // reset upgrade when changing product
+                    setShowUpgrade(false);
                   }}
                 >
                   <option value="">— Select a product —</option>
@@ -397,6 +414,23 @@ export default function Step1({ orderState }) {
                       </option>
                     ))}
                 </select>
+                {showUpgrade && (
+                  <div className="mt-2">
+                    <label className="block text-xs font-bold text-gray-600 mb-1">
+                      Upgrade Weight (₱)
+                    </label>
+                    <select
+                      className="w-full p-2 border rounded-lg text-sm"
+                      value={upgradeAmount}
+                      onChange={(e) => setUpgradeAmount(Number(e.target.value))}
+                    >
+                      <option value={0}>No Upgrade</option>
+                      <option value={500}>500 (1kg)</option>
+                      <option value={1000}>1000 (2-3kg)</option>
+                      <option value={2000}>2000 (5-6kg)</option>
+                    </select>
+                  </div>
+                )}
               </div>
             )}
           </div>
