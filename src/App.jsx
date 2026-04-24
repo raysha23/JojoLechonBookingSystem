@@ -190,7 +190,6 @@ function App() {
   // Called when user clicks "Confirm Order" inside the modal
   const handleConfirm = async () => {
     setIsSubmitting(true);
-    //  selectedProduct?.id ?? null to handle case when user doesn't select a package and just adds extra dishes
     const payload = {
       customerName,
       contacts: contacts.filter(Boolean),
@@ -227,14 +226,33 @@ function App() {
 
       if (!response.ok) throw new Error("Failed to record order");
 
-      setShowConfirmModal(false);
-      alert("Order recorded successfully!");
+      // ✅ Don't close modal, don't alert — let the modal show the receipt
     } catch (error) {
       console.error("Order submission error:", error);
       alert("Something went wrong. Please try again.");
+      throw error; // ✅ Re-throw so handleConfirm in the modal catches it
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleBookAgain = () => {
+    setShowConfirmModal(false);
+    setStep(1);
+    setOrderType("delivery");
+    setZone("");
+    setAddress("");
+    setDeliveryDate("");
+    setDeliveryTime("");
+    setProductType("");
+    setSelectedProductIndex("");
+    setSelectedProduct(null);
+    setRequiredDishes([]);
+    setExtraDishes([]);
+    setPaymentMethod("gcash");
+    setCustomerName("");
+    setContacts([""]);
+    setFacebookProfile("");
   };
 
   const showSidebar = step !== 2;
@@ -305,6 +323,7 @@ function App() {
             orderState={orderState}
             onConfirm={handleConfirm}
             onCancel={() => setShowConfirmModal(false)}
+            onBookAgain={handleBookAgain}
             isSubmitting={isSubmitting}
           />
         )}

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 const EXTRA_DISH_PRICE = 700;
 
@@ -34,6 +34,7 @@ export default function ConfirmOrderModal({
 
   const [orderSuccess, setOrderSuccess] = useState(false);
   const [orderNumber, setOrderNumber] = useState("");
+  const receiptRef = useRef(null);
 
   const fmt = (n) =>
     "PHP " + Number(n).toLocaleString("en-PH", { minimumFractionDigits: 2 });
@@ -82,171 +83,256 @@ export default function ConfirmOrderModal({
 
   // ── PDF DOWNLOAD ──────────────────────────────────────────────────
   const handleDownloadPDF = async () => {
-    const { jsPDF } =
-      await import("https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js");
+    const {default: jsPDF} = await import("jspdf");
     const doc = new jsPDF({ unit: "mm", format: "a5" });
 
-    const W = doc.internal.pageSize.getWidth();
-    let y = 15;
+    const W = doc.internal.pageSize.getWidth(); // 148mm
+    const margin = 14;
+    const contentW = W - margin * 2;
+    let y = 0;
 
-    const lineH = 6;
-    const sectionGap = 5;
-    const indent = 14;
-    const rightEdge = W - indent;
+    // ── COLOR PALETTE ─────────────────────────────────────────────
+    const RED = [185, 28, 28];
+    const RED_LIGHT = [254, 226, 226];
+    const DARK = [17, 24, 39];
+    const MID = [107, 114, 128];
+    const LIGHT = [209, 213, 219];
+    const BG = [249, 250, 251];
+    const GREEN = [5, 150, 105];
+    const WHITE = [255, 255, 255];
 
-    // ── helpers ──
-    const drawLine = (yPos, color = [220, 220, 220]) => {
+    // ── UTILS ──────────────────────────────────────────────────────
+    const setFont = (size, style = "normal", color = DARK) => {
+      doc.setFontSize(size);
+      doc.setFont("helvetica", style);
+      doc.setTextColor(...color);
+    };
+
+    const fillRect = (x, fy, w, h, color, radius = 0) => {
+      doc.setFillColor(...color);
+      if (radius > 0) doc.roundedRect(x, fy, w, h, radius, radius, "F");
+      else doc.rect(x, fy, w, h, "F");
+    };
+
+    const hRule = (fy, color = LIGHT) => {
       doc.setDrawColor(...color);
-      doc.line(indent, yPos, rightEdge, yPos);
+      doc.setLineWidth(0.15);
+      doc.line(margin, fy, W - margin, fy);
     };
 
-    const sectionTitle = (text) => {
-      y += sectionGap;
-      doc.setFillColor(245, 245, 245);
-      doc.roundedRect(indent, y - 4, W - indent * 2, 8, 2, 2, "F");
-      doc.setFontSize(7.5);
-      doc.setFont("helvetica", "bold");
-      doc.setTextColor(150, 150, 150);
-      doc.text(text.toUpperCase(), indent + 3, y + 1);
-      y += lineH + 1;
+    const labelValue = (label, value, fy, opts = {}) => {
+      const { valBold = false, valColor = DARK, small = false } = opts;
+      const fs = small ? 7.5 : 8.5;
+      setFont(fs, "normal", MID);
+      doc.text(label, margin + 3, fy);
+      setFont(fs, valBold ? "bold" : "normal", valColor);
+      doc.text(String(value), W - margin - 3, fy, { align: "right" });
     };
 
-    const row = (label, value, bold = false) => {
-      doc.setFontSize(9);
-      doc.setFont("helvetica", "normal");
-      doc.setTextColor(120, 120, 120);
-      doc.text(label, indent + 3, y);
-      doc.setFont("helvetica", bold ? "bold" : "normal");
-      doc.setTextColor(30, 30, 30);
-      doc.text(String(value), rightEdge, y, { align: "right" });
-      y += lineH;
-      drawLine(y - 1);
-    };
+    // ── HEADER BLOCK ───────────────────────────────────────────────
+    // Full-width red header
+    fillRect(0, 0, W, 30, RED);
 
-    // ── HEADER ──
-    doc.setFillColor(185, 28, 28);
-    doc.rect(0, 0, W, 22, "F");
+    // Brand name
+    setFont(18, "bold", WHITE);
+    doc.text("Jojo's Lechon", W / 2, 13, { align: "center" });
 
-    doc.setFontSize(16);
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(255, 255, 255);
-    doc.text("Jojo's Lechon", W / 2, 10, { align: "center" });
+    // Subtitle
+    setFont(8, "normal", [254, 202, 202]);
+    doc.text("Official Order Receipt", W / 2, 20, { align: "center" });
 
-    doc.setFontSize(8);
-    doc.setFont("helvetica", "normal");
-    doc.setTextColor(255, 200, 200);
-    doc.text("Order Receipt", W / 2, 16, { align: "center" });
+    // Thin white underline accent
+    doc.setDrawColor(...WHITE);
+    doc.setLineWidth(0.4);
+    doc.setLineDashPattern([2, 2], 0);
+    doc.line(W / 2 - 20, 23, W / 2 + 20, 23);
+    doc.setLineDashPattern([], 0);
 
-    y = 28;
+    y = 36;
 
-    // Order number + date
-    doc.setFontSize(8);
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(185, 28, 28);
-    doc.text(orderNumber, indent, y);
-    doc.setFont("helvetica", "normal");
-    doc.setTextColor(150, 150, 150);
+    // ── ORDER META ROW ─────────────────────────────────────────────
+    // Order number pill
+    fillRect(margin, y - 4.5, 38, 7, RED_LIGHT, 2);
+    setFont(7.5, "bold", RED);
+    doc.text(orderNumber, margin + 3, y);
+
+    // Date right-aligned
+    setFont(7.5, "normal", MID);
     doc.text(
       new Date().toLocaleDateString("en-PH", {
         year: "numeric",
         month: "long",
         day: "numeric",
       }),
-      rightEdge,
+      W - margin - 3,
       y,
       { align: "right" },
     );
-    y += 3;
-    drawLine(y, [185, 28, 28]);
-    y += sectionGap;
 
-    // ── CUSTOMER ──
-    sectionTitle("Customer");
-    row("Name", customerName || "—");
-    row("Contact", contacts.filter(Boolean).join(", ") || "—");
+    y += 5;
+    hRule(y, RED);
+    y += 7;
+
+    // ── SECTION HELPER ─────────────────────────────────────────────
+    const section = (title) => {
+      // Section label with left accent bar
+      fillRect(margin, y - 3.5, 2.5, 7, RED, 1);
+      setFont(7, "bold", MID);
+      doc.text(title.toUpperCase(), margin + 5, y);
+
+      // Subtle bg strip
+      fillRect(margin, y + 1.5, contentW, 0.3, LIGHT);
+      y += 7;
+    };
+
+    const row = (label, value, opts = {}) => {
+      labelValue(label, value, y, opts);
+      y += 5.5;
+      hRule(y - 1.5);
+    };
+
+    // ── CUSTOMER ───────────────────────────────────────────────────
+    section("Customer Information");
+    row("Full Name", customerName || "—", { valBold: true });
+    row("Contact", contacts.filter(Boolean).join("  •  ") || "—");
     if (facebookProfile) row("Facebook", facebookProfile);
+    y += 3;
 
-    // ── DELIVERY ──
-    sectionTitle("Delivery");
-    row("Type", orderType === "delivery" ? "Delivery" : "Pickup");
+    // ── DELIVERY ───────────────────────────────────────────────────
+    section("Delivery Details");
+    row("Order Type", orderType === "delivery" ? "Delivery" : "Pickup", {
+      valBold: true,
+      valColor: RED,
+    });
     row("Date", deliveryDate || "—");
     row("Time", deliveryTime || "—");
     if (orderType === "delivery") {
       row("Address", address || "—");
       row("Zone", zone || "—");
     }
-    row("Payment", paymentMethod === "gcash" ? "GCash" : "Cash on Delivery");
+    row(
+      "Payment Method",
+      paymentMethod === "gcash" ? "GCash" : "Cash on Delivery",
+    );
+    y += 3;
 
-    // ── ORDER ──
-    sectionTitle("Order");
+    // ── ORDER ──────────────────────────────────────────────────────
+    section("Order Details");
+
     if (selectedProduct) {
-      row("Package", selectedProduct.productName);
-      row("Package Price", fmt(packageTotal));
+      // Package name in a highlighted box
+      fillRect(margin, y - 3.5, contentW, 9, BG, 2);
+      setFont(8.5, "bold", DARK);
+      doc.text(selectedProduct.productName, margin + 4, y);
+      setFont(8.5, "bold", RED);
+      doc.text(fmt(packageTotal), W - margin - 4, y, { align: "right" });
+      y += 9;
     }
 
+    // Included dishes
     if (resolvedRequiredDishes.length > 0) {
-      doc.setFontSize(8.5);
-      doc.setFont("helvetica", "bold");
-      doc.setTextColor(80, 80, 80);
-      doc.text("Included Dishes:", indent + 3, y);
-      y += lineH;
+      y += 2;
+      setFont(7, "bold", MID);
+      doc.text("INCLUDED DISHES", margin + 3, y);
+      y += 4.5;
       resolvedRequiredDishes.forEach((d) => {
-        doc.setFont("helvetica", "normal");
-        doc.setTextColor(100, 100, 100);
-        doc.text(`  • ${d.dishName}`, indent + 3, y);
-        y += lineH - 1;
+        // Dot bullet
+        doc.setFillColor(...MID);
+        doc.circle(margin + 4.5, y - 1.5, 0.8, "F");
+        setFont(8, "normal", DARK);
+        doc.text(d.dishName, margin + 7, y);
+        y += 5;
       });
     }
 
+    // Extra dishes
     if (resolvedExtraDishes.length > 0) {
-      doc.setFontSize(8.5);
-      doc.setFont("helvetica", "bold");
-      doc.setTextColor(80, 80, 80);
-      doc.text("Extra Dishes:", indent + 3, y);
-      y += lineH;
+      y += 2;
+      setFont(7, "bold", MID);
+      doc.text("EXTRA DISHES", margin + 3, y);
+      y += 4.5;
       resolvedExtraDishes.forEach((d) => {
-        doc.setFont("helvetica", "normal");
-        doc.setTextColor(100, 100, 100);
-        doc.text(`  • ${d.dishName}`, indent + 3, y);
-        doc.text(fmt(EXTRA_DISH_PRICE), rightEdge, y, { align: "right" });
-        y += lineH - 1;
+        doc.setFillColor(...RED);
+        doc.circle(margin + 4.5, y - 1.5, 0.8, "F");
+        setFont(8, "normal", DARK);
+        doc.text(d.dishName, margin + 7, y);
+        setFont(8, "bold", DARK);
+        doc.text(fmt(EXTRA_DISH_PRICE), W - margin - 3, y, { align: "right" });
+        y += 5;
       });
     }
 
-    // ── PRICING ──
-    sectionTitle("Pricing Summary");
+    y += 4;
+
+    // ── PRICING ────────────────────────────────────────────────────
+    section("Pricing Summary");
+
     if (selectedProduct) row("Package", fmt(packageTotal));
     if (filledExtraDishes.length > 0)
       row("Extra Dishes", fmt(extraDishesTotal));
     if (orderType === "delivery") row("Delivery Fee", fmt(deliveryFee));
-    if (discount > 0) row("Discount", `-${fmt(discount)}`);
+    if (discount > 0)
+      row("Discount", `-${fmt(discount)}`, { valColor: GREEN, valBold: true });
 
-    // Total
-    y += 2;
-    doc.setFillColor(185, 28, 28);
-    doc.roundedRect(indent, y - 4, W - indent * 2, 10, 2, 2, "F");
-    doc.setFontSize(10);
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(255, 255, 255);
-    doc.text("TOTAL", indent + 4, y + 2);
-    doc.text(fmt(total), rightEdge - 2, y + 2, { align: "right" });
-    y += 14;
+    y += 4;
 
-    // ── FOOTER ──
-    drawLine(y, [185, 28, 28]);
+    // ── TOTAL BAR ──────────────────────────────────────────────────
+    // Shadow effect (slightly larger dark rect behind)
+    fillRect(margin + 0.5, y + 0.5, contentW, 14, [150, 20, 20], 3);
+    fillRect(margin, y, contentW, 14, RED, 3);
+
+    setFont(9, "bold", WHITE);
+    doc.text("TOTAL AMOUNT DUE", margin + 5, y + 9);
+
+    setFont(13, "bold", WHITE);
+    doc.text(fmt(total), W - margin - 5, y + 9, { align: "right" });
+
+    y += 22;
+
+    // ── FOOTER ─────────────────────────────────────────────────────
+    hRule(y, LIGHT);
     y += 5;
-    doc.setFontSize(7.5);
-    doc.setFont("helvetica", "italic");
-    doc.setTextColor(160, 160, 160);
-    doc.text("Thank you for ordering from Jojo's Lechon!", W / 2, y, {
+    setFont(7, "italic", [180, 180, 180]);
+    doc.text("Thank you for choosing Jojo's Lechon!", W / 2, y, {
       align: "center",
     });
     y += 4;
-    doc.text("This receipt was generated electronically.", W / 2, y, {
+    setFont(6.5, "normal", [200, 200, 200]);
+    doc.text("This is an electronically generated receipt.", W / 2, y, {
       align: "center",
     });
 
     doc.save(`JojosLechon_${orderNumber}.pdf`);
+  };
+
+  const handleDownloadImage = async () => {
+    const {default: html2canvas} = await import("html2canvas");
+    const hiddenDiv = document.getElementById("receipt-full-capture");
+    if (!hiddenDiv) return;
+
+    // Temporarily make it visible for capture
+    hiddenDiv.style.display = "block";
+
+    const canvas = await html2canvas(hiddenDiv, {
+      backgroundColor: "#ffffff",
+      scale: 2,
+      useCORS: true,
+    });
+
+    hiddenDiv.style.display = "none";
+
+    const blob = await new Promise((resolve) =>
+      canvas.toBlob(resolve, "image/png"),
+    );
+    if (!blob) return;
+
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = `JojosLechon_${orderNumber}.png`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(link.href);
   };
 
   // Close on Escape
@@ -276,139 +362,141 @@ export default function ConfirmOrderModal({
              RECEIPT VIEW
           ══════════════════════════════════════ */
           <>
-            {/* HEADER */}
-            <div className="px-8 pt-7 pb-5 border-b border-gray-100 text-center">
-              <div className="w-14 h-14 rounded-full bg-emerald-50 flex items-center justify-center mx-auto mb-3">
-                <svg
-                  className="w-7 h-7 text-emerald-500"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2.5"
-                    d="M5 13l4 4L19 7"
-                  />
-                </svg>
-              </div>
-              <h2 className="text-xl font-black text-gray-900 tracking-tight">
-                Order Recorded!
-              </h2>
-              <p className="text-sm text-gray-400 font-medium mt-1">
-                <span className="font-black text-red-600">{orderNumber}</span>
-              </p>
-            </div>
-
-            {/* RECEIPT BODY */}
-            <div className="px-8 py-5 space-y-4 max-h-[55vh] overflow-y-auto">
-              <ReceiptSection title="Customer">
-                <ReceiptRow label="Name" value={customerName || "—"} />
-                <ReceiptRow
-                  label="Contact"
-                  value={contacts.filter(Boolean).join(", ") || "—"}
-                />
-                {facebookProfile && (
-                  <ReceiptRow label="Facebook" value={facebookProfile} />
-                )}
-              </ReceiptSection>
-
-              <ReceiptSection title="Delivery">
-                <ReceiptRow
-                  label="Type"
-                  value={orderType === "delivery" ? "Delivery" : "Pickup"}
-                  highlight
-                />
-                <ReceiptRow label="Date" value={deliveryDate || "—"} />
-                <ReceiptRow label="Time" value={deliveryTime || "—"} />
-                {orderType === "delivery" && (
-                  <>
-                    <ReceiptRow label="Address" value={address || "—"} />
-                    <ReceiptRow label="Zone" value={zone || "—"} />
-                  </>
-                )}
-                <ReceiptRow
-                  label="Payment"
-                  value={
-                    paymentMethod === "gcash"
-                      ? "📱 GCash"
-                      : "💵 Cash on Delivery"
-                  }
-                />
-              </ReceiptSection>
-
-              <ReceiptSection title="Order">
-                {selectedProduct && (
-                  <ReceiptRow
-                    label="Package"
-                    value={selectedProduct.productName}
-                  />
-                )}
-                {resolvedRequiredDishes.length > 0 && (
-                  <div className="py-2 border-b border-gray-50">
-                    <p className="text-[10px] font-black text-gray-400 uppercase mb-1.5">
-                      Included Dishes
-                    </p>
-                    {resolvedRequiredDishes.map((d, i) => (
-                      <p
-                        key={i}
-                        className="text-xs text-gray-600 font-medium py-0.5"
-                      >
-                        • {d.dishName}
-                      </p>
-                    ))}
-                  </div>
-                )}
-                {resolvedExtraDishes.length > 0 && (
-                  <div className="py-2 border-b border-gray-50">
-                    <p className="text-[10px] font-black text-gray-400 uppercase mb-1.5">
-                      Extra Dishes
-                    </p>
-                    {resolvedExtraDishes.map((d, i) => (
-                      <div
-                        key={i}
-                        className="flex justify-between text-xs text-gray-600 font-medium py-0.5"
-                      >
-                        <span>• {d.dishName}</span>
-                        <span className="text-gray-800 font-black">
-                          {fmt(EXTRA_DISH_PRICE)}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </ReceiptSection>
-
-              <ReceiptSection title="Pricing">
-                {selectedProduct && (
-                  <ReceiptRow label="Package" value={fmt(packageTotal)} />
-                )}
-                {filledExtraDishes.length > 0 && (
-                  <ReceiptRow
-                    label="Extra Dishes"
-                    value={fmt(extraDishesTotal)}
-                  />
-                )}
-                {orderType === "delivery" && (
-                  <ReceiptRow label="Delivery Fee" value={fmt(deliveryFee)} />
-                )}
-                {discount > 0 && (
-                  <ReceiptRow
-                    label="Discount"
-                    value={`-${fmt(discount)}`}
-                    green
-                  />
-                )}
-                <div className="mt-2 pt-3 border-t-2 border-gray-100 flex justify-between items-center">
-                  <span className="text-sm font-black text-gray-800">
-                    Total
-                  </span>
-                  <span className="text-lg font-black text-red-600">
-                    {fmt(total)}
-                  </span>
+            <div ref={receiptRef}>
+              {/* HEADER */}
+              <div className="px-8 pt-7 pb-5 border-b border-gray-100 text-center">
+                <div className="w-14 h-14 rounded-full bg-emerald-50 flex items-center justify-center mx-auto mb-3">
+                  <svg
+                    className="w-7 h-7 text-emerald-500"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="2.5"
+                      d="M5 13l4 4L19 7"
+                    />
+                  </svg>
                 </div>
-              </ReceiptSection>
+                <h2 className="text-xl font-black text-gray-900 tracking-tight">
+                  Order Recorded!
+                </h2>
+                <p className="text-sm text-gray-400 font-medium mt-1">
+                  <span className="font-black text-red-600">{orderNumber}</span>
+                </p>
+              </div>
+
+              {/* RECEIPT BODY */}
+              <div className="px-8 py-5 space-y-4 max-h-[55vh] overflow-y-auto">
+                <ReceiptSection title="Customer">
+                  <ReceiptRow label="Name" value={customerName || "—"} />
+                  <ReceiptRow
+                    label="Contact"
+                    value={contacts.filter(Boolean).join(", ") || "—"}
+                  />
+                  {facebookProfile && (
+                    <ReceiptRow label="Facebook" value={facebookProfile} />
+                  )}
+                </ReceiptSection>
+
+                <ReceiptSection title="Delivery">
+                  <ReceiptRow
+                    label="Type"
+                    value={orderType === "delivery" ? "Delivery" : "Pickup"}
+                    highlight
+                  />
+                  <ReceiptRow label="Date" value={deliveryDate || "—"} />
+                  <ReceiptRow label="Time" value={deliveryTime || "—"} />
+                  {orderType === "delivery" && (
+                    <>
+                      <ReceiptRow label="Address" value={address || "—"} />
+                      <ReceiptRow label="Zone" value={zone || "—"} />
+                    </>
+                  )}
+                  <ReceiptRow
+                    label="Payment"
+                    value={
+                      paymentMethod === "gcash"
+                        ? "📱 GCash"
+                        : "💵 Cash on Delivery"
+                    }
+                  />
+                </ReceiptSection>
+
+                <ReceiptSection title="Order">
+                  {selectedProduct && (
+                    <ReceiptRow
+                      label="Package"
+                      value={selectedProduct.productName}
+                    />
+                  )}
+                  {resolvedRequiredDishes.length > 0 && (
+                    <div className="py-2 border-b border-gray-50">
+                      <p className="text-[10px] font-black text-gray-400 uppercase mb-1.5">
+                        Included Dishes
+                      </p>
+                      {resolvedRequiredDishes.map((d, i) => (
+                        <p
+                          key={i}
+                          className="text-xs text-gray-600 font-medium py-0.5"
+                        >
+                          • {d.dishName}
+                        </p>
+                      ))}
+                    </div>
+                  )}
+                  {resolvedExtraDishes.length > 0 && (
+                    <div className="py-2 border-b border-gray-50">
+                      <p className="text-[10px] font-black text-gray-400 uppercase mb-1.5">
+                        Extra Dishes
+                      </p>
+                      {resolvedExtraDishes.map((d, i) => (
+                        <div
+                          key={i}
+                          className="flex justify-between text-xs text-gray-600 font-medium py-0.5"
+                        >
+                          <span>• {d.dishName}</span>
+                          <span className="text-gray-800 font-black">
+                            {fmt(EXTRA_DISH_PRICE)}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </ReceiptSection>
+
+                <ReceiptSection title="Pricing">
+                  {selectedProduct && (
+                    <ReceiptRow label="Package" value={fmt(packageTotal)} />
+                  )}
+                  {filledExtraDishes.length > 0 && (
+                    <ReceiptRow
+                      label="Extra Dishes"
+                      value={fmt(extraDishesTotal)}
+                    />
+                  )}
+                  {orderType === "delivery" && (
+                    <ReceiptRow label="Delivery Fee" value={fmt(deliveryFee)} />
+                  )}
+                  {discount > 0 && (
+                    <ReceiptRow
+                      label="Discount"
+                      value={`-${fmt(discount)}`}
+                      green
+                    />
+                  )}
+                  <div className="mt-2 pt-3 border-t-2 border-gray-100 flex justify-between items-center">
+                    <span className="text-sm font-black text-gray-800">
+                      Total
+                    </span>
+                    <span className="text-lg font-black text-red-600">
+                      {fmt(total)}
+                    </span>
+                  </div>
+                </ReceiptSection>
+              </div>
             </div>
 
             {/* FOOTER BUTTONS */}
@@ -431,6 +519,25 @@ export default function ConfirmOrderModal({
                   />
                 </svg>
                 Download Receipt
+              </button>
+              <button
+                onClick={handleDownloadImage}
+                className="flex-1 px-6 py-3 rounded-2xl border-2 border-gray-200 text-gray-600 font-bold text-sm hover:bg-gray-100 transition-all flex items-center justify-center gap-2"
+              >
+                <svg
+                  className="w-4 h-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2.5"
+                    d="M4 7h16M4 12h16M4 17h16"
+                  />
+                </svg>
+                Save as Image
               </button>
               <button
                 onClick={onBookAgain}
@@ -622,6 +729,234 @@ export default function ConfirmOrderModal({
           </>
         )}
       </div>
+
+      {/* HIDDEN FULL RECEIPT FOR IMAGE CAPTURE */}
+      {orderSuccess && (
+        <div
+          id="receipt-full-capture"
+          style={{
+            display: "none",
+            position: "fixed",
+            left: "-9999px",
+            top: 0,
+            width: "480px",
+            backgroundColor: "#ffffff",
+            padding: "0",
+            fontFamily: "sans-serif",
+          }}
+        >
+          {/* RED HEADER */}
+          <div
+            style={{
+              backgroundColor: "#b91c1c",
+              padding: "24px 32px",
+              textAlign: "center",
+            }}
+          >
+            <div style={{ fontSize: "22px", fontWeight: "900", color: "#fff" }}>
+              Jojo's Lechon
+            </div>
+            <div
+              style={{ fontSize: "11px", color: "#fecaca", marginTop: "4px" }}
+            >
+              Order Receipt
+            </div>
+          </div>
+
+          {/* ORDER NUMBER + DATE */}
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              padding: "14px 24px 10px",
+              borderBottom: "2px solid #b91c1c",
+            }}
+          >
+            <span
+              style={{ fontWeight: "900", color: "#b91c1c", fontSize: "13px" }}
+            >
+              {orderNumber}
+            </span>
+            <span style={{ color: "#aaa", fontSize: "12px" }}>
+              {new Date().toLocaleDateString("en-PH", {
+                year: "numeric",
+                month: "long",
+                day: "numeric",
+              })}
+            </span>
+          </div>
+
+          {/* BODY */}
+          <div style={{ padding: "0 24px 24px" }}>
+            {/* CUSTOMER */}
+            <CaptureSection title="Customer">
+              <CaptureRow label="Name" value={customerName || "—"} />
+              <CaptureRow
+                label="Contact"
+                value={contacts.filter(Boolean).join(", ") || "—"}
+              />
+              {facebookProfile && (
+                <CaptureRow label="Facebook" value={facebookProfile} />
+              )}
+            </CaptureSection>
+
+            {/* DELIVERY */}
+            <CaptureSection title="Delivery">
+              <CaptureRow
+                label="Type"
+                value={orderType === "delivery" ? "Delivery" : "Pickup"}
+              />
+              <CaptureRow label="Date" value={deliveryDate || "—"} />
+              <CaptureRow label="Time" value={deliveryTime || "—"} />
+              {orderType === "delivery" && (
+                <>
+                  <CaptureRow label="Address" value={address || "—"} />
+                  <CaptureRow label="Zone" value={zone || "—"} />
+                </>
+              )}
+              <CaptureRow
+                label="Payment"
+                value={paymentMethod === "gcash" ? "GCash" : "Cash on Delivery"}
+              />
+            </CaptureSection>
+
+            {/* ORDER */}
+            <CaptureSection title="Order">
+              {selectedProduct && (
+                <CaptureRow
+                  label="Package"
+                  value={selectedProduct.productName}
+                />
+              )}
+              {resolvedRequiredDishes.length > 0 && (
+                <div
+                  style={{
+                    padding: "8px 0",
+                    borderBottom: "1px solid #f0f0f0",
+                  }}
+                >
+                  <div
+                    style={{
+                      fontSize: "9px",
+                      fontWeight: "800",
+                      color: "#aaa",
+                      textTransform: "uppercase",
+                      marginBottom: "6px",
+                    }}
+                  >
+                    Included Dishes
+                  </div>
+                  {resolvedRequiredDishes.map((d, i) => (
+                    <div
+                      key={i}
+                      style={{
+                        fontSize: "12px",
+                        color: "#555",
+                        padding: "2px 0",
+                      }}
+                    >
+                      • {d.dishName}
+                    </div>
+                  ))}
+                </div>
+              )}
+              {resolvedExtraDishes.length > 0 && (
+                <div style={{ padding: "8px 0" }}>
+                  <div
+                    style={{
+                      fontSize: "9px",
+                      fontWeight: "800",
+                      color: "#aaa",
+                      textTransform: "uppercase",
+                      marginBottom: "6px",
+                    }}
+                  >
+                    Extra Dishes
+                  </div>
+                  {resolvedExtraDishes.map((d, i) => (
+                    <div
+                      key={i}
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        fontSize: "12px",
+                        color: "#555",
+                        padding: "2px 0",
+                      }}
+                    >
+                      <span>• {d.dishName}</span>
+                      <span style={{ fontWeight: "700", color: "#111" }}>
+                        {fmt(EXTRA_DISH_PRICE)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CaptureSection>
+
+            {/* PRICING */}
+            <CaptureSection title="Pricing">
+              {selectedProduct && (
+                <CaptureRow label="Package" value={fmt(packageTotal)} />
+              )}
+              {filledExtraDishes.length > 0 && (
+                <CaptureRow
+                  label="Extra Dishes"
+                  value={fmt(extraDishesTotal)}
+                />
+              )}
+              {orderType === "delivery" && (
+                <CaptureRow label="Delivery Fee" value={fmt(deliveryFee)} />
+              )}
+              {discount > 0 && (
+                <CaptureRow
+                  label="Discount"
+                  value={`-${fmt(discount)}`}
+                  green
+                />
+              )}
+            </CaptureSection>
+
+            {/* TOTAL */}
+            <div
+              style={{
+                backgroundColor: "#b91c1c",
+                borderRadius: "12px",
+                padding: "14px 20px",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                marginTop: "12px",
+              }}
+            >
+              <span
+                style={{ color: "#fff", fontWeight: "900", fontSize: "14px" }}
+              >
+                TOTAL
+              </span>
+              <span
+                style={{ color: "#fff", fontWeight: "900", fontSize: "20px" }}
+              >
+                {fmt(total)}
+              </span>
+            </div>
+
+            {/* FOOTER */}
+            <div
+              style={{
+                textAlign: "center",
+                marginTop: "18px",
+                color: "#bbb",
+                fontSize: "10px",
+              }}
+            >
+              Thank you for ordering from Jojo's Lechon!
+              <br />
+              This receipt was generated electronically.
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -687,6 +1022,61 @@ function Row({ label, value, highlight = false, green = false }) {
               ? "text-red-600 bg-red-50"
               : "text-gray-700 bg-white border border-gray-100"
         }`}
+      >
+        {value}
+      </span>
+    </div>
+  );
+}
+
+function CaptureSection({ title, children }) {
+  return (
+    <div style={{ marginTop: "16px" }}>
+      <div
+        style={{
+          fontSize: "9px",
+          fontWeight: "900",
+          color: "#aaa",
+          textTransform: "uppercase",
+          letterSpacing: "0.12em",
+          marginBottom: "6px",
+        }}
+      >
+        {title}
+      </div>
+      <div
+        style={{
+          backgroundColor: "#f9f9f9",
+          borderRadius: "12px",
+          padding: "4px 14px",
+        }}
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function CaptureRow({ label, value, green = false }) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        padding: "9px 0",
+        borderBottom: "1px solid #f0f0f0",
+      }}
+    >
+      <span style={{ fontSize: "11px", fontWeight: "700", color: "#aaa" }}>
+        {label}
+      </span>
+      <span
+        style={{
+          fontSize: "11px",
+          fontWeight: "800",
+          color: green ? "#059669" : "#222",
+        }}
       >
         {value}
       </span>
