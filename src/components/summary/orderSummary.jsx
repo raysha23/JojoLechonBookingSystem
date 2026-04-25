@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 
 const EXTRA_DISH_PRICE = 700;
 
@@ -22,6 +22,7 @@ export default function OrderSummary({ orderState }) {
     setPaymentMethod,
     deliveryCharges,
     upgradeAmount,
+    setTotalAmount, // ✅ destructure here
   } = orderState;
 
   const fmt = (n) =>
@@ -34,51 +35,43 @@ export default function OrderSummary({ orderState }) {
     return "";
   };
 
-  // ── CALCULATIONS ──────────────────────────────────────────────────
+  // ── CALCULATIONS ─────────────────────────────────────────────────
   const packageTotal = selectedProduct ? selectedProduct.amount : 0;
 
-  // Required dishes come included in the package price (₱0 each)
   const requiredDishCount =
     productType === "dish_only"
       ? (requiredDishes || []).filter(Boolean).length
       : selectedProduct?.NoOfDishes || 0;
 
-  // Extra dishes: only count slots that have an actual dish selected
   const filledExtraDishes = (extraDishes || []).filter((d) => d !== "");
   const extraDishesTotal = filledExtraDishes.length * EXTRA_DISH_PRICE;
 
-  // Delivery fee
   const deliveryFee =
     orderType === "delivery" ? getDeliveryFee(zone, deliveryCharges) : 0;
 
-  // Discount — promoAmount is stored as a string like "-1000", "-500", or "0"
   const discount = selectedProduct?.promoAmount
     ? Math.abs(Number(selectedProduct.promoAmount))
     : 0;
 
-  // Total dishes shown in footer = required (from package) + extra
   const totalDishCount = requiredDishCount + filledExtraDishes.length;
-
-  // Freebies count
   const freebiesCount = selectedProduct?.freebies?.length || 0;
-
   const upgradeTotal = upgradeAmount || 0;
 
-  // Subtotal before discount, total after
   const subtotal = packageTotal + extraDishesTotal + deliveryFee + upgradeTotal;
-  const total = subtotal - discount;
+  const total = subtotal - discount; // ✅ declared ONCE, in the right order
+
+  useEffect(() => {
+    setTotalAmount(total);
+  }, [total]);
   // ─────────────────────────────────────────────────────────────────
 
   return (
     <div className="bg-[#0d0d0d] text-white rounded-3xl p-8 shadow-2xl max-w-md mx-auto">
-      {/* HEADER */}
       <h2 className="text-2xl font-black mb-1">Order Summary</h2>
       <div className="w-12 h-1 bg-red-600 mb-8"></div>
 
       <div className="space-y-5">
-        {/* PRICE BREAKDOWN */}
         <div className="space-y-4">
-          {/* PACKAGE TOTAL */}
           <div className="flex justify-between items-start">
             <div>
               <p className="font-bold text-sm tracking-tight">Product total</p>
@@ -95,7 +88,6 @@ export default function OrderSummary({ orderState }) {
             </p>
           </div>
 
-          {/* EXTRA DISHES TOTAL — only show when there are extra dishes */}
           {filledExtraDishes.length > 0 && (
             <div className="flex justify-between items-start border-t border-gray-800 pt-4">
               <div>
@@ -113,7 +105,6 @@ export default function OrderSummary({ orderState }) {
             </div>
           )}
 
-          {/* UPGRADE TOTAL — only show when upgrade is selected */}
           {upgradeTotal > 0 && (
             <div className="flex justify-between items-start border-t border-gray-800 pt-4">
               <div>
@@ -126,7 +117,6 @@ export default function OrderSummary({ orderState }) {
             </div>
           )}
 
-          {/* DELIVERY FEE — only show when delivery is selected */}
           {orderType === "delivery" && (
             <div className="flex justify-between items-start border-t border-gray-800 pt-4">
               <div>
@@ -143,7 +133,6 @@ export default function OrderSummary({ orderState }) {
             </div>
           )}
 
-          {/* TOTAL SECTION */}
           <div className="pt-2">
             <div className="flex justify-between items-center border-t border-gray-800 pt-5 mb-4">
               <p className="text-gray-500 font-bold uppercase text-[10px] tracking-widest">
@@ -151,7 +140,6 @@ export default function OrderSummary({ orderState }) {
               </p>
               <p className="text-xl font-bold">{fmt(subtotal)}</p>
             </div>
-            {/* DISCOUNT — only show when product has a promo */}
             {discount > 0 && (
               <div className="flex justify-between items-start border-t border-gray-800 pt-4">
                 <div>
@@ -168,6 +156,7 @@ export default function OrderSummary({ orderState }) {
               </div>
             )}
           </div>
+
           <div className="bg-red-600 rounded-2xl p-5 flex justify-between items-center">
             <div>
               <p className="text-[10px] font-bold uppercase opacity-90 leading-none mb-1">
@@ -181,7 +170,6 @@ export default function OrderSummary({ orderState }) {
           </div>
         </div>
 
-        {/* PAYMENT METHOD SECTION */}
         <div className="pt-4 border-t border-gray-800">
           <h3 className="text-white font-bold text-sm mb-4">Payment Method</h3>
           <div className="grid grid-cols-2 gap-4">
@@ -223,10 +211,8 @@ export default function OrderSummary({ orderState }) {
           </div>
         </div>
 
-        {/* FOOTER STATS */}
         <div className="grid grid-cols-3 pt-6 border-t border-gray-800">
           <div className="text-center">
-            {/* totalDishCount = required dishes (NoOfDishes) + filled extra dishes */}
             <p className="text-red-500 text-2xl font-bold leading-none mb-1">
               {totalDishCount}
             </p>

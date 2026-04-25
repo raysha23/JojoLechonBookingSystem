@@ -40,7 +40,7 @@ function App({ submittedByUserId = null, encoderName = null }) {
   const [extraDishes, setExtraDishes] = useState([]);
   const [paymentMethod, setPaymentMethod] = useState("gcash");
   const [upgradeAmount, setUpgradeAmount] = useState(0);
-
+  const [totalAmount, setTotalAmount] = useState(0);
   // ─── CUSTOMER STATE ───────────────────────────────────────────────
   const [customerName, setCustomerName] = useState("");
   const [contacts, setContacts] = useState([""]);
@@ -187,6 +187,8 @@ function App({ submittedByUserId = null, encoderName = null }) {
     dishes,
     deliveryCharges,
     isLoading,
+    totalAmount,
+    setTotalAmount
   };
 
   // Opens the confirmation modal
@@ -214,11 +216,12 @@ function App({ submittedByUserId = null, encoderName = null }) {
       deliveryTime,
       productId: selectedProduct?.id ?? null,
       paymentMethod,
+      totalAmount,
       dishes: {
         required: requiredDishes.filter(Boolean).map(Number),
         extra: extraDishes.filter(Boolean).map(Number),
       },
-      submittedByUserId,
+      submittedByUserId: submittedByUserId ?? null,
     };
 
     try {

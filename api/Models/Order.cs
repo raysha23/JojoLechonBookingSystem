@@ -33,6 +33,5 @@ namespace api.Models
         public Product? Product { get; set; }
         public User? SubmittedByUser { get; set; }
         public ICollection<OrderDish> OrderDishes { get; set; } = new List<OrderDish>();
-        public bool IsDeleted { get; internal set; }
     }
 }

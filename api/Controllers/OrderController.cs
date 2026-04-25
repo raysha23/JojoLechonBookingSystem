@@ -99,6 +99,7 @@ namespace api.Controllers
                     .ToListAsync();
             }
 
+            // ✅ transaction declared OUTSIDE try so catch can access it
             using var transaction = await _context.Database.BeginTransactionAsync();
             try
             {
@@ -141,7 +142,6 @@ namespace api.Controllers
                 _context.Orders.Add(order);
                 _context.OrderDishes.AddRange(orderDishes);
                 await _context.SaveChangesAsync();
-
                 await transaction.CommitAsync();
 
                 var createdOrder = await _context.Orders
@@ -157,10 +157,15 @@ namespace api.Controllers
 
                 return Created($"/api/order/{createdOrder.Id}", createdOrder.ToOrderDTO());
             }
-            catch
+            catch (Exception ex)  // ✅ single catch, can access transaction
             {
                 await transaction.RollbackAsync();
-                return StatusCode(500, "Failed to create order. Please try again.");
+                return StatusCode(500, new
+                {
+                    error = ex.Message,
+                    inner = ex.InnerException?.Message,
+                    trace = ex.StackTrace
+                });
             }
         }
 
