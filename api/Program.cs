@@ -18,6 +18,8 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
+// "DefaultConnection": "Server=db49265.databaseasp.net; Database=db49265; User Id=db49265; Password=hJ#97@cAiG+5; Encrypt=False; MultipleActiveResultSets=True;"
+
 
 
 builder.Services.AddCors(options =>
@@ -36,7 +38,7 @@ using (var scope = app.Services.CreateScope())
 {
     var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 
-    // Use migrations so schema updates (like ProductTypes) are applied
+    // Use migrations so schema updates (like ProductTypes) are applied 
     // to existing databases. EnsureCreated does not evolve an existing DB.
     context.Database.Migrate();
 
@@ -135,15 +137,13 @@ app.UseCors("AllowReactApp");
 app.UseSwagger();
 app.UseSwaggerUI();
 
-// Middleware
-// Avoid forcing HTTP->HTTPS in local development because the frontend
-// proxy currently targets HTTP and may fail with cert/redirect issues.
 if (!app.Environment.IsDevelopment())
 {
     app.UseHttpsRedirection();
 }
-
+app.UseDefaultFiles();
+app.UseStaticFiles();
 // Test endpoint
-app.MapGet("/", () => "API is running...");
+// app.MapGet("/", () => "API is running...");
 app.MapControllers();
 app.Run();

@@ -12,21 +12,42 @@ const zoneKeywords = [
     areaType: "proper",
     keywords: [
       "talisay",
-      "liburon",
-      "laya",
-      "batasan",
-      "tangke",
-      "tayud",
+      "biasong",
+      "bulacao",
+      "cadulawan",
+      "cansojong",
+      "dumlog",
+      "jaclupan",
+      "lagtang",
+      "lawaan 1",
+      "lawaan 2",
+      "lawaan 3",
+      "linao",
+      "maghaway",
+      "mohon",
       "poblacion",
+      "pooc",
+      "san isidro",
+      "san roque",
+      "tabunok",
+      "tangke",
     ],
   },
   {
     zoneName: "Talisay-Mountain",
     city: "Talisay City",
     areaType: "mountain",
-    keywords: ["talisay mountain", "upland", "hill", "highland"],
+    keywords: [
+      "camp 4",
+      "camp iv",
+      "manipis",
+      "tapul",
+      "talisay mountain",
+      "upland",
+      "highland",
+      "bukid",
+    ],
   },
-
   // =========================
   // MINGLANILLA
   // =========================
@@ -34,13 +55,41 @@ const zoneKeywords = [
     zoneName: "Minglanilla-Proper",
     city: "Minglanilla",
     areaType: "proper",
-    keywords: ["minglanilla", "tampo"],
+    keywords: [
+      "minglanilla",
+      "tampo",
+      "poblacion",
+      "tulay",
+      "pakigne",
+      "calajoan",
+      "cadulawan",
+      "linao",
+      "tubod",
+      "ward",
+      "tungkop",
+      "tunghaan",
+      "camp 8",
+      "camp viii",
+    ],
   },
   {
     zoneName: "Minglanilla-Mountain",
     city: "Minglanilla",
     areaType: "mountain",
-    keywords: ["minglanilla mountain"],
+    keywords: [
+      "guindaruhan",
+      "manduang",
+      "cuanos",
+      "camp 7",
+      "camp vii",
+      "buot-taop",
+      "danlog",
+      "tubod mountain",
+      "minglanilla mountain",
+      "upland",
+      "bukid",
+      "highland",
+    ],
   },
 
   // =========================
@@ -50,104 +99,504 @@ const zoneKeywords = [
     zoneName: "Naga-Proper",
     city: "Naga City",
     areaType: "proper",
-    keywords: ["naga proper", "naga city", "babag", "buhisan", "tigbao"],
+    keywords: [
+      "naga",
+      "naga city",
+      "poblacion",
+      "east poblacion",
+      "west poblacion",
+      "north poblacion",
+      "south poblacion",
+      "inala",
+      "colon",
+      "lutac",
+      "mainit",
+      "mayana",
+      "langtad",
+      "tuyan",
+      "balirong",
+      "cantao-an",
+      "tinaan",
+      "naalad",
+      "tagjaguimit",
+      "patag",
+    ],
   },
   {
     zoneName: "Naga-Mountain",
     city: "Naga City",
     areaType: "mountain",
-    keywords: ["naga mountain", "sungod", "bugnay"],
+    keywords: [
+      "alpaco",
+      "bairan",
+      "bunga",
+      "cabayongan",
+      "cogon",
+      "jaguimit",
+      "lamesa",
+      "pulangbato",
+      "sagasa",
+      "tabunan",
+      "tuyan mountain",
+      "naga mountain",
+      "upland",
+      "bukid",
+      "highland",
+    ],
   },
-
   // =========================
-  // CARCAR CITY
-  // =========================
-  {
-    zoneName: "Carcar-Proper",
-    city: "Carcar City",
-    areaType: "proper",
-    keywords: ["carcar", "binaliw", "canlumot"],
-  },
-  {
-    zoneName: "Carcar-Mountain",
-    city: "Carcar City",
-    areaType: "mountain",
-    keywords: ["carcar mountain"],
-  },
-
-  // =========================
-  // CEBU CITY (GROUPED BARANGAYS)
+  // CEBU CITY
   // =========================
   {
     zoneName: "Cebu-Proper",
     city: "Cebu City",
     areaType: "proper",
     keywords: [
+      "cebu city",
+      "cebu",
+
+      // SOUTH / POBLACION
       "pardo",
-      "basak",
-      "quiot",
+      "basak pardo",
       "mambaling",
       "pasil",
+      "inayawan",
       "tisa",
-      "banawa",
+      "labangon",
+      "punta princesa",
+      "guadalupe",
+
+      // CENTRAL
       "sambag",
+      "sambag 1",
+      "sambag 2",
       "v rama",
+      "capitol",
       "fuente",
+      "cogon",
+      "carbon",
+      "colon",
+      "sto nino",
+      "kalubihan",
+
+      // NORTH / BUSINESS AREAS
       "lahug",
       "mabolo",
+      "kasambagan",
+      "hipodromo",
+      "camputhaw",
+      "apang",
+      "it park",
+      "cebu it park",
+      "banilad",
       "talamban",
       "pit-os",
+      "banilad road",
+      "as fortuna",
+
+      // PORT / INDUSTRIAL
+      "suba",
+      "ermita",
+      "tejero",
+      "parian",
+      "zapatera",
+      "tinago",
+      "san nicolas",
     ],
   },
   {
     zoneName: "Cebu-Mountain",
     city: "Cebu City",
     areaType: "mountain",
-    keywords: ["busay", "sirao", "transcentral", "mountain view"],
-  },
+    keywords: [
+      "busay",
+      "sirao",
+      "bonbon",
+      "sudlon 1",
+      "sudlon 2",
+      "sudlon i",
+      "sudlon ii",
+      "pamutan",
+      "toong",
+      "adlaon",
+      "tabunan",
+      "babag",
+      "malubog",
 
+      // common user terms
+      "transcentral",
+      "mountain view",
+      "tops",
+      "bukid",
+      "upland",
+      "highland",
+    ],
+  },
   // =========================
-  // NEARBY CITIES
+  // MANDAUE CITY
   // =========================
   {
     zoneName: "Mandaue-Proper",
     city: "Mandaue City",
     areaType: "proper",
-    keywords: ["mandaue", "bakilid", "tipolo"],
-  },
-  {
-    zoneName: "LapuLapu-Proper",
-    city: "Lapu-Lapu City",
-    areaType: "proper",
-    keywords: ["lapu-lapu", "cordova", "mactan"],
-  },
-  {
-    zoneName: "Consolacion-Proper",
-    city: "Consolacion",
-    areaType: "proper",
-    keywords: ["consolacion"],
-  },
+    keywords: [
+      "mandaue",
+      "mandaue city",
 
+      // MAJOR AREAS
+      "bakilid",
+      "banilad",
+      "basak",
+      "cabancalan",
+      "canduman",
+      "casili",
+      "casuntingan",
+      "centro",
+      "cubacub",
+      "guizo",
+      "ibabao",
+      "jagobiao",
+      "labogon",
+      "looc",
+      "maguikay",
+      "mantuyong",
+      "opao",
+      "paknaan",
+      "pagsabungan",
+      "subangdaku",
+      "tabok",
+      "tawason",
+      "tipolo",
+      "umapad",
+
+      // COMMON LANDMARKS / USER INPUTS
+      "parkmall",
+      "sm mandaue",
+      "jcentre",
+      "as fortuna",
+      "plaridel",
+      "hernan cortes",
+    ],
+  },
+  {
+    zoneName: "Mandaue-Mountain",
+    city: "Mandaue City",
+    areaType: "mountain",
+    keywords: [
+      // Mandaue is mostly flat, but include fallback terms
+      "mandaue mountain",
+      "upland",
+      "bukid",
+      "highland",
+    ],
+  },
   // =========================
-  // FAR AREAS
+  // LILOAN
   // =========================
   {
     zoneName: "Liloan-Proper",
     city: "Liloan",
     areaType: "proper",
-    keywords: ["liloan"],
+    keywords: [
+      "liloan",
+
+      // CORE / COMMON AREAS
+      "poblacion",
+      "cotcot",
+      "jublag",
+      "san vicente",
+      "tayud",
+      "yati",
+      "looc",
+      "catarman",
+
+      // HIGHWAY / LANDMARKS
+      "gaisano liloan",
+      "liloan port",
+      "parola",
+      "bagacay point",
+      "calero",
+    ],
   },
   {
-    zoneName: "Compostela-Proper",
-    city: "Compostela",
-    areaType: "proper",
-    keywords: ["compostela"],
-  },
+    zoneName: "Liloan-Mountain",
+    city: "Liloan",
+    areaType: "mountain",
+    keywords: [
+      "cansaga",
+      "pitogo",
+      "san roque",
+      "purok",
+      "liloan mountain",
+      "upland",
+      "bukid",
+      "highland",
+    ],
+  }, // =========================
+  // DANAO CITY
+  // =========================
   {
     zoneName: "Danao-Proper",
     city: "Danao City",
     areaType: "proper",
-    keywords: ["danao"],
+    keywords: [
+      "danao",
+      "danao city",
+
+      // CENTRAL / URBAN BARANGAYS
+      "poblacion",
+      "looc",
+      "guinsay",
+      "cogon",
+      "suba",
+      "sabang",
+      "manlayag",
+      "dunggoan",
+      "binaliw",
+      "taytay",
+      "camboang",
+      "masaba",
+      "san vicente",
+      "san fernando",
+
+      // COMMON LANDMARK INPUTS
+      "danao port",
+      "robinsons danao",
+      "sm city danao",
+      "danao pier",
+    ],
+  },
+  {
+    zoneName: "Danao-Mountain",
+    city: "Danao City",
+    areaType: "mountain",
+    keywords: [
+      "lamac",
+      "magtagobtob",
+      "panalipan",
+      "sacsac",
+      "cabungahan",
+      "carmen (upland context)",
+      "danao mountain",
+      "bukid",
+      "upland",
+      "highland",
+    ],
+  },
+  // =========================
+  // COMPOSTELA
+  // =========================
+  {
+    zoneName: "Compostela-Proper",
+    city: "Compostela",
+    areaType: "proper",
+    keywords: [
+      "compostela",
+
+      // CORE BARANGAYS
+      "poblacion",
+      "bagalnga",
+      "nangka",
+      "panoypoy",
+      "tugbongan",
+      "tubigan",
+      "dapitan",
+      "malogo",
+      "manlayag",
+      "lupa",
+
+      // COMMON USAGE / LANDMARKS
+      "compostela cebu",
+      "compostela town",
+      "gaisano compostela",
+      "compostela market",
+    ],
+  },
+  {
+    zoneName: "Compostela-Mountain",
+    city: "Compostela",
+    areaType: "mountain",
+    keywords: [
+      "canduman upland",
+      "mountain compostela",
+      "bukid",
+      "upland",
+      "highland",
+      "cansaga upland",
+      "cagay",
+      "panangatan",
+    ],
+  },
+  // =========================
+  // MOALBOAL
+  // =========================
+  {
+    zoneName: "Moalboal-Proper",
+    city: "Moalboal",
+    areaType: "proper",
+    keywords: [
+      "moalboal",
+      "moalboal cebu",
+      "poblacion east",
+      "poblacion west",
+      "basdiot",
+      "basdaku",
+      "saavedra",
+      "tuble",
+      "tomonoy",
+      "bugho",
+      "balabagon",
+      "balingasag",
+      "bato",
+      "buguil",
+      "busay",
+      "lanao",
+      "panagsama",
+      "white beach",
+    ],
+  },
+  {
+    zoneName: "Moalboal-Mountain",
+    city: "Moalboal",
+    areaType: "mountain",
+    keywords: [
+      "upland moalboal",
+      "moalboal mountain",
+      "bukid",
+      "highland",
+      "hill area",
+    ],
+  },
+  // =========================
+  // SIBONGA
+  // =========================
+  {
+    zoneName: "Sibonga-Proper",
+    city: "Sibonga",
+    areaType: "proper",
+    keywords: [
+      "sibonga",
+      "sibonga cebu",
+      "poblacion",
+      "sabong",
+      "candaguit",
+      "lamacan",
+      "abugon",
+      "banlot",
+      "bato",
+      "cagay",
+      "cansabusab",
+      "garing",
+      "gilutongan",
+      "jolomaynon",
+      "manatad",
+      "nangka",
+      "simala",
+      "tubod",
+      "tuble",
+    ],
+  },
+  {
+    zoneName: "Sibonga-Mountain",
+    city: "Sibonga",
+    areaType: "mountain",
+    keywords: [
+      "simala upland",
+      "sibonga mountain",
+      "bukid",
+      "upland",
+      "highland",
+      "hill area",
+    ],
+  },
+  // =========================
+  // SAN FERNANDO
+  // =========================
+  {
+    zoneName: "SanFernando-Proper",
+    city: "San Fernando",
+    areaType: "proper",
+    keywords: [
+      "san fernando",
+      "san fernando cebu",
+      "poblacion",
+      "balud",
+      "bugho",
+      "cabatbatan",
+      "camboang",
+      "ilaya",
+      "kabalaasnan",
+      "lantawan",
+      "libo",
+      "magsico",
+      "malbago",
+      "panadtaran",
+      "pitalo",
+      "san isidro",
+      "san roque",
+      "sangat",
+      "tabionan",
+      "tinubdan",
+      "tubod",
+    ],
+  },
+  {
+    zoneName: "SanFernando-Mountain",
+    city: "San Fernando",
+    areaType: "mountain",
+    keywords: [
+      "san fernando mountain",
+      "bukid",
+      "upland",
+      "highland",
+      "hill area",
+    ],
+  },
+  // =========================
+  // ARGAO
+  // =========================
+  {
+    zoneName: "Argao-Proper",
+    city: "Argao",
+    areaType: "proper",
+    keywords: [
+      "argao",
+      "argao cebu",
+      "poblacion",
+      "bogo",
+      "colawin",
+      "giloctog",
+      "guiwanon",
+      "jampang",
+      "langtad",
+      "lantoy",
+      "linut-od",
+      "mabasa",
+      "mandilikit",
+      "nabunturan",
+      "ocaña",
+      "sibago",
+      "sumag",
+      "talo-ot",
+      "tiguib",
+      "tubod",
+      "usmad",
+      "canbanua",
+      "balisong",
+    ],
+  },
+  {
+    zoneName: "Argao-Mountain",
+    city: "Argao",
+    areaType: "mountain",
+    keywords: [
+      "argao mountain",
+      "bukid",
+      "upland",
+      "highland",
+      "hill area",
+      "candabong upland",
+    ],
   },
 ];
 
@@ -198,13 +647,19 @@ export default function Step1({ orderState }) {
 
   useEffect(() => {
     if (!address || orderType !== "delivery") return;
-    const lowerAddress = address.toLowerCase();
+    const lowerAddress = address.toLowerCase().replace(/\s+/g, ""); // Remove all spaces
     for (const zone of zoneKeywords) {
-      if (zone.keywords.some((keyword) => lowerAddress.includes(keyword))) {
+      if (
+        zone.keywords.some((keyword) =>
+          lowerAddress.includes(keyword.replace(/\s+/g, "")),
+        )
+      ) {
         setZone(zone.zoneName);
         return;
       }
     }
+    // Optional: Set a default or log if no match
+    setZone(""); // Or handle no match case
   }, [address, orderType]);
 
   // ── Sync selectedProduct to parent state ─────
@@ -375,7 +830,9 @@ export default function Step1({ orderState }) {
                     {deliveryCharges.map((charge) => (
                       <option key={charge.id} value={charge.zoneName}>
                         {charge.zoneName} — ₱{charge.baseFee}
-                        {charge.surcharge ? ` + ₱${charge.surcharge} surcharge` : ""}
+                        {charge.surcharge
+                          ? ` + ₱${charge.surcharge} surcharge`
+                          : ""}
                       </option>
                     ))}
                   </select>

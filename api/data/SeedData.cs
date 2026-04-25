@@ -396,25 +396,55 @@ namespace api.data
                 // ======================
                 // CARCAR
                 // ======================
-                new DeliveryCharge { ZoneName = "Carcar-Proper",   CityName = "Carcar City", AreaType = "proper",   BaseFee = 450 },
-                new DeliveryCharge { ZoneName = "Carcar-Mountain", CityName = "Carcar City", AreaType = "mountain", BaseFee = 450, Surcharge = 50 },
+                new DeliveryCharge { ZoneName = "Carcar-Proper",   CityName = "Carcar City", AreaType = "proper",   BaseFee = 600 },
+                new DeliveryCharge { ZoneName = "Carcar-Mountain", CityName = "Carcar City", AreaType = "mountain", BaseFee = 600, Surcharge = 100 },
 
                 // ======================
                 // CEBU CITY AREAS
                 // ======================
-                new DeliveryCharge { ZoneName = "Cebu-Proper",   CityName = "Cebu City", AreaType = "proper",   BaseFee = 200 },
-                new DeliveryCharge { ZoneName = "Cebu-Mountain", CityName = "Cebu City", AreaType = "mountain", BaseFee = 200, Surcharge = 100 },
+                new DeliveryCharge { ZoneName = "Cebu-Proper",   CityName = "Cebu City", AreaType = "proper",   BaseFee = 250 },
+                new DeliveryCharge { ZoneName = "Cebu-Mountain", CityName = "Cebu City", AreaType = "mountain", BaseFee = 250, Surcharge = 250 },
 
                 // Barangay-level flat areas (no mountain split)
                 new DeliveryCharge { ZoneName = "Mandaue-Proper",    CityName = "Mandaue City",  AreaType = "proper", BaseFee = 350 },
-                new DeliveryCharge { ZoneName = "Consolacion-Proper", CityName = "Consolacion",   AreaType = "proper", BaseFee = 350 },
+                new DeliveryCharge { ZoneName = "Consolacion-Proper", CityName = "Consolacion",   AreaType = "proper", BaseFee = 400 },
+                new DeliveryCharge { ZoneName = "Consolacion-Mountain", CityName = "Consolacion",   AreaType = "mountain", BaseFee = 400, Surcharge = 100 },
+
                 new DeliveryCharge { ZoneName = "LapuLapu-Proper",   CityName = "Lapu-Lapu City",AreaType = "proper", BaseFee = 400 },
-                new DeliveryCharge { ZoneName = "Cordova-Proper",    CityName = "Cordova",       AreaType = "proper", BaseFee = 400 },
+                new DeliveryCharge { ZoneName = "Cordova-Proper",    CityName = "Cordova",       AreaType = "proper", BaseFee = 450 },
 
                 // Far provinces
                 new DeliveryCharge { ZoneName = "Liloan-Proper",     CityName = "Liloan",       AreaType = "proper", BaseFee = 500 },
-                new DeliveryCharge { ZoneName = "Compostela-Proper", CityName = "Compostela",   AreaType = "proper", BaseFee = 500 },
-                new DeliveryCharge { ZoneName = "Danao-Proper",      CityName = "Danao City",   AreaType = "proper", BaseFee = 600 }
+                new DeliveryCharge { ZoneName = "Liloan-Mountain",   CityName = "Liloan",       AreaType = "mountain", BaseFee = 500, Surcharge = 100 },
+
+                new DeliveryCharge { ZoneName = "Compostela-Proper", CityName = "Compostela",   AreaType = "proper", BaseFee = 600 },
+                new DeliveryCharge { ZoneName = "Compostela-Mountain", CityName = "Compostela",   AreaType = "mountain", BaseFee = 600, Surcharge = 100 },
+
+                new DeliveryCharge { ZoneName = "Danao-Proper",      CityName = "Danao City",   AreaType = "proper", BaseFee = 700 },
+                new DeliveryCharge { ZoneName = "Danao-Mountain",    CityName = "Danao City",   AreaType = "mountain", BaseFee = 700, Surcharge = 100 },
+                // ======================
+                // MOALBOAL
+                // ======================
+                new DeliveryCharge { ZoneName = "Moalboal-Proper", CityName = "Moalboal", AreaType = "proper", BaseFee = 1200 },
+                new DeliveryCharge { ZoneName = "Moalboal-Mountain", CityName = "Moalboal", AreaType = "mountain", BaseFee = 1200, Surcharge = 100 },
+                // ======================
+                // SIBONGA (you wrote "sibunga" - corrected)
+                // ======================
+                new DeliveryCharge { ZoneName = "Sibonga-Proper", CityName = "Sibonga", AreaType = "proper", BaseFee = 900 },
+                new DeliveryCharge { ZoneName = "Sibonga-Mountain", CityName = "Sibonga", AreaType = "mountain", BaseFee = 900, Surcharge = 100 },
+
+                // ======================
+                // SAN FERNANDO
+                // ======================
+                new DeliveryCharge { ZoneName = "San Fernando-Proper", CityName = "San Fernando", AreaType = "proper", BaseFee = 500 },
+                new DeliveryCharge { ZoneName = "San Fernando-Mountain", CityName = "San Fernando", AreaType = "mountain", BaseFee = 500, Surcharge = 100 },
+
+                // ======================
+                // ARGAO
+                // ======================
+                new DeliveryCharge { ZoneName = "Argao-Proper", CityName = "Argao", AreaType = "proper", BaseFee = 1200 },
+                new DeliveryCharge { ZoneName = "Argao-Mountain", CityName = "Argao", AreaType = "mountain", BaseFee = 1200, Surcharge = 100 },
+
             };
         }
     }

@@ -138,3 +138,4 @@ C:\Users\Administrator\Desktop\ReactLechonBooking\JojoLechonBookingSystem\api\ob
 C:\Users\Administrator\Desktop\ReactLechonBooking\JojoLechonBookingSystem\api\obj\Debug\net8.0\api.pdb
 C:\Users\Administrator\Desktop\ReactLechonBooking\JojoLechonBookingSystem\api\obj\Debug\net8.0\api.genruntimeconfig.cache
 C:\Users\Administrator\Desktop\ReactLechonBooking\JojoLechonBookingSystem\api\obj\Debug\net8.0\ref\api.dll
+C:\Users\Administrator\Desktop\ReactLechonBooking\JojoLechonBookingSystem\api\bin\Debug\net8.0\api.staticwebassets.runtime.json

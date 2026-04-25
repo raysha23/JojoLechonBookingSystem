@@ -5,7 +5,9 @@ const EXTRA_DISH_PRICE = 700;
 function getDeliveryFee(zone, deliveryCharges = []) {
   if (!zone || deliveryCharges.length === 0) return 0;
   const charge = deliveryCharges.find((item) => item.zoneName === zone);
-  return charge ? Number(charge.baseFee || 0) + Number(charge.surcharge || 0) : 0;
+  return charge
+    ? Number(charge.baseFee || 0) + Number(charge.surcharge || 0)
+    : 0;
 }
 
 export default function OrderSummary({ orderState }) {
@@ -36,16 +38,18 @@ export default function OrderSummary({ orderState }) {
   const packageTotal = selectedProduct ? selectedProduct.amount : 0;
 
   // Required dishes come included in the package price (₱0 each)
-  const requiredDishCount = productType === "dish_only"
-    ? (requiredDishes || []).filter(Boolean).length
-    : selectedProduct?.NoOfDishes || 0;
+  const requiredDishCount =
+    productType === "dish_only"
+      ? (requiredDishes || []).filter(Boolean).length
+      : selectedProduct?.NoOfDishes || 0;
 
   // Extra dishes: only count slots that have an actual dish selected
   const filledExtraDishes = (extraDishes || []).filter((d) => d !== "");
   const extraDishesTotal = filledExtraDishes.length * EXTRA_DISH_PRICE;
 
   // Delivery fee
-  const deliveryFee = orderType === "delivery" ? getDeliveryFee(zone, deliveryCharges) : 0;
+  const deliveryFee =
+    orderType === "delivery" ? getDeliveryFee(zone, deliveryCharges) : 0;
 
   // Discount — promoAmount is stored as a string like "-1000", "-500", or "0"
   const discount = selectedProduct?.promoAmount
@@ -138,33 +142,32 @@ export default function OrderSummary({ orderState }) {
               </p>
             </div>
           )}
-          {/* DISCOUNT — only show when product has a promo */}
-          {discount > 0 && (
-            <div className="flex justify-between items-start border-t border-gray-800 pt-4">
-              <div>
-                <p className="font-bold text-sm tracking-tight text-emerald-400">
-                  Discount
-                </p>
-                <p className="text-[10px] text-gray-500 font-medium">
-                  Promo — {selectedProduct.productName}
+
+          {/* TOTAL SECTION */}
+          <div className="pt-2">
+            <div className="flex justify-between items-center border-t border-gray-800 pt-5 mb-4">
+              <p className="text-gray-500 font-bold uppercase text-[10px] tracking-widest">
+                SUBTOTAL
+              </p>
+              <p className="text-xl font-bold">{fmt(subtotal)}</p>
+            </div>
+            {/* DISCOUNT — only show when product has a promo */}
+            {discount > 0 && (
+              <div className="flex justify-between items-start border-t border-gray-800 pt-4">
+                <div>
+                  <p className="font-bold text-sm tracking-tight text-emerald-400">
+                    Discount
+                  </p>
+                  <p className="text-[10px] text-gray-500 font-medium">
+                    Promo — {selectedProduct.productName}
+                  </p>
+                </div>
+                <p className="font-bold text-lg text-emerald-400">
+                  -{fmt(discount)}
                 </p>
               </div>
-              <p className="font-bold text-lg text-emerald-400">
-                -{fmt(discount)}
-              </p>
-            </div>
-          )}
-        </div>
-
-        {/* TOTAL SECTION */}
-        <div className="pt-2">
-          <div className="flex justify-between items-center border-t border-gray-800 pt-5 mb-4">
-            <p className="text-gray-500 font-bold uppercase text-[10px] tracking-widest">
-              SUBTOTAL
-            </p>
-            <p className="text-xl font-bold">{fmt(subtotal)}</p>
+            )}
           </div>
-
           <div className="bg-red-600 rounded-2xl p-5 flex justify-between items-center">
             <div>
               <p className="text-[10px] font-bold uppercase opacity-90 leading-none mb-1">

@@ -1,0 +1,12 @@
+wwwroot\assets\chunk-B3K2TuZy.js
+wwwroot\assets\html2canvas-BDOhxEe4.js
+wwwroot\assets\index-DJeLtomC.css
+wwwroot\assets\index-DxdbKJY6.js
+wwwroot\assets\index.es-De0Yr7Ka.js
+wwwroot\assets\jspdf.es.min-BQzzz24S.js
+wwwroot\assets\preload-helper-2ej06EnG.js
+wwwroot\assets\purify.es-C825f615.js
+wwwroot\assets\typeof-GPCnPm50.js
+wwwroot\favicon.svg
+wwwroot\icons.svg
+wwwroot\index.html
