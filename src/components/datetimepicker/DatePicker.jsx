@@ -27,7 +27,6 @@ export default function DatePicker({ value, onChange }) {
 
   const selectedDate = value ? new Date(value + "T00:00:00") : null;
 
-  // Close on outside click
   useEffect(() => {
     const handler = (e) => {
       if (wrapRef.current && !wrapRef.current.contains(e.target))
@@ -53,7 +52,11 @@ export default function DatePicker({ value, onChange }) {
   };
 
   const selectDate = (date) => {
-    const iso = date.toISOString().split("T")[0];
+    // ✅ Fixed: build ISO string using local date, not UTC
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    const iso = `${year}-${month}-${day}`;
     onChange(iso);
     setOpen(false);
   };
@@ -64,7 +67,6 @@ export default function DatePicker({ value, onChange }) {
     const daysInPrev = new Date(viewYear, viewMonth, 0).getDate();
     const days = [];
 
-    // Prev month fillers
     for (let i = first - 1; i >= 0; i--) {
       days.push({
         day: daysInPrev - i,
@@ -73,11 +75,9 @@ export default function DatePicker({ value, onChange }) {
         other: true,
       });
     }
-    // Current month
     for (let d = 1; d <= daysInMonth; d++) {
       days.push({ day: d, month: viewMonth, year: viewYear, other: false });
     }
-    // Next month fillers
     const remaining = days.length % 7 === 0 ? 0 : 7 - (days.length % 7);
     for (let d = 1; d <= remaining; d++) {
       days.push({ day: d, month: viewMonth + 1, year: viewYear, other: true });

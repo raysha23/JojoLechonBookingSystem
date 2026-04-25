@@ -9,17 +9,18 @@ using Microsoft.EntityFrameworkCore;
 var builder = WebApplication.CreateBuilder(args);
 
 // Database
-builder.Services.AddDbContext<ApplicationDbContext>(options =>
+builder.Services.AddDbContextPool<ApplicationDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 builder.Services.AddScoped<IProductRepository, ProductRepository>();
 
-// ✅ Swagger services (MISSING BEFORE)
 builder.Services.AddControllers();
+builder.Services.AddOutputCache(options =>
+{
+    options.AddPolicy("static-data", policy =>
+        policy.Expire(TimeSpan.FromMinutes(10)));
+});
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
-
-// "DefaultConnection": "Server=db49265.databaseasp.net; Database=db49265; User Id=db49265; Password=hJ#97@cAiG+5; Encrypt=False; MultipleActiveResultSets=True;"
-
 
 
 builder.Services.AddCors(options =>
@@ -27,10 +28,11 @@ builder.Services.AddCors(options =>
     options.AddPolicy("AllowReactApp", policy =>
     {
         policy.WithOrigins("http://localhost:5173")
-        .AllowAnyHeader()
-        .AllowAnyMethod();
+              .AllowAnyHeader()
+              .AllowAnyMethod();
     });
 });
+
 
 var app = builder.Build();
 
@@ -131,7 +133,13 @@ using (var scope = app.Services.CreateScope())
     //     context.SaveChanges();
     // }
 }
+app.UseRouting();
+
 app.UseCors("AllowReactApp");
+app.UseAuthentication();
+app.UseAuthorization();
+
+app.UseOutputCache();
 
 // ✅ Enable Swagger (MISSING BEFORE)
 app.UseSwagger();

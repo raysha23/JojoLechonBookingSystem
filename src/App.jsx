@@ -3,11 +3,15 @@ import { useEffect, useState } from "react";
 import StepBar from "./components/stepper/StepBar";
 import OrderSummary from "./components/summary/OrderSummary";
 import NavButtons from "./components/navigation/NavButtons";
-
+import { getProductsByType, getDishes } from "./api/productApi";
 import ConfirmOrderModal from "./components/confirmationModal/confirmationOrderModal";
 import Step1 from "./pages/Step1";
 import Step2 from "./pages/Step2";
 import Step3 from "./pages/Step3";
+
+//New!!
+import { getLandingData } from "./api/landingApi";
+import { createOrder } from "./api/orderApi";
 
 function getDeliveryFee(zone, deliveryCharges = []) {
   if (!zone || deliveryCharges.length === 0) return 0;
@@ -46,31 +50,39 @@ function App({ submittedByUserId = null, encoderName = null }) {
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // FETCH 1: on page load
   useEffect(() => {
-    const fetchClientData = async () => {
+    const fetchLanding = async () => {
       setIsLoading(true);
       try {
-        const [typesRes, productsRes, dishesRes, chargesRes] =
-          await Promise.all([
-            fetch("/api/products/types"),
-            fetch("/api/products"),
-            fetch("/api/products/dishes"),
-            fetch("/api/products/delivery-charges"),
-          ]);
+        const data = await getLandingData();
+        setProductTypes(data.types ?? []);
+        setDeliveryCharges(data.charges ?? []);
+      } catch (error) {
+        console.error("Failed to load landing data:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchLanding();
+  }, []);
 
-        const [typesData, productsData, dishesData, chargesData] =
-          await Promise.all([
-            typesRes.json(),
-            productsRes.json(),
-            dishesRes.json(),
-            chargesRes.json(),
-          ]);
+  // FETCH 2: when user picks a product type
+  useEffect(() => {
+    if (!productType) {
+      setAllProducts([]);
+      setDishes([]);
+      return;
+    }
 
-        setProductTypes(typesData ?? []);
-        setDishes(dishesData ?? []);
-        setDeliveryCharges(chargesData ?? []);
+    const fetchProductData = async () => {
+      try {
+        const [rawProducts, rawDishes] = await Promise.all([
+          getProductsByType(productType),
+          getDishes(),
+        ]);
 
-        const mappedProducts = (productsData ?? []).map((product) => ({
+        const mappedProducts = rawProducts.map((product) => ({
           id: product.id,
           productName: product.productName,
           amount: product.amount,
@@ -82,16 +94,14 @@ function App({ submittedByUserId = null, encoderName = null }) {
         }));
 
         setAllProducts(mappedProducts);
+        setDishes(rawDishes);
       } catch (error) {
-        console.error("Failed to load client data:", error);
-      } finally {
-        setIsLoading(false);
+        console.error("Failed to load products/dishes:", error);
       }
     };
 
-    fetchClientData();
-  }, []);
-
+    fetchProductData();
+  }, [productType]);
   // ─────────────────────────────────────────────────────────────────
 
   const hasValidContacts = contacts.some(
@@ -192,6 +202,7 @@ function App({ submittedByUserId = null, encoderName = null }) {
   // Called when user clicks "Confirm Order" inside the modal
   const handleConfirm = async () => {
     setIsSubmitting(true);
+
     const payload = {
       customerName,
       contacts: contacts.filter(Boolean),
@@ -203,37 +214,24 @@ function App({ submittedByUserId = null, encoderName = null }) {
       deliveryTime,
       productId: selectedProduct?.id ?? null,
       paymentMethod,
-      totalAmount: (() => {
-        const deliveryFee =
-          orderType === "delivery" ? getDeliveryFee(zone, deliveryCharges) : 0;
-        const packageTotal = selectedProduct?.amount ?? 0;
-        const extraTotal = extraDishes.filter(Boolean).length * 700;
-        const discount = selectedProduct?.promoAmount
-          ? Math.abs(Number(selectedProduct.promoAmount))
-          : 0;
-        return packageTotal + extraTotal + deliveryFee - discount;
-      })(),
       dishes: {
         required: requiredDishes.filter(Boolean).map(Number),
         extra: extraDishes.filter(Boolean).map(Number),
       },
-      submittedByUserId: submittedByUserId,
+      submittedByUserId,
     };
 
     try {
-      const response = await fetch("/api/order", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
+      const result = await createOrder(payload);
 
-      if (!response.ok) throw new Error("Failed to record order");
+      console.log("Order success:", result);
 
-      // ✅ Don't close modal, don't alert — let the modal show the receipt
+      // You can now use:
+      // result.orderId
+      // result.message
     } catch (error) {
       console.error("Order submission error:", error);
-      alert("Something went wrong. Please try again.");
-      throw error; // ✅ Re-throw so handleConfirm in the modal catches it
+      alert("Something went wrong.");
     } finally {
       setIsSubmitting(false);
     }

@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-const CORRECT_PIN = "122303";
+const CORRECT_PIN = "000000";
 
 export default function CustomerPinGate({ children }) {
   const [pin, setPin] = useState("");

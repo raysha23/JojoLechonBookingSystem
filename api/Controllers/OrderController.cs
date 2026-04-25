@@ -25,14 +25,14 @@ namespace api.Controllers
         public async Task<ActionResult<IEnumerable<OrderResponseDTO>>> GetOrders([FromQuery] string? date = null)
         {
             IQueryable<Order> query = _context.Orders
-            .Include(o => o.Customer)
-            .ThenInclude(c => c.Contacts)
-            .Include(o => o.Product)
+                .Include(o => o.Customer)
+                    .ThenInclude(c => c.Contacts)
+                .Include(o => o.Product)
             .ThenInclude(p => p!.ProductType)        // ← product type name
-            .Include(o => o.Product)
+                .Include(o => o.Product)
             .ThenInclude(p => p!.Freebies)           // ← freebies
             .Include(o => o.OrderDishes)                // ← dishes on the order
-            .ThenInclude(od => od.Dish)
+                    .ThenInclude(od => od.Dish)
             .Include(o => o.DeliveryCharge);            // ← delivery charge + zone
 
             // Filter by delivery date if provided
@@ -54,145 +54,114 @@ namespace api.Controllers
         [HttpPost]
         public async Task<ActionResult<OrderResponseDTO>> CreateOrder([FromBody] CreateOrderRequestDTO createOrderDto)
         {
-            // -------------------------
-            // 1. VALIDATION
-            // -------------------------
             if (string.IsNullOrWhiteSpace(createOrderDto.CustomerName))
                 return BadRequest("Customer name is required.");
 
             if (createOrderDto.DeliveryDate == default)
                 return BadRequest("Delivery date is required.");
 
-            if (createOrderDto.Dishes == null)
-                createOrderDto.Dishes = new DishesDTO
-                {
-                    Required = new List<int>(),
-                    Extra = new List<int>()
-                };
+            createOrderDto.Dishes ??= new DishesDTO
+            {
+                Required = new List<int>(),
+                Extra = new List<int>()
+            };
 
-            // Treat invalid product ID as null
             if (createOrderDto.ProductId.HasValue && createOrderDto.ProductId <= 0)
                 createOrderDto.ProductId = null;
 
             if (createOrderDto.ProductId.HasValue)
             {
                 var productExists = await _context.Products
+                    .AsNoTracking()
                     .AnyAsync(p => p.Id == createOrderDto.ProductId.Value);
 
                 if (!productExists)
                     return BadRequest($"Product with ID {createOrderDto.ProductId.Value} does not exist.");
             }
 
-            // -------------------------
-            // 2. VALIDATE DISHES (🔥 IMPORTANT FIX)
-            // -------------------------
-            var allDishIds = await _context.Dishes
-                .Select(d => d.Id)
-                .ToListAsync();
-
-            var allRequestedDishIds =
-                (createOrderDto.Dishes.Required ?? new List<int>())
+            var allRequestedDishIds = (createOrderDto.Dishes.Required ?? new List<int>())
                 .Concat(createOrderDto.Dishes.Extra ?? new List<int>())
+                .Where(id => id > 0)
+                .Distinct()
                 .ToList();
 
-            foreach (var dishId in allRequestedDishIds)
-            {
-                if (!allDishIds.Contains(dishId))
-                {
-                    return BadRequest($"Dish with ID {dishId} does not exist.");
-                }
-            }
-            // -------------------------
-            // 2.5 GET PRODUCT DEFAULT DISHES
-            // -------------------------
-            List<int> defaultDishIds = new();
+            var invalidDishIds = await GetInvalidDishIdsAsync(allRequestedDishIds);
+            if (invalidDishIds.Any())
+                return BadRequest($"Dish with ID {invalidDishIds.First()} does not exist.");
 
+            var defaultDishIds = new List<int>();
             if (createOrderDto.ProductId.HasValue)
             {
                 defaultDishIds = await _context.ProductDefaultDishes
+                    .AsNoTracking()
                     .Where(pd => pd.ProductId == createOrderDto.ProductId.Value)
                     .Select(pd => pd.DishId)
                     .ToListAsync();
             }
-            // -------------------------
-            // 3. CREATE CUSTOMER
-            // -------------------------
-            var customer = new Customer
+
+            using var transaction = await _context.Database.BeginTransactionAsync();
+            try
             {
-                Name = createOrderDto.CustomerName,
-                FacebookProfile = createOrderDto.FacebookProfile,
-                Contacts = createOrderDto.Contacts?
-                    .Where(c => !string.IsNullOrWhiteSpace(c))
-                    .Select(c => new CustomerContact
-                    {
-                        ContactNumber = c.Trim()
-                    })
-                    .ToList() ?? new List<CustomerContact>()
-            };
+                var customer = new Customer
+                {
+                    Name = createOrderDto.CustomerName,
+                    FacebookProfile = createOrderDto.FacebookProfile,
+                    Contacts = createOrderDto.Contacts?
+                        .Where(c => !string.IsNullOrWhiteSpace(c))
+                        .Select(c => new CustomerContact { ContactNumber = c.Trim() })
+                        .ToList() ?? new List<CustomerContact>()
+                };
 
-            _context.Customers.Add(customer);
-            await _context.SaveChangesAsync();
+                var order = createOrderDto.ToOrderFromCreateDTO(customer.Id);
+                order.Customer = customer;
 
-            // -------------------------
-            // 4. CREATE ORDER
-            // -------------------------
-            var order = createOrderDto.ToOrderFromCreateDTO(customer.Id);
+                var includedIds = (createOrderDto.Dishes.Required ?? new List<int>())
+                    .Union(defaultDishIds)
+                    .ToList();
 
-            _context.Orders.Add(order);
-            await _context.SaveChangesAsync(); // generates order.Id
+                var orderDishes = includedIds.Select(dishId => new OrderDish
+                {
+                    Order = order,
+                    DishId = dishId,
+                    DishType = "included",
+                    IsExtra = false
+                }).ToList();
 
-            // -------------------------
-            // 5. CREATE ORDER DISHES
-            // -------------------------
-            var orderDishes = new List<OrderDish>();
-
-            // Combine default dishes with required dishes (no duplicates)
-            var includedDishIds = (createOrderDto.Dishes.Required ?? new List<int>()).Union(defaultDishIds).ToList();
-
-            if (includedDishIds.Any())
-            {
                 orderDishes.AddRange(
-                    includedDishIds.Select(dishId => new OrderDish
+                    (createOrderDto.Dishes.Extra ?? new List<int>())
+                    .Select(dishId => new OrderDish
                     {
-                        OrderId = order.Id,
-                        DishId = dishId,
-                        DishType = "included",
-                        IsExtra = false
-                    })
-                );
-            }
-
-            if (createOrderDto.Dishes.Extra != null)
-            {
-                orderDishes.AddRange(
-                    createOrderDto.Dishes.Extra.Select(dishId => new OrderDish
-                    {
-                        OrderId = order.Id,
+                        Order = order,
                         DishId = dishId,
                         DishType = "extra",
                         IsExtra = true
                     })
                 );
+
+                _context.Orders.Add(order);
+                _context.OrderDishes.AddRange(orderDishes);
+                await _context.SaveChangesAsync();
+
+                await transaction.CommitAsync();
+
+                var createdOrder = await _context.Orders
+                    .AsNoTracking()
+                    .Include(o => o.Customer).ThenInclude(c => c.Contacts)
+                    .Include(o => o.Product)
+                        .ThenInclude(p => p!.Freebies)
+                    .Include(o => o.OrderDishes).ThenInclude(od => od.Dish)
+                    .FirstOrDefaultAsync(o => o.Id == order.Id);
+
+                if (createdOrder == null)
+                    return StatusCode(500, "Order was created but could not be loaded.");
+
+                return Created($"/api/order/{createdOrder.Id}", createdOrder.ToOrderDTO());
             }
-
-            _context.OrderDishes.AddRange(orderDishes);
-            await _context.SaveChangesAsync();
-
-            // -------------------------
-            // 6. RELOAD ORDER (with relations)
-            // -------------------------
-            var createdOrder = await _context.Orders
-                .Include(o => o.Customer)
-                    .ThenInclude(c => c.Contacts)
-                .Include(o => o.Product)
-                .Include(o => o.OrderDishes)
-                    .ThenInclude(od => od.Dish)
-                .FirstOrDefaultAsync(o => o.Id == order.Id);
-
-            if (createdOrder == null)
-                return StatusCode(500, "Order was created but could not be loaded.");
-
-            return Created($"/api/order/{createdOrder.Id}", createdOrder.ToOrderDTO());
+            catch
+            {
+                await transaction.RollbackAsync();
+                return StatusCode(500, "Failed to create order. Please try again.");
+            }
         }
 
         [HttpPut("{id}")]
@@ -248,45 +217,39 @@ namespace api.Controllers
             // ── DISHES ────────────────────────────────────────────────────
             if (updateOrderDto.Dishes != null)
             {
-                // Validate all dish IDs exist
-                var allDishIds = await _context.Dishes.Select(d => d.Id).ToListAsync();
                 var allRequested = updateOrderDto.Dishes.Required
-                    .Concat(updateOrderDto.Dishes.Extra).ToList();
+                    .Concat(updateOrderDto.Dishes.Extra)
+                    .Where(id => id > 0)
+                    .Distinct()
+                    .ToList();
 
-                foreach (var dishId in allRequested)
-                {
-                    if (!allDishIds.Contains(dishId))
-                        return BadRequest($"Dish with ID {dishId} does not exist.");
-                }
+                var invalidDishIds = await GetInvalidDishIdsAsync(allRequested);
+                if (invalidDishIds.Any())
+                    return BadRequest($"Dish with ID {invalidDishIds.First()} does not exist.");
 
-                // Get default dishes for the new product
-                List<int> defaultDishIds = new();
+                var defaultDishIds = new List<int>();
                 if (order.ProductId.HasValue)
                 {
                     defaultDishIds = await _context.ProductDefaultDishes
+                        .AsNoTracking()
                         .Where(pd => pd.ProductId == order.ProductId.Value)
                         .Select(pd => pd.DishId)
                         .ToListAsync();
                 }
 
-                // Delete all existing order dishes
                 var existingDishes = await _context.OrderDishes
                     .Where(od => od.OrderId == id)
                     .ToListAsync();
                 _context.OrderDishes.RemoveRange(existingDishes);
-                await _context.SaveChangesAsync();
-
-                // Re-create with new selections
-                var newDishes = new List<OrderDish>();
 
                 var includedIds = updateOrderDto.Dishes.Required.Union(defaultDishIds).ToList();
-                newDishes.AddRange(includedIds.Select(dishId => new OrderDish
+                var newDishes = includedIds.Select(dishId => new OrderDish
                 {
                     OrderId = id,
                     DishId = dishId,
                     DishType = "included",
                     IsExtra = false
-                }));
+                }).ToList();
 
                 newDishes.AddRange(updateOrderDto.Dishes.Extra.Select(dishId => new OrderDish
                 {
@@ -297,11 +260,13 @@ namespace api.Controllers
                 }));
 
                 _context.OrderDishes.AddRange(newDishes);
-                await _context.SaveChangesAsync();
             }
+
+            await _context.SaveChangesAsync();
 
             // ── RELOAD & RETURN ───────────────────────────────────────────
             var updatedOrder = await _context.Orders
+                .AsNoTracking()
                 .Include(o => o.Customer)
                     .ThenInclude(c => c.Contacts)
                 .Include(o => o.Product)
@@ -325,7 +290,7 @@ namespace api.Controllers
 
             // Soft delete - mark with DeletedAt timestamp
             order.DeletedAt = DateTime.UtcNow;
-            order.Status = "deleted";
+            // order.IsDeleted = true;
 
             _context.Orders.Update(order);
             await _context.SaveChangesAsync();
@@ -344,7 +309,7 @@ namespace api.Controllers
 
             // Restore - clear DeletedAt and set status back to active
             order.DeletedAt = null;
-            order.Status = "active";
+            // order.IsDeleted = false;
 
             _context.Orders.Update(order);
             await _context.SaveChangesAsync();
@@ -357,7 +322,7 @@ namespace api.Controllers
 
             return Ok(restoredOrder?.ToOrderDTO());
         }
-        
+
         [HttpPost("mark-printed")]
         public async Task<IActionResult> MarkOrdersAsPrinted([FromBody] List<int> orderIds)
         {
@@ -376,6 +341,21 @@ namespace api.Controllers
 
             await _context.SaveChangesAsync();
             return Ok(new { marked = orders.Count });
+        }
+
+        private async Task<List<int>> GetInvalidDishIdsAsync(IEnumerable<int> dishIds)
+        {
+            var distinctIds = dishIds.Where(id => id > 0).Distinct().ToList();
+            if (!distinctIds.Any())
+                return new List<int>();
+
+            var validIds = await _context.Dishes
+                .AsNoTracking()
+                .Where(d => distinctIds.Contains(d.Id))
+                .Select(d => d.Id)
+                .ToListAsync();
+
+            return distinctIds.Except(validIds).ToList();
         }
     }
 

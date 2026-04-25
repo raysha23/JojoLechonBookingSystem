@@ -27,6 +27,26 @@ namespace api.data
             modelBuilder.Entity<Dish>()
                 .Property(d => d.Amount)
                 .HasPrecision(18, 2);
+
+            // Database indexes for fast filtered queries
+            modelBuilder.Entity<Order>()
+                .HasIndex(o => o.DeliveryDate);
+
+            modelBuilder.Entity<Order>()
+                .HasIndex(o => o.Status);
+
+            modelBuilder.Entity<Product>()
+                .HasIndex(p => p.ProductTypeId);
+
+            modelBuilder.Entity<ProductType>()
+                .HasIndex(pt => pt.TypeName);
+
+            modelBuilder.Entity<Dish>()
+                .HasIndex(d => d.IsActive);
+
+            modelBuilder.Entity<User>()
+                .HasIndex(u => u.Username)
+                .IsUnique();
         }
 
         public DbSet<Role> Roles { get; set; }

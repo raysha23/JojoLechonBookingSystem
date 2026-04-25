@@ -1,5 +1,6 @@
 using api.Interfaces;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.OutputCaching;
 
 namespace api.Controllers
 {
@@ -14,7 +15,23 @@ namespace api.Controllers
             _productRepository = productRepository;
         }
 
+        [HttpGet("landing")]
+        [OutputCache(PolicyName = "static-data")]
+        public async Task<IActionResult> GetBootstrapData()
+        {
+            // products dishes,
+            var (types, charges) = (
+                await _productRepository.GetProductTypesAsync(),
+                // await _productRepository.GetProductsAsync(),
+                // await _productRepository.GetDishesAsync(),
+                await _productRepository.GetDeliveryChargesAsync()
+            );
+            // products, dishes,
+            return Ok(new { types, charges });
+        }
+
         [HttpGet]
+        [OutputCache(PolicyName = "static-data")]
         public async Task<IActionResult> GetProducts(
             [FromQuery] int? productTypeId = null,
             [FromQuery] string? productTypeName = null)
@@ -24,15 +41,15 @@ namespace api.Controllers
         }
 
         [HttpGet("types")]
+        [OutputCache(PolicyName = "static-data")]
         public async Task<IActionResult> GetProductTypes()
         {
             var productTypes = await _productRepository.GetProductTypesAsync();
             return Ok(productTypes);
         }
 
-        // ── NEW ──────────────────────────────────────
-
         [HttpGet("dishes")]
+        [OutputCache(PolicyName = "static-data")]
         public async Task<IActionResult> GetDishes()
         {
             var dishes = await _productRepository.GetDishesAsync();
@@ -40,6 +57,7 @@ namespace api.Controllers
         }
 
         [HttpGet("delivery-charges")]
+        [OutputCache(PolicyName = "static-data")]
         public async Task<IActionResult> GetDeliveryCharges()
         {
             var charges = await _productRepository.GetDeliveryChargesAsync();

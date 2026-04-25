@@ -17,6 +17,7 @@ namespace api.Repository
         public async Task<List<ProductType>> GetProductTypesAsync()
         {
             return await _context.ProductTypes
+                .AsNoTracking()
                 .Where(pt => pt.IsActive)
                 .OrderBy(pt => pt.TypeName)
                 .ToListAsync();
@@ -25,6 +26,7 @@ namespace api.Repository
         public async Task<List<Product>> GetProductsAsync(int? productTypeId = null, string? productTypeName = null)
         {
             var query = _context.Products
+                .AsNoTracking()
                 .Include(p => p.ProductType)
                 .Include(p => p.Freebies)
                 .Include(p => p.DefaultDishes)
@@ -46,6 +48,7 @@ namespace api.Repository
         public async Task<Product?> GetByIdAsync(int productId)
         {
             return await _context.Products
+                .AsNoTracking()
                 .Include(p => p.ProductType)
                 .Include(p => p.Freebies)
                 .Include(p => p.DefaultDishes)
@@ -58,6 +61,7 @@ namespace api.Repository
         public async Task<List<Dish>> GetDishesAsync()
         {
             return await _context.Dishes
+                .AsNoTracking()
                 .Where(d => d.IsActive)
                 .OrderBy(d => d.DishName)
                 .ToListAsync();
@@ -66,6 +70,7 @@ namespace api.Repository
         public async Task<List<DeliveryCharge>> GetDeliveryChargesAsync()
         {
             return await _context.DeliveryCharges
+                .AsNoTracking()
                 .OrderBy(dc => dc.ZoneName)
                 .ToListAsync();
         }

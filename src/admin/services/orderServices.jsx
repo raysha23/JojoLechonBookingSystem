@@ -1,6 +1,7 @@
 // ── GET ALL ORDERS (with optional date filter) ────────────────────
+
+const API_BASE = "http://localhost:5194/api";
 export const getOrders = async ({ date = null } = {}) => {
-  const apiUrl = new URL("http://jojolechon.runasp.net/api/order");
 
   // If no date provided, use today's date
   if (!date) {
@@ -8,17 +9,15 @@ export const getOrders = async ({ date = null } = {}) => {
     const year = today.getFullYear();
     const month = String(today.getMonth() + 1).padStart(2, "0");
     const day = String(today.getDate()).padStart(2, "0");
-    apiUrl.searchParams.append("date", `${year}-${month}-${day}`);
   } else {
-    apiUrl.searchParams.append("date", date);
   }
 
   try {
-    const res = await fetch(apiUrl.toString(), {
+    const res = await fetch("http://localhost:5194/api/order", {
       headers: {
         Authorization: `Bearer ${localStorage.getItem("adminToken")}`,
       },
-    });
+    }); 
     if (!res.ok) throw new Error(`API error: ${res.status}`);
     return await res.json();
   } catch (error) {
@@ -30,7 +29,7 @@ export const getOrders = async ({ date = null } = {}) => {
 // ── GET SINGLE ORDER ────────────────────────────────────────────
 export const getOrderById = async (id) => {
   try {
-    const res = await fetch(`http://jojolechon.runasp.net/api/order/${id}`, {
+    const res = await fetch(`http://localhost:5194/api/order/${id}`, {
       headers: {
         Authorization: `Bearer ${localStorage.getItem("adminToken")}`,
       },
@@ -46,7 +45,7 @@ export const getOrderById = async (id) => {
 // ── UPDATE ORDER ────────────────────────────────────────────────────
 export const updateOrder = async (id, updatedData) => {
   try {
-    const res = await fetch(`http://jojolechon.runasp.net/api/order/${id}`, {
+    const res = await fetch(`http://localhost:5194/api/order/${id}`, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
@@ -65,7 +64,7 @@ export const updateOrder = async (id, updatedData) => {
 // ── SOFT DELETE ORDER ────────────────────────────────────────────
 export const softDeleteOrder = async (id) => {
   try {
-    const res = await fetch(`http://jojolechon.runasp.net/api/order/${id}`, {
+    const res = await fetch(`http://localhost:5194/api/order/${id}`, {
       method: "DELETE",
       headers: {
         Authorization: `Bearer ${localStorage.getItem("adminToken")}`,
@@ -82,7 +81,7 @@ export const softDeleteOrder = async (id) => {
 // ── RESTORE ORDER ───────────────────────────────────────────────
 export const restoreOrder = async (id) => {
   try {
-    const res = await fetch(`http://jojolechon.runasp.net/api/order/${id}/restore`, {
+    const res = await fetch(`http://localhost:5194/api/order/${id}/restore`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${localStorage.getItem("adminToken")}`,
@@ -98,7 +97,7 @@ export const restoreOrder = async (id) => {
 // ── MARK ORDERS AS PRINTED ──────────────────────────────────────
 export const markOrdersAsPrinted = async (orderIds) => {
   try {
-    const res = await fetch("http://jojolechon.runasp.net/api/order/mark-printed", {
+    const res = await fetch("http://localhost:5194/api/order/mark-printed", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -117,7 +116,7 @@ export const markOrdersAsPrinted = async (orderIds) => {
 // ── TOGGLE SINGLE ORDER PRINT STATUS ───────────────────────────
 export const toggleOrderPrinted = async (id, isPrinted) => {
   try {
-    const res = await fetch(`http://jojolechon.runasp.net/api/order/${id}`, {
+    const res = await fetch(`http://localhost:5194/api/order/${id}`, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
