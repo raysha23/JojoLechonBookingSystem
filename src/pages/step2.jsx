@@ -38,7 +38,10 @@ export default function Step2({ orderState }) {
     setErrors({ ...errors, contact: invalid });
   };
 
-  const addContact = () => setContacts([...contacts, ""]);
+  const addContact = () => {
+    if (contacts.length >= 2) return;
+    setContacts([...contacts, ""]);
+  };
 
   const removeContact = (index) =>
     setContacts(contacts.filter((_, i) => i !== index));
@@ -61,9 +64,11 @@ export default function Step2({ orderState }) {
 
   const handleFbBlur = () => {
     if (!facebookProfile) return;
-    if (/^(https?:\/\/)?(www\.)?(facebook\.com|fb\.com)\/.+/i.test(
-      facebookProfile.trim(),
-    )) {
+    if (
+      /^(https?:\/\/)?(www\.)?(facebook\.com|fb\.com)\/.+/i.test(
+        facebookProfile.trim(),
+      )
+    ) {
       setFacebookProfile(normalizeFacebookUrl(facebookProfile));
     }
   };
@@ -125,12 +130,14 @@ export default function Step2({ orderState }) {
             ⚠ Contact numbers must start with 09 and be 11 digits long.
           </p>
         )}
-        <button
-          onClick={addContact}
-          className="mt-3 px-4 py-2 border border-red-500 text-red-500 rounded-lg text-sm font-bold flex items-center hover:bg-red-50 transition-colors"
-        >
-          <span className="mr-2 text-lg">+</span> Add Another Number
-        </button>
+        {contacts.length < 2 && (
+          <button
+            onClick={addContact}
+            className="mt-3 px-4 py-2 border border-red-500 text-red-500 rounded-lg text-sm font-bold flex items-center hover:bg-red-50 transition-colors"
+          >
+            <span className="mr-2 text-lg">+</span> Add Another Number
+          </button>
+        )}
       </div>
 
       {/* Facebook */}

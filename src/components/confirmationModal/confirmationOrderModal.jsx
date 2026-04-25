@@ -36,7 +36,14 @@ export default function ConfirmOrderModal({
   const [orderSuccess, setOrderSuccess] = useState(false);
   const [orderNumber, setOrderNumber] = useState("");
   const receiptRef = useRef(null);
+  const jsPDFRef = useRef(null);
+  const html2canvasRef = useRef(null);
+  const [isDownloading, setIsDownloading] = useState(false);
 
+  useEffect(() => {
+    import("jspdf").then((m) => (jsPDFRef.current = m.default));
+    import("html2canvas").then((m) => (html2canvasRef.current = m.default));
+  }, []);
   const fmt = (n) =>
     "PHP " + Number(n).toLocaleString("en-PH", { minimumFractionDigits: 2 });
 
@@ -92,7 +99,9 @@ export default function ConfirmOrderModal({
 
   // ── PDF DOWNLOAD ──────────────────────────────────────────────────
   const handleDownloadPDF = async () => {
-    const {default: jsPDF} = await import("jspdf");
+    const jsPDF = jsPDFRef.current;
+    if (!jsPDF) return;
+
     const doc = new jsPDF({ unit: "mm", format: "a5" });
 
     const W = doc.internal.pageSize.getWidth(); // 148mm
@@ -242,7 +251,11 @@ export default function ConfirmOrderModal({
     if (upgradeTotal > 0) {
       y += 2;
       setFont(8, "bold", DARK);
-      doc.text(`UPGRADE (${getUpgradeKg(upgradeAmount).toUpperCase()})`, margin + 4, y);
+      doc.text(
+        `UPGRADE (${getUpgradeKg(upgradeAmount).toUpperCase()})`,
+        margin + 4,
+        y,
+      );
       setFont(8, "bold", RED);
       doc.text(fmt(upgradeTotal), W - margin - 4, y, { align: "right" });
       y += 6;
@@ -289,7 +302,8 @@ export default function ConfirmOrderModal({
     if (selectedProduct) row("Package", fmt(packageTotal));
     if (filledExtraDishes.length > 0)
       row("Extra Dishes", fmt(extraDishesTotal));
-    if (upgradeTotal > 0) row(`Upgrade (${getUpgradeKg(upgradeAmount)})`, fmt(upgradeTotal));
+    if (upgradeTotal > 0)
+      row(`Upgrade (${getUpgradeKg(upgradeAmount)})`, fmt(upgradeTotal));
     if (orderType === "delivery") row("Delivery Fee", fmt(deliveryFee));
     if (discount > 0)
       row("Discount", `-${fmt(discount)}`, { valColor: GREEN, valBold: true });
@@ -326,9 +340,12 @@ export default function ConfirmOrderModal({
   };
 
   const handleDownloadImage = async () => {
-    const {default: html2canvas} = await import("html2canvas");
+    const html2canvas = html2canvasRef.current;
+    if (!html2canvas) return;
+
     const hiddenDiv = document.getElementById("receipt-full-capture");
     if (!hiddenDiv) return;
+    setIsDownloading(true);
 
     hiddenDiv.style.display = "block";
     try {
@@ -338,7 +355,9 @@ export default function ConfirmOrderModal({
         backgroundColor: "#ffffff",
       });
 
-      const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
+      const blob = await new Promise((resolve) =>
+        canvas.toBlob(resolve, "image/png"),
+      );
       if (!blob) return;
 
       const url = URL.createObjectURL(blob);
@@ -351,6 +370,7 @@ export default function ConfirmOrderModal({
       URL.revokeObjectURL(url);
     } finally {
       hiddenDiv.style.display = "none";
+      setIsDownloading(false);
     }
   };
 
@@ -503,7 +523,10 @@ export default function ConfirmOrderModal({
                     />
                   )}
                   {upgradeTotal > 0 && (
-                    <ReceiptRow label={`Upgrade (${getUpgradeKg(upgradeAmount)})`} value={fmt(upgradeTotal)} />
+                    <ReceiptRow
+                      label={`Upgrade (${getUpgradeKg(upgradeAmount)})`}
+                      value={fmt(upgradeTotal)}
+                    />
                   )}
                   {orderType === "delivery" && (
                     <ReceiptRow label="Delivery Fee" value={fmt(deliveryFee)} />
@@ -550,22 +573,50 @@ export default function ConfirmOrderModal({
               </button>
               <button
                 onClick={handleDownloadImage}
-                className="flex-1 px-6 py-3 rounded-2xl border-2 border-gray-200 text-gray-600 font-bold text-sm hover:bg-gray-100 transition-all flex items-center justify-center gap-2"
+                disabled={isDownloading}
+                className="flex-1 px-6 py-3 rounded-2xl border-2 border-gray-200 text-gray-600 font-bold text-sm hover:bg-gray-100 transition-all flex items-center justify-center gap-2 disabled:opacity-60"
               >
-                <svg
-                  className="w-4 h-4"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2.5"
-                    d="M4 7h16M4 12h16M4 17h16"
-                  />
-                </svg>
-                Save as Image
+                {isDownloading ? (
+                  <>
+                    <svg
+                      className="w-4 h-4 animate-spin"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      />
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8v8z"
+                      />
+                    </svg>
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <svg
+                      className="w-4 h-4"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth="2.5"
+                        d="M4 7h16M4 12h16M4 17h16"
+                      />
+                    </svg>
+                    Save as Image
+                  </>
+                )}
               </button>
               <button
                 onClick={onBookAgain}

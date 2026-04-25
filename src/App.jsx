@@ -121,10 +121,9 @@ function App({ submittedByUserId = null, encoderName = null }) {
   const isStep2Valid =
     customerName.trim() !== "" &&
     /^[a-zA-Z\s]+$/.test(customerName.trim()) &&
-    hasValidContacts &&
-    !hasInvalidContacts &&
+    contacts.length > 0 &&
+    contacts.every((c) => /^09\d{9}$/.test(c)) &&
     isFacebookValid;
-
   const isStep3Valid = isStep1Valid && isStep2Valid;
 
   const getBlockedMessage = () => {

@@ -1,6 +1,6 @@
 // File Path: JojoLechonBookingSystem/src/pages/step1.jsx
 import { useEffect, useState } from "react";
-
+import DatePicker from "../components/datetimepicker/DatePicker";
 // ── ZONE KEYWORDS MAPPING ────────────────────────
 const zoneKeywords = [
   // =========================
@@ -813,18 +813,18 @@ export default function Step1({ orderState }) {
                 <label className="block text-sm font-bold text-gray-700">
                   Delivery Details
                 </label>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-[1fr_180px] gap-3">
                   <input
                     type="text"
                     placeholder="Enter address"
                     value={address}
                     onChange={(e) => setAddress(e.target.value)}
-                    className="md:col-span-2 w-full p-3 border rounded-xl"
+                    className="sm:col-span-2 md:col-span-1 w-full min-w-0 p-3 border rounded-xl"
                   />
                   <select
                     value={zone}
                     onChange={(e) => setZone(e.target.value)}
-                    className="w-full p-3 border rounded-xl"
+                    className="w-full min-w-0 p-3 border rounded-xl"
                   >
                     <option value="">Select Zone</option>
                     {deliveryCharges.map((charge) => (
@@ -845,18 +845,7 @@ export default function Step1({ orderState }) {
               <label className="block text-sm font-bold text-gray-700 mb-2">
                 Delivery Date
               </label>
-              <input
-                type="date"
-                value={deliveryDate}
-                onChange={(e) => setDeliveryDate(e.target.value)}
-                min={new Date().toISOString().split("T")[0]}
-                className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-red-500 outline-none"
-              />
-              {deliveryDate === new Date().toISOString().split("T")[0] && (
-                <p className="text-xs text-amber-600 mt-1">
-                  ⏱️ Processing time: 5 hours. Available times shown below.
-                </p>
-              )}
+              <DatePicker value={deliveryDate} onChange={setDeliveryDate} />
             </div>
 
             {/* TIME — shown only after date is selected */}
@@ -1008,8 +997,8 @@ export default function Step1({ orderState }) {
       {/* DISH SECTION */}
       {showDishes && (
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 flex flex-col min-h-[250px]">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
-            <div className="flex items-center space-x-3">
+          <div className="flex flex-wrap items-start justify-between gap-3 mb-6">
+            <div className="flex items-center space-x-3 min-w-0">
               <div className="w-10 h-10 bg-red-600 rounded-lg flex items-center justify-center">
                 <svg
                   className="w-6 h-6 text-white"
@@ -1044,7 +1033,7 @@ export default function Step1({ orderState }) {
                 }
                 setExtraDishes([...extraDishes, ""]);
               }}
-              className="bg-red-600 text-white px-6 py-2.5 rounded-full font-bold flex items-center justify-center hover:bg-red-700 transition-colors md:w-64"
+              className="bg-red-600 text-white px-6 py-2.5 rounded-full font-bold flex items-center justify-center hover:bg-red-700 transition-colors w-full sm:w-auto shrink-0"
             >
               {productType === "dish_only" ? "+ Add Dish" : "+ Add Extra Dish"}
             </button>
@@ -1133,7 +1122,7 @@ export default function Step1({ orderState }) {
                   {extraDishes.map((dish, index) => (
                     <div key={index} className="flex gap-2">
                       <select
-                        className="flex-1 p-3 border rounded-xl"
+                        className="flex-1 min-w-0 p-3 border rounded-xl"
                         value={dish}
                         onChange={(e) => {
                           const updated = [...extraDishes];
@@ -1171,7 +1160,7 @@ export default function Step1({ orderState }) {
       {showFreebies && (
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
           <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center space-x-3">
+            <div className="flex items-center space-x-3 min-w-0">
               <div className="w-10 h-10 bg-emerald-600 rounded-lg flex items-center justify-center">
                 <svg
                   className="w-6 h-6 text-white"

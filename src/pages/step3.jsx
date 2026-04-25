@@ -50,7 +50,7 @@ export default function Step3({ orderState }) {
   const paymentIcon = paymentMethod === "gcash" ? "📱" : "💵";
 
   return (
-    <div className="space-y-6 pb-24 animate-in fade-in slide-in-from-bottom-4 duration-700">
+    <div className="space-y-6 pb-14 animate-in fade-in slide-in-from-bottom-4 duration-700">
       {/* 1. CUSTOMER DETAILS */}
       <div className="bg-white rounded-[2rem] shadow-sm border border-gray-100 overflow-hidden">
         <div className="p-5 border-b border-gray-50 bg-gray-50/50">
