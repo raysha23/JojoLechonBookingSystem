@@ -1,32 +1,9 @@
-export default function NavButtons({
-  step,
-  setStep,
-  onRecordOrder,
-  canProceed = true,
-  blockedMessage = "Please complete required fields.",
-}) {
-  const next = () => {
-    if (step < 3) setStep(step + 1);
-  };
-
+export default function NavButtons({ step, setStep, onNext, onRecordOrder }) {
   const back = () => {
     if (step > 1) setStep(step - 1);
   };
 
   const isFinalStep = step === 3;
-
-  const handleNext = () => {
-    if (!canProceed) {
-      alert(blockedMessage);
-      return;
-    }
-
-    if (isFinalStep) {
-      onRecordOrder();
-    } else {
-      next();
-    }
-  };
 
   return (
     <div className="flex items-center justify-between w-full mt-8 gap-4 sm:gap-6">
@@ -55,7 +32,6 @@ export default function NavButtons({
             <span className="text-xs sm:text-sm font-bold">Previous</span>
           </button>
         ) : (
-          /* Empty div keeps the 'Next' button pushed to the right on Step 1 */
           <div className="invisible" />
         )}
       </div>
@@ -63,24 +39,13 @@ export default function NavButtons({
       {/* NEXT / RECORD BUTTON */}
       <div className="flex-1 flex justify-end">
         <button
-          onClick={handleNext}
-          disabled={!canProceed}
-          className={`flex items-center justify-center gap-2 px-3 py-2.5 sm:px-6 sm:py-3 min-w-[120px] sm:min-w-[160px] rounded-full font-bold shadow-lg transition-all group ${
-            canProceed
-              ? "bg-red-600 text-white hover:bg-red-700 active:scale-95"
-              : "bg-gray-300 text-gray-500 cursor-not-allowed"
-          }`}
+          onClick={isFinalStep ? onRecordOrder : onNext}
+          className="flex items-center justify-center gap-2 px-3 py-2.5 sm:px-6 sm:py-3 min-w-[120px] sm:min-w-[160px] rounded-full font-bold shadow-lg transition-all group bg-red-600 text-white hover:bg-red-700 active:scale-95"
         >
           <span className="text-xs sm:text-sm font-black tracking-tight whitespace-nowrap">
             {isFinalStep ? "Record Order" : "Next"}
           </span>
-          <div
-            className={`p-1.5 sm:p-2 rounded-full transition-transform ${
-              canProceed
-                ? "bg-red-500 group-hover:translate-x-1"
-                : "bg-gray-400"
-            }`}
-          >
+          <div className="bg-red-500 p-1.5 sm:p-2 rounded-full group-hover:translate-x-1 transition-transform">
             <svg
               className="w-4 h-4 sm:w-5 sm:h-5 text-white"
               fill="none"

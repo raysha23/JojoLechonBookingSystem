@@ -5,9 +5,10 @@ const EXTRA_DISH_PRICE = 700;
 function getDeliveryFee(zone, deliveryCharges = []) {
   if (!zone || deliveryCharges.length === 0) return 0;
   const charge = deliveryCharges.find((item) => item.zoneName === zone);
-  return charge ? Number(charge.minAmount || 0) : 0;
+  return charge
+    ? Number(charge.baseFee || 0) + Number(charge.surcharge || 0)
+    : 0;
 }
-
 export default function Step3({ orderState }) {
   const {
     orderType,
@@ -26,7 +27,8 @@ export default function Step3({ orderState }) {
     upgradeAmount,
   } = orderState;
 
-  const deliveryFee = orderType === "delivery" ? getDeliveryFee(zone, deliveryCharges) : 0;
+  const deliveryFee =
+    orderType === "delivery" ? getDeliveryFee(zone, deliveryCharges) : 0;
   const filledExtraDishes = (extraDishes || []).filter((d) => d !== "");
   const dishesTotal = filledExtraDishes.length * EXTRA_DISH_PRICE;
   const packageTotal = selectedProduct ? selectedProduct.amount : 0;
@@ -34,7 +36,8 @@ export default function Step3({ orderState }) {
     ? Math.abs(Number(selectedProduct.promoAmount))
     : 0;
   const upgradeTotal = upgradeAmount || 0;
-  const total = packageTotal + dishesTotal + deliveryFee + upgradeTotal - discount;
+  const total =
+    packageTotal + dishesTotal + deliveryFee + upgradeTotal - discount;
 
   const fmt = (n) =>
     "₱" + Number(n).toLocaleString("en-PH", { minimumFractionDigits: 2 });
@@ -92,7 +95,11 @@ export default function Step3({ orderState }) {
             <>
               <DetailRow label="Address" value={address || "N/A"} />
               <DetailRow label="Zone" value={zone || "N/A"} />
-              <DetailRow label="Delivery Fee" value={fmt(deliveryFee)} />
+              {/* ← Remove the deliveryFee > 0 check, always show the row */}
+              <DetailRow
+                label="Delivery Fee"
+                value={deliveryFee > 0 ? fmt(deliveryFee) : "To be confirmed"}
+              />
             </>
           )}
           <div className="flex justify-between items-center py-3">
@@ -186,11 +193,15 @@ export default function Step3({ orderState }) {
               </div>
               <div className="space-y-3">
                 {filledExtraDishes.map((dishIndex, i) => {
-                  const dish = dishes.find((item) => String(item.id) === String(dishIndex));
+                  const dish = dishes.find(
+                    (item) => String(item.id) === String(dishIndex),
+                  );
                   return dish ? (
                     <ItemRow
                       key={i}
-                      name={dish.dishName || dish.productName || "Selected Dish"}
+                      name={
+                        dish.dishName || dish.productName || "Selected Dish"
+                      }
                       price={fmt(EXTRA_DISH_PRICE)}
                     />
                   ) : (

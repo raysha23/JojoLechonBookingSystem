@@ -16,7 +16,7 @@ const MONTHS = [
   "December",
 ];
 
-export default function DatePicker({ value, onChange }) {
+export default function DatePicker({ value, onChange, attempted }) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
@@ -109,7 +109,9 @@ export default function DatePicker({ value, onChange }) {
         className={`w-full p-3 border rounded-xl flex items-center justify-between text-left transition-all outline-none ${
           open
             ? "border-red-500 ring-2 ring-red-500"
-            : "border-gray-200 hover:border-red-300"
+            : attempted && !value
+              ? "border-red-500 ring-1 ring-red-400"
+              : "border-gray-200 hover:border-red-300"
         }`}
       >
         <span
@@ -199,6 +201,19 @@ export default function DatePicker({ value, onChange }) {
             })}
           </div>
         </div>
+      )}
+
+      {/* Warning for same-day */}
+      {isToday_ && (
+        <p className="text-xs text-amber-600 mt-1">
+          ⏱️ Processing time: 5 hours. Available times shown below.
+        </p>
+      )}
+      {/* Error message */}
+      {attempted && !value && (
+        <p className="text-xs text-red-500 font-medium mt-1">
+          ⚠ Please select a delivery date.
+        </p>
       )}
 
       {/* Warning for same-day */}

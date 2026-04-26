@@ -8,35 +8,11 @@ export default function Step2({ orderState }) {
     setContacts,
     facebookProfile,
     setFacebookProfile,
+    attempted,
   } = orderState;
-
-  const [errors, setErrors] = useState({
-    name: false,
-    contact: false,
-    fb: false,
-  });
-
-  const handleNameChange = (e) => {
-    const value = e.target.value;
-    const isValid = /^[a-zA-Z\s]*$/.test(value);
-    setCustomerName(value);
-    setErrors({ ...errors, name: !isValid });
-  };
 
   const validatePhone = (value) => /^09\d{0,9}$/.test(value);
   const validatePhoneComplete = (value) => /^09\d{9}$/.test(value);
-
-  const handleContactChange = (index, value) => {
-    const numeric = value.replace(/\D/g, "").slice(0, 11);
-    const newContacts = [...contacts];
-    newContacts[index] = numeric;
-    setContacts(newContacts);
-
-    const invalid = newContacts.some(
-      (contact) => contact !== "" && !validatePhone(contact),
-    );
-    setErrors({ ...errors, contact: invalid });
-  };
 
   const addContact = () => {
     if (contacts.length >= 2) return;
@@ -53,13 +29,17 @@ export default function Step2({ orderState }) {
     return `https://${trimmed}`;
   };
 
+  const handleNameChange = (e) => {
+    setCustomerName(e.target.value);
+  };
   const handleFbChange = (e) => {
-    const value = e.target.value;
-    const isValid =
-      value === "" ||
-      /^(https?:\/\/)?(www\.)?(facebook\.com|fb\.com)\/.+/i.test(value.trim());
-    setFacebookProfile(value);
-    setErrors({ ...errors, fb: !isValid });
+    setFacebookProfile(e.target.value);
+  };
+  const handleContactChange = (index, value) => {
+    const numeric = value.replace(/\D/g, "").slice(0, 11);
+    const newContacts = [...contacts];
+    newContacts[index] = numeric;
+    setContacts(newContacts);
   };
 
   const handleFbBlur = () => {
@@ -85,17 +65,27 @@ export default function Step2({ orderState }) {
           value={customerName}
           onChange={handleNameChange}
           placeholder="Enter full name"
-          className={`w-full p-4 bg-white border rounded-xl outline-none transition-all text-gray-600 italic focus:ring-2 ${
-            errors.name
-              ? "border-red-500 focus:ring-red-500"
-              : "border-gray-200 focus:ring-red-500"
+          className={`w-full p-4 border rounded-xl ${
+            attempted &&
+            (customerName.trim() === "" ||
+              !/^[a-zA-Z\s]+$/.test(customerName.trim()))
+              ? "border-red-500"
+              : "border-gray-200"
           }`}
         />
-        {errors.name && (
+        {attempted && customerName.trim() === "" && (
           <p className="mt-2 text-xs text-red-500 font-medium">
-            ⚠ Name must contain letters only.
+            ⚠ Customer name is required.
           </p>
         )}
+
+        {attempted &&
+          customerName.trim() !== "" &&
+          !/^[a-zA-Z\s]+$/.test(customerName.trim()) && (
+            <p className="mt-2 text-xs text-red-500 font-medium">
+              ⚠ Name must contain letters only.
+            </p>
+          )}
       </div>
 
       {/* Contact Numbers */}
@@ -108,11 +98,15 @@ export default function Step2({ orderState }) {
             <div key={index} className="flex items-center gap-2">
               <input
                 type="tel"
-                value={contact}
+                value={contact || ""}
                 onChange={(e) => handleContactChange(index, e.target.value)}
                 placeholder={`09XXXXXXXXX`}
                 maxLength="11"
-                className="w-full p-4 bg-white border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-red-500 text-gray-600 italic"
+                className={`w-full p-4 bg-white border rounded-xl outline-none focus:ring-2 focus:ring-red-500 text-gray-600 italic ${
+                  attempted && !validatePhoneComplete(contact)
+                    ? "border-red-500"
+                    : "border-gray-200"
+                }`}
               />
               {index > 0 && (
                 <button
@@ -125,7 +119,7 @@ export default function Step2({ orderState }) {
             </div>
           ))}
         </div>
-        {errors.contact && (
+        {attempted && contacts.some((c) => !c || !/^09\d{9}$/.test(c)) && (
           <p className="mt-2 text-xs text-red-500 font-medium">
             ⚠ Contact numbers must start with 09 and be 11 digits long.
           </p>
@@ -151,15 +145,26 @@ export default function Step2({ orderState }) {
           onChange={handleFbChange}
           onBlur={handleFbBlur}
           placeholder="https://facebook.com/yourpage"
-          className={`w-full p-4 bg-white border rounded-xl outline-none focus:ring-2 focus:ring-red-500 text-gray-600 italic ${
-            errors.fb ? "border-red-500" : "border-gray-200"
+          className={`w-full p-4 border rounded-xl ${
+            attempted &&
+            facebookProfile !== "" &&
+            !/^(https?:\/\/)?(www\.)?(facebook\.com|fb\.com)\/.+/i.test(
+              facebookProfile.trim(),
+            )
+              ? "border-red-500"
+              : "border-gray-200"
           }`}
         />
-        {errors.fb && (
-          <p className="mt-2 text-xs text-red-500 font-medium">
-            ⚠ Must be a valid Facebook URL (facebook.com or fb.com).
-          </p>
-        )}
+
+        {attempted &&
+          facebookProfile !== "" &&
+          !/^(https?:\/\/)?(www\.)?(facebook\.com|fb\.com)\/.+/i.test(
+            facebookProfile.trim(),
+          ) && (
+            <p className="mt-2 text-xs text-red-500 font-medium">
+              ⚠ Must be a valid Facebook URL (facebook.com or fb.com).
+            </p>
+          )}
       </div>
     </div>
   );

@@ -9,7 +9,6 @@ import Step1 from "./pages/Step1";
 import Step2 from "./pages/Step2";
 import Step3 from "./pages/Step3";
 
-//New!!
 import { getLandingData } from "./api/landingApi";
 import { createOrder } from "./api/orderApi";
 
@@ -41,10 +40,18 @@ function App({ submittedByUserId = null, encoderName = null }) {
   const [paymentMethod, setPaymentMethod] = useState("gcash");
   const [upgradeAmount, setUpgradeAmount] = useState(0);
   const [totalAmount, setTotalAmount] = useState(0);
+
   // ─── CUSTOMER STATE ───────────────────────────────────────────────
   const [customerName, setCustomerName] = useState("");
-  const [contacts, setContacts] = useState([""]);
+  const [contacts, setContacts] = useState(["09"]);
   const [facebookProfile, setFacebookProfile] = useState("");
+
+  // ─── ATTEMPTED STATE (per step) ──────────────────────────────────
+  const [attemptedSteps, setAttemptedSteps] = useState({
+    1: false,
+    2: false,
+    3: false,
+  });
 
   // ─── MODAL STATE ──────────────────────────────────────────────────
   const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -102,8 +109,8 @@ function App({ submittedByUserId = null, encoderName = null }) {
 
     fetchProductData();
   }, [productType]);
-  // ─────────────────────────────────────────────────────────────────
 
+  // ─── VALIDATION ───────────────────────────────────────────────────
   const hasValidContacts = contacts.some(
     (contact) => contact.trim() !== "" && /^[0-9]+$/.test(contact.trim()),
   );
@@ -116,8 +123,12 @@ function App({ submittedByUserId = null, encoderName = null }) {
     facebookProfile.includes("fb.com");
 
   const allDishesSelected =
-    requiredDishes.every((d) => d !== "") && extraDishes.every((d) => d !== "");
+    productType === "dish_only"
+      ? extraDishes.length > 0 && extraDishes.every((d) => d !== "") // ← must have at least 1 dish filled
+      : requiredDishes.every((d) => d !== "") &&
+        extraDishes.every((d) => d !== "");
 
+        
   const isStep1Valid =
     orderType &&
     deliveryDate &&
@@ -132,25 +143,38 @@ function App({ submittedByUserId = null, encoderName = null }) {
     customerName.trim() !== "" &&
     /^[a-zA-Z\s]+$/.test(customerName.trim()) &&
     contacts.length > 0 &&
-    contacts.every((c) => /^09\d{9}$/.test(c)) &&
+    contacts.every((c) => c.trim() !== "" && /^09\d{9}$/.test(c)) &&
     isFacebookValid;
+
   const isStep3Valid = isStep1Valid && isStep2Valid;
+
+  const canProceedCurrentStep =
+    step === 1 ? isStep1Valid : step === 2 ? isStep2Valid : isStep3Valid;
 
   const getBlockedMessage = () => {
     if (step === 1) {
       return "Complete Step 1 required fields: order type, date/time, delivery details (if delivery), product type, and product selection.";
     }
-
     if (step === 2) {
       return "Complete Step 2 required fields: valid customer name and at least one valid contact number.";
     }
-
     return "Please complete all required order details before recording.";
   };
 
-  const canProceedCurrentStep =
-    step === 1 ? isStep1Valid : step === 2 ? isStep2Valid : isStep3Valid;
+  // ─── NAVIGATION HANDLERS ─────────────────────────────────────────
+  const handleNext = () => {
+    setAttemptedSteps((prev) => ({ ...prev, [step]: true }));
+    if (!canProceedCurrentStep) return;
+    setStep(step + 1);
+  };
 
+  const handleRecordOrder = () => {
+    setAttemptedSteps({ 1: true, 2: true, 3: true });
+    if (!isStep3Valid) return;
+    setShowConfirmModal(true);
+  };
+
+  // ─── ORDER STATE OBJECT ───────────────────────────────────────────
   const orderState = {
     orderType,
     setOrderType,
@@ -188,17 +212,8 @@ function App({ submittedByUserId = null, encoderName = null }) {
     deliveryCharges,
     isLoading,
     totalAmount,
-    setTotalAmount
-  };
-
-  // Opens the confirmation modal
-  const handleRecordOrder = () => {
-    if (!isStep3Valid) {
-      alert("Please complete all required fields before recording the order.");
-      return;
-    }
-
-    setShowConfirmModal(true);
+    setTotalAmount,
+    attempted: attemptedSteps[step], // ← step-aware attempted flag
   };
 
   // Called when user clicks "Confirm Order" inside the modal
@@ -226,12 +241,7 @@ function App({ submittedByUserId = null, encoderName = null }) {
 
     try {
       const result = await createOrder(payload);
-
       console.log("Order success:", result);
-
-      // You can now use:
-      // result.orderId
-      // result.message
     } catch (error) {
       console.error("Order submission error:", error);
       alert("Something went wrong.");
@@ -242,6 +252,7 @@ function App({ submittedByUserId = null, encoderName = null }) {
 
   const handleBookAgain = () => {
     setShowConfirmModal(false);
+    setAttemptedSteps({ 1: false, 2: false, 3: false }); // ← reset all steps
     setStep(1);
     setOrderType("delivery");
     setZone("");
@@ -337,6 +348,7 @@ function App({ submittedByUserId = null, encoderName = null }) {
               <NavButtons
                 step={step}
                 setStep={setStep}
+                onNext={handleNext}
                 onRecordOrder={handleRecordOrder}
                 canProceed={canProceedCurrentStep}
                 blockedMessage={getBlockedMessage()}
@@ -351,6 +363,7 @@ function App({ submittedByUserId = null, encoderName = null }) {
             <NavButtons
               step={step}
               setStep={setStep}
+              onNext={handleNext}
               onRecordOrder={handleRecordOrder}
               canProceed={canProceedCurrentStep}
               blockedMessage={getBlockedMessage()}

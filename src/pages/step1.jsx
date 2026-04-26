@@ -628,8 +628,10 @@ export default function Step1({ orderState }) {
     dishes,
     deliveryCharges,
     isLoading,
+    attempted,
   } = orderState;
-
+  const err = (invalid) =>
+    invalid ? "border-red-500 ring-1 ring-red-400" : "border-gray-200";
   // Modal is UI-only, stays local
   const [showModal, setShowModal] = useState(false);
   const [selectedProductTypeId, setSelectedProductTypeId] = useState("");
@@ -729,16 +731,16 @@ export default function Step1({ orderState }) {
   // ── Logic Flags ──────────────────────────────
   const showProductDropdown = productType !== "" && productType !== "dish_only";
   const showDishes =
-    productType === "lechon_package" ||
-    productType === "belly_package" ||
-    (productType === "dish_only" &&
-      (selectedProductIndex !== "" || productType === "dish_only"));
+    productType === "dish_only" ||
+    ((productType === "lechon_package" || productType === "belly_package") &&
+      selectedProductIndex !== "");
 
   const showFreebies =
-    productType === "lechon_package" ||
-    productType === "belly_package" ||
-    productType === "lechon_only" ||
-    (productType === "belly_only" && selectedProductIndex !== "");
+    (productType === "lechon_package" ||
+      productType === "belly_package" ||
+      productType === "lechon_only" ||
+      productType === "belly_only") &&
+    selectedProductIndex !== "";
 
   return (
     <div className="grid gap-6">
@@ -809,20 +811,54 @@ export default function Step1({ orderState }) {
 
             {/* DELIVERY FIELDS */}
             {orderType === "delivery" && (
-              <div className="space-y-2">
+              <div className="space-y-3">
                 <label className="block text-sm font-bold text-gray-700">
                   Delivery Details
                 </label>
+
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-[1fr_180px] gap-3">
-                  <input
-                    type="text"
-                    placeholder="Enter address"
-                    value={address}
-                    onChange={(e) => setAddress(e.target.value)}
-                    className="sm:col-span-2 md:col-span-1 w-full min-w-0 p-3 border rounded-xl"
-                  />
-                  <div className="w-full p-3 border rounded-xl bg-gray-100">
-                    {zone || "Zone"}
+                  {/* ADDRESS FIELD */}
+                  <div className="flex flex-col">
+                    <input
+                      type="text"
+                      placeholder="Enter address"
+                      value={address}
+                      onChange={(e) => setAddress(e.target.value)}
+                      className={`w-full p-3 border rounded-xl ${
+                        attempted && address.trim() === ""
+                          ? "border-red-500"
+                          : "border-gray-300"
+                      }`}
+                    />
+
+                    {attempted && address.trim() === "" && (
+                      <p className="text-xs text-red-500 font-medium mt-1">
+                        ⚠ Address is required.
+                      </p>
+                    )}
+                  </div>
+
+                  {/* ZONE FIELD */}
+                  <div className="flex flex-col">
+                    <div
+                      className={`w-full p-3 border rounded-xl bg-gray-100 ${
+                        attempted && zone.trim() === ""
+                          ? "border-red-500"
+                          : "border-gray-300"
+                      }`}
+                    >
+                      {zone || (
+                        <span className="text-gray-400">Zone not detected</span>
+                      )}
+                    </div>
+
+                    {attempted &&
+                      zone.trim() === "" &&
+                      address.trim() !== "" && (
+                        <p className="text-xs text-red-500 font-medium mt-1">
+                          ⚠ Zone not detected. Try a more specific address.
+                        </p>
+                      )}
                   </div>
                 </div>
               </div>
@@ -833,7 +869,8 @@ export default function Step1({ orderState }) {
               <label className="block text-sm font-bold text-gray-700 mb-2">
                 Delivery Date
               </label>
-              <DatePicker value={deliveryDate} onChange={setDeliveryDate} />
+              <DatePicker value={deliveryDate} onChange={setDeliveryDate} attempted={attempted} />
+
             </div>
 
             {/* TIME — shown only after date is selected */}
@@ -849,7 +886,7 @@ export default function Step1({ orderState }) {
                   </div>
                 ) : (
                   <select
-                    className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-red-500 outline-none"
+                    className={`w-full p-3 border rounded-xl focus:ring-2 focus:ring-red-500 outline-none ${err(attempted && !deliveryTime)}`}
                     value={deliveryTime}
                     onChange={(e) => setDeliveryTime(e.target.value)}
                   >
@@ -861,6 +898,11 @@ export default function Step1({ orderState }) {
                     ))}
                   </select>
                 )}
+                {attempted && !deliveryTime && (
+                  <p className="text-xs text-red-500 font-medium mt-1">
+                    ⚠ Please select a delivery time.
+                  </p>
+                )}
               </div>
             )}
 
@@ -870,7 +912,7 @@ export default function Step1({ orderState }) {
                 Product Type
               </label>
               <select
-                className="w-full p-3 border rounded-xl"
+                className={`w-full p-3 border rounded-xl ${err(attempted && !productType)}`}
                 value={selectedProductTypeId}
                 onChange={(e) => {
                   const selectedId = e.target.value;
@@ -899,6 +941,11 @@ export default function Step1({ orderState }) {
                   </option>
                 ))}
               </select>
+              {attempted && !productType && (
+                <p className="text-xs text-red-500 font-medium mt-1">
+                  ⚠ Please select a product type.
+                </p>
+              )}
             </div>
 
             {/* PRODUCT SELECT */}
@@ -918,7 +965,7 @@ export default function Step1({ orderState }) {
                   )}
                 </div>
                 <select
-                  className="w-full p-3 border border-red-500 rounded-xl"
+                  className={`w-full p-3 border rounded-xl ${err(attempted && selectedProductIndex === "")}`}
                   value={selectedProductIndex}
                   onChange={(e) => {
                     const selectedId = e.target.value;
@@ -959,6 +1006,11 @@ export default function Step1({ orderState }) {
                       </option>
                     ))}
                 </select>
+                {attempted && selectedProductIndex === "" && (
+                  <p className="text-xs text-red-500 font-medium mt-1">
+                    ⚠ Please select a product.
+                  </p>
+                )}
                 {showUpgrade && (
                   <div className="mt-2">
                     <label className="block text-xs font-bold text-gray-600 mb-1">
@@ -1081,7 +1133,7 @@ export default function Step1({ orderState }) {
                   {requiredDishes.map((val, index) => (
                     <select
                       key={`required-${index}`}
-                      className="w-full p-3 border rounded-xl bg-gray-100"
+                      className={`w-full p-3 border rounded-xl bg-gray-100 ${err(attempted && val === "")}`}
                       value={val}
                       onChange={(e) => {
                         const updated = [...requiredDishes];
@@ -1110,7 +1162,7 @@ export default function Step1({ orderState }) {
                   {extraDishes.map((dish, index) => (
                     <div key={index} className="flex gap-2">
                       <select
-                        className="flex-1 min-w-0 p-3 border rounded-xl"
+                        className={`flex-1 min-w-0 p-3 border rounded-xl ${err(attempted && dish === "")}`}
                         value={dish}
                         onChange={(e) => {
                           const updated = [...extraDishes];

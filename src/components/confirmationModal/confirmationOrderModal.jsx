@@ -5,7 +5,9 @@ const EXTRA_DISH_PRICE = 700;
 function getDeliveryFee(zone, deliveryCharges = []) {
   if (!zone || deliveryCharges.length === 0) return 0;
   const charge = deliveryCharges.find((item) => item.zoneName === zone);
-  return charge ? Number(charge.minAmount || 0) : 0;
+  return charge
+    ? Number(charge.baseFee || 0) + Number(charge.surcharge || 0)
+    : 0;
 }
 
 export default function ConfirmOrderModal({
@@ -44,6 +46,7 @@ export default function ConfirmOrderModal({
     import("jspdf").then((m) => (jsPDFRef.current = m.default));
     import("html2canvas").then((m) => (html2canvasRef.current = m.default));
   }, []);
+
   const fmt = (n) =>
     "PHP " + Number(n).toLocaleString("en-PH", { minimumFractionDigits: 2 });
 
@@ -84,11 +87,9 @@ export default function ConfirmOrderModal({
     return () => window.removeEventListener("keydown", handler);
   }, [onCancel, orderSuccess]);
 
-  // Wrap onConfirm to handle receipt transition
   const handleConfirm = async () => {
     try {
       await onConfirm();
-      // Generate a simple order number for the receipt
       const num = "ORD-" + Date.now().toString().slice(-6);
       setOrderNumber(num);
       setOrderSuccess(true);
@@ -104,12 +105,11 @@ export default function ConfirmOrderModal({
 
     const doc = new jsPDF({ unit: "mm", format: "a5" });
 
-    const W = doc.internal.pageSize.getWidth(); // 148mm
+    const W = doc.internal.pageSize.getWidth();
     const margin = 14;
     const contentW = W - margin * 2;
     let y = 0;
 
-    // ── COLOR PALETTE ─────────────────────────────────────────────
     const RED = [185, 28, 28];
     const RED_LIGHT = [254, 226, 226];
     const DARK = [17, 24, 39];
@@ -119,7 +119,6 @@ export default function ConfirmOrderModal({
     const GREEN = [5, 150, 105];
     const WHITE = [255, 255, 255];
 
-    // ── UTILS ──────────────────────────────────────────────────────
     const setFont = (size, style = "normal", color = DARK) => {
       doc.setFontSize(size);
       doc.setFont("helvetica", style);
@@ -147,19 +146,11 @@ export default function ConfirmOrderModal({
       doc.text(String(value), W - margin - 3, fy, { align: "right" });
     };
 
-    // ── HEADER BLOCK ───────────────────────────────────────────────
-    // Full-width red header
     fillRect(0, 0, W, 30, RED);
-
-    // Brand name
     setFont(18, "bold", WHITE);
     doc.text("Jojo's Lechon", W / 2, 13, { align: "center" });
-
-    // Subtitle
     setFont(8, "normal", [254, 202, 202]);
     doc.text("Official Order Receipt", W / 2, 20, { align: "center" });
-
-    // Thin white underline accent
     doc.setDrawColor(...WHITE);
     doc.setLineWidth(0.4);
     doc.setLineDashPattern([2, 2], 0);
@@ -168,13 +159,9 @@ export default function ConfirmOrderModal({
 
     y = 36;
 
-    // ── ORDER META ROW ─────────────────────────────────────────────
-    // Order number pill
     fillRect(margin, y - 4.5, 38, 7, RED_LIGHT, 2);
     setFont(7.5, "bold", RED);
     doc.text(orderNumber, margin + 3, y);
-
-    // Date right-aligned
     setFont(7.5, "normal", MID);
     doc.text(
       new Date().toLocaleDateString("en-PH", {
@@ -191,14 +178,10 @@ export default function ConfirmOrderModal({
     hRule(y, RED);
     y += 7;
 
-    // ── SECTION HELPER ─────────────────────────────────────────────
     const section = (title) => {
-      // Section label with left accent bar
       fillRect(margin, y - 3.5, 2.5, 7, RED, 1);
       setFont(7, "bold", MID);
       doc.text(title.toUpperCase(), margin + 5, y);
-
-      // Subtle bg strip
       fillRect(margin, y + 1.5, contentW, 0.3, LIGHT);
       y += 7;
     };
@@ -209,14 +192,12 @@ export default function ConfirmOrderModal({
       hRule(y - 1.5);
     };
 
-    // ── CUSTOMER ───────────────────────────────────────────────────
     section("Customer Information");
     row("Full Name", customerName || "—", { valBold: true });
     row("Contact", contacts.filter(Boolean).join("  •  ") || "—");
     if (facebookProfile) row("Facebook", facebookProfile);
     y += 3;
 
-    // ── DELIVERY ───────────────────────────────────────────────────
     section("Delivery Details");
     row("Order Type", orderType === "delivery" ? "Delivery" : "Pickup", {
       valBold: true,
@@ -234,11 +215,9 @@ export default function ConfirmOrderModal({
     );
     y += 3;
 
-    // ── ORDER ──────────────────────────────────────────────────────
     section("Order Details");
 
     if (selectedProduct) {
-      // Package name in a highlighted box
       fillRect(margin, y - 3.5, contentW, 9, BG, 2);
       setFont(8.5, "bold", DARK);
       doc.text(selectedProduct.productName, margin + 4, y);
@@ -247,7 +226,6 @@ export default function ConfirmOrderModal({
       y += 9;
     }
 
-    // Upgrade
     if (upgradeTotal > 0) {
       y += 2;
       setFont(8, "bold", DARK);
@@ -261,14 +239,12 @@ export default function ConfirmOrderModal({
       y += 6;
     }
 
-    // Included dishes
     if (resolvedRequiredDishes.length > 0) {
       y += 2;
       setFont(7, "bold", MID);
       doc.text("INCLUDED DISHES", margin + 3, y);
       y += 4.5;
       resolvedRequiredDishes.forEach((d) => {
-        // Dot bullet
         doc.setFillColor(...MID);
         doc.circle(margin + 4.5, y - 1.5, 0.8, "F");
         setFont(8, "normal", DARK);
@@ -277,7 +253,6 @@ export default function ConfirmOrderModal({
       });
     }
 
-    // Extra dishes
     if (resolvedExtraDishes.length > 0) {
       y += 2;
       setFont(7, "bold", MID);
@@ -296,9 +271,7 @@ export default function ConfirmOrderModal({
 
     y += 4;
 
-    // ── PRICING ────────────────────────────────────────────────────
     section("Pricing Summary");
-
     if (selectedProduct) row("Package", fmt(packageTotal));
     if (filledExtraDishes.length > 0)
       row("Extra Dishes", fmt(extraDishesTotal));
@@ -310,20 +283,15 @@ export default function ConfirmOrderModal({
 
     y += 4;
 
-    // ── TOTAL BAR ──────────────────────────────────────────────────
-    // Shadow effect (slightly larger dark rect behind)
     fillRect(margin + 0.5, y + 0.5, contentW, 14, [150, 20, 20], 3);
     fillRect(margin, y, contentW, 14, RED, 3);
-
     setFont(9, "bold", WHITE);
     doc.text("TOTAL AMOUNT DUE", margin + 5, y + 9);
-
     setFont(13, "bold", WHITE);
     doc.text(fmt(total), W - margin - 5, y + 9, { align: "right" });
 
     y += 22;
 
-    // ── FOOTER ─────────────────────────────────────────────────────
     hRule(y, LIGHT);
     y += 5;
     setFont(7, "italic", [180, 180, 180]);
@@ -374,15 +342,6 @@ export default function ConfirmOrderModal({
     }
   };
 
-  // Close on Escape
-  useEffect(() => {
-    const handler = (e) => {
-      if (e.key === "Escape" && !orderSuccess) onCancel();
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [onCancel, orderSuccess]);
-
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       {/* BACKDROP */}
@@ -397,13 +356,31 @@ export default function ConfirmOrderModal({
         <div className="h-1.5 w-full bg-gradient-to-r from-red-500 via-red-600 to-red-700" />
 
         {orderSuccess ? (
-          /* ══════════════════════════════════════
-             RECEIPT VIEW
-          ══════════════════════════════════════ */
           <>
+            {/* ── RECEIPT VIEW ── */}
             <div ref={receiptRef}>
               {/* HEADER */}
-              <div className="px-8 pt-7 pb-5 border-b border-gray-100 text-center">
+              <div className="px-8 pt-7 pb-5 border-b border-gray-100 text-center relative">
+                {/* X BUTTON — closes receipt, triggers book again */}
+                <button
+                  onClick={onBookAgain}
+                  className="absolute top-4 right-6 w-8 h-8 flex items-center justify-center rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-all"
+                >
+                  <svg
+                    className="w-5 h-5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="2.5"
+                      d="M6 18L18 6M6 6l12 12"
+                    />
+                  </svg>
+                </button>
+
                 <div className="w-14 h-14 rounded-full bg-emerald-50 flex items-center justify-center mx-auto mb-3">
                   <svg
                     className="w-7 h-7 text-emerald-500"
@@ -640,16 +617,44 @@ export default function ConfirmOrderModal({
             </div>
           </>
         ) : (
-          /* ══════════════════════════════════════
-             CONFIRM VIEW (original)
-          ══════════════════════════════════════ */
           <>
-            {/* HEADER */}
+            {/* ── CONFIRM VIEW ── */}
             <div className="px-8 pt-7 pb-5 border-b border-gray-100">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-2xl bg-red-50 flex items-center justify-center shrink-0">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-2xl bg-red-50 flex items-center justify-center shrink-0">
+                    <svg
+                      className="w-6 h-6 text-red-600"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth="2"
+                        d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                      />
+                    </svg>
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-black text-gray-900 tracking-tight">
+                      Confirm Order
+                    </h2>
+                    <p className="text-sm text-gray-400 font-medium">
+                      Please review before submitting
+                    </p>
+                  </div>
+                </div>
+
+                {/* X BUTTON — same as Cancel */}
+                <button
+                  onClick={onCancel}
+                  disabled={isSubmitting}
+                  className="w-8 h-8 flex items-center justify-center rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-all disabled:opacity-40"
+                >
                   <svg
-                    className="w-6 h-6 text-red-600"
+                    className="w-5 h-5"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -657,19 +662,11 @@ export default function ConfirmOrderModal({
                     <path
                       strokeLinecap="round"
                       strokeLinejoin="round"
-                      strokeWidth="2"
-                      d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                      strokeWidth="2.5"
+                      d="M6 18L18 6M6 6l12 12"
                     />
                   </svg>
-                </div>
-                <div>
-                  <h2 className="text-xl font-black text-gray-900 tracking-tight">
-                    Confirm Order
-                  </h2>
-                  <p className="text-sm text-gray-400 font-medium">
-                    Please review before submitting
-                  </p>
-                </div>
+                </button>
               </div>
             </div>
 
@@ -836,7 +833,6 @@ export default function ConfirmOrderModal({
             fontFamily: "sans-serif",
           }}
         >
-          {/* RED HEADER */}
           <div
             style={{
               backgroundColor: "#b91c1c",
@@ -854,7 +850,6 @@ export default function ConfirmOrderModal({
             </div>
           </div>
 
-          {/* ORDER NUMBER + DATE */}
           <div
             style={{
               display: "flex",
@@ -877,9 +872,7 @@ export default function ConfirmOrderModal({
             </span>
           </div>
 
-          {/* BODY */}
           <div style={{ padding: "0 24px 24px" }}>
-            {/* CUSTOMER */}
             <CaptureSection title="Customer">
               <CaptureRow label="Name" value={customerName || "—"} />
               <CaptureRow
@@ -891,7 +884,6 @@ export default function ConfirmOrderModal({
               )}
             </CaptureSection>
 
-            {/* DELIVERY */}
             <CaptureSection title="Delivery">
               <CaptureRow
                 label="Type"
@@ -911,7 +903,6 @@ export default function ConfirmOrderModal({
               />
             </CaptureSection>
 
-            {/* ORDER */}
             <CaptureSection title="Order">
               {selectedProduct && (
                 <CaptureRow
@@ -991,7 +982,6 @@ export default function ConfirmOrderModal({
               )}
             </CaptureSection>
 
-            {/* PRICING */}
             <CaptureSection title="Pricing">
               {selectedProduct && (
                 <CaptureRow label="Package" value={fmt(packageTotal)} />
@@ -1020,7 +1010,6 @@ export default function ConfirmOrderModal({
               )}
             </CaptureSection>
 
-            {/* TOTAL */}
             <div
               style={{
                 backgroundColor: "#b91c1c",
@@ -1044,7 +1033,6 @@ export default function ConfirmOrderModal({
               </span>
             </div>
 
-            {/* FOOTER */}
             <div
               style={{
                 textAlign: "center",
@@ -1084,13 +1072,7 @@ function ReceiptRow({ label, value, highlight = false, green = false }) {
     <div className="flex justify-between items-center py-2.5 border-b border-gray-100 last:border-0">
       <span className="text-xs font-bold text-gray-400">{label}</span>
       <span
-        className={`text-xs font-black px-2 py-0.5 rounded-lg ${
-          green
-            ? "text-emerald-600 bg-emerald-50"
-            : highlight
-              ? "text-red-600 bg-red-50"
-              : "text-gray-700 bg-white border border-gray-100"
-        }`}
+        className={`text-xs font-black px-2 py-0.5 rounded-lg ${green ? "text-emerald-600 bg-emerald-50" : highlight ? "text-red-600 bg-red-50" : "text-gray-700 bg-white border border-gray-100"}`}
       >
         {value}
       </span>
@@ -1118,13 +1100,7 @@ function Row({ label, value, highlight = false, green = false }) {
     <div className="flex justify-between items-center py-2.5 border-b border-gray-100 last:border-0">
       <span className="text-xs font-bold text-gray-400">{label}</span>
       <span
-        className={`text-xs font-black px-2 py-0.5 rounded-lg ${
-          green
-            ? "text-emerald-600 bg-emerald-50"
-            : highlight
-              ? "text-red-600 bg-red-50"
-              : "text-gray-700 bg-white border border-gray-100"
-        }`}
+        className={`text-xs font-black px-2 py-0.5 rounded-lg ${green ? "text-emerald-600 bg-emerald-50" : highlight ? "text-red-600 bg-red-50" : "text-gray-700 bg-white border border-gray-100"}`}
       >
         {value}
       </span>
