@@ -5,12 +5,15 @@ export default defineConfig({
   plugins: [react()],
   base: "./",
   server: {
+    host: true,
+    allowedHosts: [
+      "amiss-occupancy-demanding.ngrok-free.dev"
+    ],
     proxy: {
       "/api": {
         target: "http://localhost:5194",
-        changeOrigin: true, // ← add this
+        changeOrigin: true,
       },
     },
-    allowedHosts: "all",
   },
 });

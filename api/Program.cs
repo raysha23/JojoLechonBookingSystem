@@ -24,21 +24,23 @@ builder.Services.AddOutputCache(options =>
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowReactApp", policy =>
     {
-        policy.WithOrigins("http://localhost:5173")
+        policy.WithOrigins(
+                "http://localhost:5173",
+                "https://amiss-occupancy-demanding.ngrok-free.dev"
+              )
               .AllowAnyHeader()
               .AllowAnyMethod();
     });
 });
 
-
 var app = builder.Build();
 
 using (var scope = app.Services.CreateScope())
+
 {
     var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 
@@ -135,16 +137,7 @@ using (var scope = app.Services.CreateScope())
     //     context.SaveChanges();
     // }
 }
-app.UseRouting();
 
-app.UseCors("AllowReactApp");
-app.UseAuthentication();
-app.UseAuthorization();
-
-app.UseOutputCache();
-
-// app.MapHub<OrderHub>("/orderHub");
-// ✅ Enable Swagger (MISSING BEFORE)
 app.UseSwagger();
 app.UseSwaggerUI();
 
@@ -152,9 +145,19 @@ if (!app.Environment.IsDevelopment())
 {
     app.UseHttpsRedirection();
 }
+
+app.UseRouting();
+
+app.UseCors("AllowReactApp");
+
+app.UseAuthentication();
+app.UseAuthorization();
+
+app.UseOutputCache();
+
+app.MapControllers();
+
 app.UseDefaultFiles();
 app.UseStaticFiles();
-// Test endpoint
-// app.MapGet("/", () => "API is running...");
-app.MapControllers();
+
 app.Run();

@@ -821,21 +821,9 @@ export default function Step1({ orderState }) {
                     onChange={(e) => setAddress(e.target.value)}
                     className="sm:col-span-2 md:col-span-1 w-full min-w-0 p-3 border rounded-xl"
                   />
-                  <select
-                    value={zone}
-                    onChange={(e) => setZone(e.target.value)}
-                    className="w-full min-w-0 p-3 border rounded-xl"
-                  >
-                    <option value="">Select Zone</option>
-                    {deliveryCharges.map((charge) => (
-                      <option key={charge.id} value={charge.zoneName}>
-                        {charge.zoneName} — ₱{charge.baseFee}
-                        {charge.surcharge
-                          ? ` + ₱${charge.surcharge} surcharge`
-                          : ""}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="w-full p-3 border rounded-xl bg-gray-100">
+                    {zone || "Zone"}
+                  </div>
                 </div>
               </div>
             )}

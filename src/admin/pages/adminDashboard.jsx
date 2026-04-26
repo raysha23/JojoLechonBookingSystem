@@ -967,10 +967,10 @@ function EditModal({ booking, onClose, onSave }) {
 
   const [form, setForm] = useState({
     orderType: booking.orderType || "delivery",
-    deliveryDate: new Date(booking.deliveryDate).toISOString().split("T")[0],
+    deliveryDate: booking.deliveryDate?.split("T")[0] ?? "",
     deliveryTime: booking.deliveryTime || "",
     address: booking.address || "",
-    zone: booking.zone || "",
+    zone: booking.zone?.trim() || "", // trim whitespace just in case
     paymentMethod: booking.paymentMethod || "cod",
   });
 
@@ -980,7 +980,7 @@ function EditModal({ booking, onClose, onSave }) {
   const [productTypes, setProductTypes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedProductId, setSelectedProductId] = useState(
-    booking.productId || null,
+    booking.productId ?? booking.product?.id ?? null,
   );
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [requiredDishes, setRequiredDishes] = useState([]);
@@ -1015,24 +1015,34 @@ function EditModal({ booking, onClose, onSave }) {
         }));
         setAllProducts(mapped);
 
-        if (booking.productId) {
-          const current = mapped.find((p) => p.id === booking.productId);
+        const productId = booking.productId ?? booking.product?.id;
+        if (productId) {
+          const current = mapped.find((p) => p.id === productId);
           if (current) {
             setSelectedProduct(current);
+            setSelectedProductId(current.id);
+
             const nameToId = Object.fromEntries(
               (dishesRes.data ?? []).map((d) => [d.dishName, d.id]),
             );
-            const requiredIds = (booking.dishes?.required ?? [])
-              .map((name) => nameToId[name])
-              .filter(Boolean);
+
+            const toId = (val) => {
+              if (!val) return "";
+              if (typeof val === "number") return String(val);
+              return String(nameToId[val] ?? "");
+            };
+
+            const requiredIds = (booking.dishes?.required ?? []).map(toId);
             const extraIds = (booking.dishes?.extra ?? [])
-              .map((name) => nameToId[name])
+              .map(toId)
               .filter(Boolean);
+
             const slots = current.NoOfDishes || 0;
             const paddedRequired = [...requiredIds];
             while (paddedRequired.length < slots) paddedRequired.push("");
+
             setRequiredDishes(paddedRequired);
-            setExtraDishes(extraIds.map(String));
+            setExtraDishes(extraIds);
           }
         }
       } catch (err) {
@@ -1059,8 +1069,16 @@ function EditModal({ booking, onClose, onSave }) {
   const deliveryFee =
     form.orderType === "delivery"
       ? (() => {
-          const charge = deliveryCharges.find((c) => c.zoneName === form.zone);
-          return charge ? Number(charge.minAmount || 0) : 0;
+          const charge = deliveryCharges.find(
+            (c) =>
+              c.zoneName?.trim().toLowerCase() ===
+              form.zone?.trim().toLowerCase(),
+          );
+          console.log("form.zone:", form.zone);
+          console.log("deliveryCharges:", deliveryCharges);
+          return charge
+            ? Number((charge.baseFee || 0) + (charge.surcharge || 0))
+            : 0;
         })()
       : 0;
 
@@ -1167,7 +1185,7 @@ function EditModal({ booking, onClose, onSave }) {
                     <option value="">Select zone</option>
                     {deliveryCharges.map((c) => (
                       <option key={c.zoneName} value={c.zoneName}>
-                        {c.zoneName} — ₱{c.minAmount}
+                        {c.zoneName} — ₱{(c.baseFee || 0) + (c.surcharge || 0)}
                       </option>
                     ))}
                   </select>
