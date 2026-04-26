@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import DatePicker from "../../components/datetimepicker/DatePicker.jsx";
 import { useNavigate } from "react-router-dom";
+import { generateOrderDoc } from "../generateDoc.js";
 import api from "../../api/client.js";
 import {
   getOrders,
@@ -105,13 +106,11 @@ export default function AdminDashboard() {
     const unprintedIds = filtered
       .filter((b) => !b.isPrinted && !b.deletedAt)
       .map((b) => b.id);
-
     if (unprintedIds.length > 0) {
       await markOrdersAsPrinted(unprintedIds);
       await loadBookings(filterDate);
     }
-
-    window.print();
+    await generateOrderDoc(filtered, filterDate); // downloads .docx
   };
 
   // ── TOGGLE PRINT STATUS (with confirm modal) ──────────────────
@@ -461,14 +460,16 @@ export default function AdminDashboard() {
                   <Th>Delivery Time</Th>
                   <Th>Customer</Th>
                   <Th>Order Type</Th>
-                  <Th wide>Order Details</Th>
+                  <Th className="min-w-[450px] whitespace-nowrap">
+                    Order Details
+                  </Th>
                   <Th>Total Amount</Th>
                   <Th>Process Time</Th>
                   <Th>Location</Th>
-                  <Th>Facebook</Th>
+                  <Th className="print:hidden">Facebook</Th>
                   <Th>Contact</Th>
                   <Th>Payment</Th>
-                  <Th>Status</Th>
+                  <Th className="print:hidden">Status</Th>
                   <Th className="print-only">Rider</Th>
                   <Th className="print:hidden">Actions</Th>
                 </tr>
@@ -595,6 +596,7 @@ export default function AdminDashboard() {
           confirmColor="green"
           onConfirm={handlePrintOrders}
           onCancel={() => setPrintConfirm(false)}
+          className="print:hidden"
         />
       )}
 
@@ -613,7 +615,7 @@ export default function AdminDashboard() {
 function Th({ children, wide, className = "" }) {
   return (
     <th
-      className={`px-5 py-4 text-left text-base font-bold text-white uppercase tracking-widest whitespace-nowrap ${wide ? "min-w-[420px]" : ""} ${className}`}
+      className={`px-5 py-4 text-left text-base font-bold text-white uppercase tracking-widest whitespace-nowrap ${className}`}
     >
       {children}
     </th>
@@ -665,7 +667,7 @@ function BookingRow({
       </td>
 
       {/* ORDER DETAILS */}
-      <td className="px-5 py-4 min-w-[420px] border border-gray-200">
+      <td className="px-5 py-4 border border-gray-200">
         <p className="text-base font-black text-gray-900 mb-2">
           {booking.productName || "—"}
         </p>
@@ -737,7 +739,7 @@ function BookingRow({
       </td>
 
       {/* FACEBOOK */}
-      <td className="px-5 py-4 border border-gray-200">
+      <td className="print-hidden px-5 py-4 border border-gray-200">
         {booking.facebookProfile ? (
           <a
             href={booking.facebookProfile}
@@ -773,7 +775,7 @@ function BookingRow({
       </td>
 
       {/* STATUS / PRINT BADGE — clickable */}
-      <td className="px-5 py-4 whitespace-nowrap border border-gray-200">
+      <td className="print-hidden px-5 py-4 whitespace-nowrap border border-gray-200">
         <button
           onClick={onTogglePrinted}
           title={
@@ -1469,7 +1471,7 @@ function ConfirmModal({
 // ── SHARED SHELLS ─────────────────────────────────────────────────
 function Modal({ children, onClose }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 print:hidden">
       <div
         className="absolute inset-0 bg-black/40 backdrop-blur-sm"
         onClick={onClose}
