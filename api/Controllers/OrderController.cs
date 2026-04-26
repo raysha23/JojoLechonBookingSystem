@@ -1,4 +1,6 @@
 using System;
+using Microsoft.AspNetCore.SignalR;
+using api.Hub;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -15,9 +17,11 @@ namespace api.Controllers
     [ApiController]
     public class OrderController : ControllerBase
     {
+        // private readonly IHubContext<OrderHub> _hub;
         private readonly ApplicationDbContext _context;
         public OrderController(ApplicationDbContext context)
         {
+            // _hub = hub;
             _context = context;
         }
 

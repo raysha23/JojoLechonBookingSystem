@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import DatePicker from "../../components/datetimepicker/DatePicker.jsx";
 import { useNavigate } from "react-router-dom";
+import api from "../../api/client.js";
 import {
   getOrders,
   softDeleteOrder,
@@ -8,8 +9,7 @@ import {
   updateOrder,
   markOrdersAsPrinted,
   toggleOrderPrinted,
-} from "../services/orderServices.jsx";
-
+} from "../../api/orderService.js";
 const EXTRA_DISH_PRICE = 700;
 
 // ── HELPERS ───────────────────────────────────────────────────────
@@ -451,9 +451,12 @@ export default function AdminDashboard() {
 
         {/* ── TABLE ── */}
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden print:shadow-none print:rounded-none">
-          <div className="overflow-x-auto">
+          <div
+            className="overflow-auto"
+            style={{ maxHeight: "calc(100vh - 320px)" }}
+          >
             <table className="w-full text-sm print:text-xs border-collapse">
-              <thead>
+              <thead className="sticky top-0 z-10">
                 <tr className="border-b-2 border-gray-100 bg-red-600 font-bold text-white">
                   <Th>Delivery Time</Th>
                   <Th>Customer</Th>
@@ -990,23 +993,17 @@ function EditModal({ booking, onClose, onSave }) {
       try {
         const [typesRes, productsRes, dishesRes, chargesRes] =
           await Promise.all([
-            fetch("/api/products/types"),
-            fetch("/api/products"),
-            fetch("/api/products/dishes"),
-            fetch("/api/products/delivery-charges"),
+            api.get("/products/types"),
+            api.get("/products"),
+            api.get("/products/dishes"),
+            api.get("/products/delivery-charges"),
           ]);
-        const [types, products, dishes, charges] = await Promise.all([
-          typesRes.json(),
-          productsRes.json(),
-          dishesRes.json(),
-          chargesRes.json(),
-        ]);
 
-        setProductTypes(types ?? []);
-        setAllDishes(dishes ?? []);
-        setDeliveryCharges(charges ?? []);
+        setProductTypes(typesRes.data ?? []);
+        setAllDishes(dishesRes.data ?? []);
+        setDeliveryCharges(chargesRes.data ?? []);
 
-        const mapped = (products ?? []).map((p) => ({
+        const mapped = (productsRes.data ?? []).map((p) => ({
           id: p.id,
           productName: p.productName,
           amount: p.amount,
@@ -1023,7 +1020,7 @@ function EditModal({ booking, onClose, onSave }) {
           if (current) {
             setSelectedProduct(current);
             const nameToId = Object.fromEntries(
-              (dishes ?? []).map((d) => [d.dishName, d.id]),
+              (dishesRes.data ?? []).map((d) => [d.dishName, d.id]),
             );
             const requiredIds = (booking.dishes?.required ?? [])
               .map((name) => nameToId[name])

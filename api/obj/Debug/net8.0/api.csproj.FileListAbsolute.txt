@@ -139,3 +139,11 @@ C:\Users\Administrator\Desktop\ReactLechonBooking\JojoLechonBookingSystem\api\ob
 C:\Users\Administrator\Desktop\ReactLechonBooking\JojoLechonBookingSystem\api\obj\Debug\net8.0\api.genruntimeconfig.cache
 C:\Users\Administrator\Desktop\ReactLechonBooking\JojoLechonBookingSystem\api\obj\Debug\net8.0\ref\api.dll
 C:\Users\Administrator\Desktop\ReactLechonBooking\JojoLechonBookingSystem\api\bin\Debug\net8.0\api.staticwebassets.runtime.json
+C:\Users\Administrator\Desktop\ReactLechonBooking\JojoLechonBookingSystem\api\bin\Debug\net8.0\Microsoft.Extensions.DependencyInjection.Abstractions.dll
+C:\Users\Administrator\Desktop\ReactLechonBooking\JojoLechonBookingSystem\api\bin\Debug\net8.0\Microsoft.Extensions.Diagnostics.Abstractions.dll
+C:\Users\Administrator\Desktop\ReactLechonBooking\JojoLechonBookingSystem\api\bin\Debug\net8.0\Microsoft.Extensions.Hosting.Abstractions.dll
+C:\Users\Administrator\Desktop\ReactLechonBooking\JojoLechonBookingSystem\api\bin\Debug\net8.0\Microsoft.Extensions.Logging.Abstractions.dll
+C:\Users\Administrator\Desktop\ReactLechonBooking\JojoLechonBookingSystem\api\bin\Debug\net8.0\Microsoft.Extensions.ObjectPool.dll
+C:\Users\Administrator\Desktop\ReactLechonBooking\JojoLechonBookingSystem\api\bin\Debug\net8.0\Microsoft.Extensions.Options.dll
+C:\Users\Administrator\Desktop\ReactLechonBooking\JojoLechonBookingSystem\api\bin\Debug\net8.0\Newtonsoft.Json.dll
+C:\Users\Administrator\Desktop\ReactLechonBooking\JojoLechonBookingSystem\api\bin\Debug\net8.0\System.Net.WebSockets.WebSocketProtocol.dll

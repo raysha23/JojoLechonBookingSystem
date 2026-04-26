@@ -1,4 +1,5 @@
 using api.data;
+using api.Hub;
 using api.Interfaces;
 using api.Repository;
 using Microsoft.EntityFrameworkCore;
@@ -14,6 +15,7 @@ builder.Services.AddDbContextPool<ApplicationDbContext>(options =>
 builder.Services.AddScoped<IProductRepository, ProductRepository>();
 
 builder.Services.AddControllers();
+builder.Services.AddSignalR();
 builder.Services.AddOutputCache(options =>
 {
     options.AddPolicy("static-data", policy =>
@@ -141,6 +143,7 @@ app.UseAuthorization();
 
 app.UseOutputCache();
 
+// app.MapHub<OrderHub>("/orderHub");
 // ✅ Enable Swagger (MISSING BEFORE)
 app.UseSwagger();
 app.UseSwaggerUI();
