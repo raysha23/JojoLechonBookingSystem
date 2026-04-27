@@ -68,6 +68,18 @@ export default function AdminDashboard() {
   const [filterDate, setFilterDate] = useState(getToday());
   const [printFilter, setPrintFilter] = useState("all");
 
+  const pigCount = bookings.filter(
+    (b) =>
+      !b.deletedAt &&
+      ["lechon_package", "lechon_only"].includes(b.productTypeName),
+  ).length;
+
+  const bellyCount = bookings.filter(
+    (b) =>
+      !b.deletedAt &&
+      ["belly_package", "belly_only"].includes(b.productTypeName),
+  ).length;
+
   const loadBookings = async (date = filterDate) => {
     const data = await getOrders({ date });
     setBookings(data);
@@ -280,6 +292,31 @@ export default function AdminDashboard() {
                     </svg>
                   </button>
                 )}
+              </div>
+              {/* PIG & BELLY COUNTS */}
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5 px-3 py-2 bg-red-50 border border-red-100 rounded-xl">
+                  <span className="text-base">🐷</span>
+                  <div>
+                    <p className="text-[9px] font-black text-red-400 uppercase tracking-widest leading-none">
+                      Lechon
+                    </p>
+                    <p className="text-sm font-black text-red-600 leading-none mt-0.5">
+                      {pigCount}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1.5 px-3 py-2 bg-orange-50 border border-orange-100 rounded-xl">
+                  <span className="text-base">🥩</span>
+                  <div>
+                    <p className="text-[9px] font-black text-orange-400 uppercase tracking-widest leading-none">
+                      Belly
+                    </p>
+                    <p className="text-sm font-black text-orange-600 leading-none mt-0.5">
+                      {bellyCount}
+                    </p>
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -962,7 +999,137 @@ function ViewModal({ booking, onClose }) {
     </Modal>
   );
 }
+const zoneKeywords = [
+  {
+    zoneName: "Talisay-Proper",
+    keywords: [
+      "talisay",
+      "biasong",
+      "bulacao",
+      "tabunok",
+      "mohon",
+      "pooc",
+      "lawaan",
+    ],
+  },
+  { zoneName: "Talisay-Mountain", keywords: ["camp 4", "manipis", "tapul"] },
+  {
+    zoneName: "Cebu-Proper",
+    keywords: [
+      "cebu",
+      "mambaling",
+      "pardo",
+      "lahug",
+      "mabolo",
+      "banilad",
+      "talamban",
+    ],
+  },
+  {
+    zoneName: "Cebu-Mountain",
+    keywords: ["busay", "sirao", "sudlon", "babag", "tops", "transcentral"],
+  },
+  {
+    zoneName: "Mandaue-Proper",
+    keywords: [
+      "mandaue",
+      "basak",
+      "cabancalan",
+      "opao",
+      "tipolo",
+      "subangdaku",
+    ],
+  },
+  {
+    zoneName: "Minglanilla-Proper",
+    keywords: ["minglanilla", "tungkop", "tunghaan", "camp 8"],
+  },
+  {
+    zoneName: "Minglanilla-Mountain",
+    keywords: ["guindaruhan", "manduang", "camp 7"],
+  },
+  { zoneName: "Naga-Proper", keywords: ["naga", "inala", "tinaan", "mayana"] },
+  { zoneName: "Naga-Mountain", keywords: ["alpaco", "pulangbato", "tabunan"] },
+  {
+    zoneName: "LapuLapu-Proper",
+    keywords: ["lapu", "mactan", "pusok", "basak", "aginid"],
+  },
+  {
+    zoneName: "Consolacion-Proper",
+    keywords: ["consolacion", "tayud", "lamac", "sacsac"],
+  },
+  {
+    zoneName: "Liloan-Proper",
+    keywords: ["liloan", "cotcot", "jublag", "tayud", "yati"],
+  },
+  { zoneName: "Liloan-Mountain", keywords: ["cansaga", "pitogo"] },
+  {
+    zoneName: "Danao-Proper",
+    keywords: ["danao", "guinsay", "cogon", "binaliw"],
+  },
+  {
+    zoneName: "Compostela-Proper",
+    keywords: ["compostela", "nangka", "tugbongan"],
+  },
+  {
+    zoneName: "Carcar-Proper",
+    keywords: ["carcar", "poblacion", "napo", "tuyom"],
+  },
+  {
+    zoneName: "San Fernando-Proper",
+    keywords: ["san fernando", "cabatbatan", "pitalo"],
+  },
+  { zoneName: "Sibonga-Proper", keywords: ["sibonga", "simala", "abugon"] },
+  {
+    zoneName: "Moalboal-Proper",
+    keywords: ["moalboal", "panagsama", "basdiot", "white beach"],
+  },
+  { zoneName: "Argao-Proper", keywords: ["argao", "talo-ot", "colawin"] },
+];
 
+const getAvailableTimes = (deliveryDate) => {
+  const allTimes = [
+    "12:00 AM",
+    "1:00 AM",
+    "2:00 AM",
+    "3:00 AM",
+    "4:00 AM",
+    "5:00 AM",
+    "6:00 AM",
+    "7:00 AM",
+    "8:00 AM",
+    "9:00 AM",
+    "10:00 AM",
+    "11:00 AM",
+    "12:00 PM",
+    "1:00 PM",
+    "2:00 PM",
+    "3:00 PM",
+    "4:00 PM",
+    "5:00 PM",
+    "6:00 PM",
+    "7:00 PM",
+    "8:00 PM",
+    "9:00 PM",
+    "10:00 PM",
+    "11:00 PM",
+  ];
+  if (!deliveryDate) return allTimes;
+  const today = new Date().toISOString().split("T")[0];
+  if (deliveryDate !== today) return allTimes;
+  const now = new Date();
+  const cutoffHour = now.getHours() + 5;
+  const currentMinutes = now.getMinutes();
+  return allTimes.filter((timeStr) => {
+    const [time, period] = timeStr.split(" ");
+    let [hours, minutes] = time.split(":").map(Number);
+    if (period === "PM" && hours !== 12) hours += 12;
+    if (period === "AM" && hours === 12) hours = 0;
+    if (hours > cutoffHour) return true;
+    if (hours === cutoffHour && minutes >= currentMinutes) return true;
+    return false;
+  });
+};
 // ── EDIT MODAL ────────────────────────────────────────────────────
 function EditModal({ booking, onClose, onSave }) {
   const EXTRA_DISH_PRICE = 700;
@@ -989,7 +1156,18 @@ function EditModal({ booking, onClose, onSave }) {
   const [extraDishes, setExtraDishes] = useState([]);
 
   const set = (key, val) => setForm((f) => ({ ...f, [key]: val }));
-
+  // Auto-detect zone from address
+  useEffect(() => {
+    if (!form.address || form.orderType !== "delivery") return;
+    const lower = form.address.toLowerCase().replace(/\s+/g, "");
+    for (const z of zoneKeywords) {
+      if (z.keywords.some((k) => lower.includes(k.replace(/\s+/g, "")))) {
+        set("zone", z.zoneName);
+        return;
+      }
+    }
+    set("zone", "");
+  }, [form.address, form.orderType]);
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -1060,11 +1238,19 @@ function EditModal({ booking, onClose, onSave }) {
     const product = allProducts.find((p) => p.id === Number(productId));
     setSelectedProductId(productId ? Number(productId) : null);
     setSelectedProduct(product || null);
+
     if (product) {
-      setRequiredDishes(Array(product.NoOfDishes || 0).fill(""));
+      const defaultIds = (product.defaultDishes ?? []).map((d) =>
+        String(d.dishId),
+      ); // ← d.dishId
+      const slots = product.NoOfDishes || 0;
+      const padded = [...defaultIds];
+      while (padded.length < slots) padded.push("");
+      setRequiredDishes(padded);
     } else {
       setRequiredDishes([]);
     }
+
     setExtraDishes([]);
   };
 
@@ -1076,8 +1262,8 @@ function EditModal({ booking, onClose, onSave }) {
               c.zoneName?.trim().toLowerCase() ===
               form.zone?.trim().toLowerCase(),
           );
-          console.log("form.zone:", form.zone);
-          console.log("deliveryCharges:", deliveryCharges);
+          // console.log("form.zone:", form.zone);
+          // console.log("deliveryCharges:", deliveryCharges);
           return charge
             ? Number((charge.baseFee || 0) + (charge.surcharge || 0))
             : 0;
@@ -1096,8 +1282,9 @@ function EditModal({ booking, onClose, onSave }) {
       orderType: form.orderType,
       deliveryDate: form.deliveryDate,
       deliveryTime: form.deliveryTime,
-      address: form.address,
-      zone: form.zone,
+      // ← only send address/zone if delivery
+      address: form.orderType === "delivery" ? form.address : null,
+      zone: form.orderType === "delivery" ? form.zone : null,
       paymentMethod: form.paymentMethod,
       totalAmount: total,
       productId: selectedProductId,
@@ -1162,35 +1349,50 @@ function EditModal({ booking, onClose, onSave }) {
                 onChange={(v) => set("deliveryDate", v)}
                 type="date"
               />
-              <EditField
-                label="Time"
-                value={form.deliveryTime}
-                onChange={(v) => set("deliveryTime", v)}
-              />
+              <div>
+                <label className="block text-xs font-black text-gray-500 uppercase tracking-widest mb-1.5">
+                  Time
+                </label>
+                <select
+                  value={form.deliveryTime}
+                  onChange={(e) => set("deliveryTime", e.target.value)}
+                  className="w-full p-3 border border-gray-200 rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-red-500"
+                >
+                  <option value="">Select time</option>
+                  {getAvailableTimes(form.deliveryDate).map((t) => (
+                    <option key={t} value={t}>
+                      {t}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
             {form.orderType === "delivery" && (
               <>
-                <EditField
-                  label="Address"
-                  value={form.address}
-                  onChange={(v) => set("address", v)}
-                />
                 <div>
                   <label className="block text-xs font-black text-gray-500 uppercase tracking-widest mb-1.5">
-                    Zone
+                    Address
                   </label>
-                  <select
-                    value={form.zone}
-                    onChange={(e) => set("zone", e.target.value)}
+                  <input
+                    type="text"
+                    value={form.address}
+                    onChange={(e) => set("address", e.target.value)}
                     className="w-full p-3 border border-gray-200 rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-red-500"
-                  >
-                    <option value="">Select zone</option>
-                    {deliveryCharges.map((c) => (
-                      <option key={c.zoneName} value={c.zoneName}>
-                        {c.zoneName} — ₱{(c.baseFee || 0) + (c.surcharge || 0)}
-                      </option>
-                    ))}
-                  </select>
+                    placeholder="Enter address"
+                  />
+                  {form.orderType === "delivery" && (
+                    <div
+                      className={`mt-1.5 px-3 py-2 rounded-lg text-xs font-bold ${
+                        form.zone
+                          ? "bg-emerald-50 text-emerald-700"
+                          : "bg-gray-100 text-gray-400"
+                      }`}
+                    >
+                      {form.zone
+                        ? `📍 ${form.zone}`
+                        : "Zone not detected — try a more specific address"}
+                    </div>
+                  )}
                 </div>
               </>
             )}

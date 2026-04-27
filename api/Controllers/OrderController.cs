@@ -186,17 +186,17 @@ namespace api.Controllers
                 if (!string.IsNullOrEmpty(updateOrderDto.OrderType))
                     order.OrderType = updateOrderDto.OrderType;
 
-                if (updateOrderDto.DeliveryDate != default)
-                    order.DeliveryDate = updateOrderDto.DeliveryDate;
+                if (updateOrderDto.DeliveryDate.HasValue)
+                    order.DeliveryDate = updateOrderDto.DeliveryDate.Value;
 
                 if (!string.IsNullOrEmpty(updateOrderDto.DeliveryTime))
                     order.DeliveryTime = updateOrderDto.DeliveryTime;
 
-                if (!string.IsNullOrEmpty(updateOrderDto.Address))
-                    order.Address = updateOrderDto.Address;
+                // if (!string.IsNullOrEmpty(updateOrderDto.Address))
+                //     order.Address = updateOrderDto.Address;
 
-                if (!string.IsNullOrEmpty(updateOrderDto.Zone))
-                    order.Zone = updateOrderDto.Zone;
+                // if (!string.IsNullOrEmpty(updateOrderDto.Zone))
+                //     order.Zone = updateOrderDto.Zone;
 
                 if (!string.IsNullOrEmpty(updateOrderDto.PaymentMethod))
                     order.PaymentMethod = updateOrderDto.PaymentMethod;
@@ -209,6 +209,11 @@ namespace api.Controllers
                     order.IsPrinted = updateOrderDto.IsPrinted.Value;
                     order.PrintedAt = updateOrderDto.IsPrinted.Value ? DateTime.UtcNow : null;
                 }
+                if (updateOrderDto.Address != null)
+                    order.Address = updateOrderDto.Address;
+
+                if (updateOrderDto.Zone != null)
+                    order.Zone = updateOrderDto.Zone;
 
                 // ── PRODUCT ───────────────────────────────────────────────────
                 if (updateOrderDto.ProductId.HasValue)
@@ -253,7 +258,8 @@ namespace api.Controllers
                         .ToListAsync();
                     _context.OrderDishes.RemoveRange(existingDishes);
 
-                    var includedIds = updateOrderDto.Dishes.Required.Union(defaultDishIds).ToList();
+                    var includedIds = (updateOrderDto.Dishes.Required ?? new List<int>())
+                    .Union(defaultDishIds).ToList();
                     var newDishes = includedIds.Select(dishId => new OrderDish
                     {
                         OrderId = id,
@@ -262,7 +268,7 @@ namespace api.Controllers
                         IsExtra = false
                     }).ToList();
 
-                    newDishes.AddRange(updateOrderDto.Dishes.Extra.Select(dishId => new OrderDish
+                    newDishes.AddRange((updateOrderDto.Dishes.Extra ?? new List<int>()).Select(dishId => new OrderDish
                     {
                         OrderId = id,
                         DishId = dishId,
@@ -277,14 +283,16 @@ namespace api.Controllers
 
                 // ── RELOAD & RETURN ───────────────────────────────────────────
                 var updatedOrder = await _context.Orders
-                    .AsNoTracking()
-                    .Include(o => o.Customer)
-                        .ThenInclude(c => c.Contacts)
-                    .Include(o => o.Product)
-                        .ThenInclude(p => p!.Freebies)
-                    .Include(o => o.OrderDishes)
-                        .ThenInclude(od => od.Dish)
-                    .FirstOrDefaultAsync(o => o.Id == id);
+                .AsNoTracking()
+                .Include(o => o.Customer)
+                    .ThenInclude(c => c.Contacts)
+                .Include(o => o.Product)
+                    .ThenInclude(p => p!.ProductType)
+                .Include(o => o.Product)
+                    .ThenInclude(p => p!.Freebies)
+                .Include(o => o.OrderDishes)
+                    .ThenInclude(od => od.Dish)
+                .FirstOrDefaultAsync(o => o.Id == id);
 
                 return Ok(updatedOrder?.ToOrderDTO());
             }
@@ -295,7 +303,40 @@ namespace api.Controllers
             }
         }
 
+        [HttpPatch("{id}/print-status")]
+        public async Task<IActionResult> TogglePrintStatus(int id, [FromBody] TogglePrintStatusDTO dto)
+        {
+            var order = await _context.Orders.FindAsync(id);
+            if (order == null)
+                return NotFound($"Order with ID {id} not found.");
 
+            order.IsPrinted = dto.IsPrinted;
+            order.PrintedAt = dto.IsPrinted ? DateTime.UtcNow : null;
+
+            await _context.SaveChangesAsync();
+            return Ok(new { id, isPrinted = order.IsPrinted, printedAt = order.PrintedAt });
+        }
+
+
+        [HttpPost("mark-printed")]
+        public async Task<IActionResult> MarkOrdersAsPrinted([FromBody] List<int> orderIds)
+        {
+            if (orderIds == null || orderIds.Count == 0)
+                return BadRequest("No order IDs provided.");
+
+            var orders = await _context.Orders
+                .Where(o => orderIds.Contains(o.Id) && !o.IsPrinted)
+                .ToListAsync();
+
+            foreach (var order in orders)
+            {
+                order.IsPrinted = true;
+                order.PrintedAt = DateTime.UtcNow;
+            }
+
+            await _context.SaveChangesAsync();
+            return Ok(new { marked = orders.Count });
+        }
         [HttpDelete("{id}")]
         public async Task<ActionResult> DeleteOrder(int id)
         {
@@ -340,25 +381,7 @@ namespace api.Controllers
             return Ok(restoredOrder?.ToOrderDTO());
         }
 
-        [HttpPost("mark-printed")]
-        public async Task<IActionResult> MarkOrdersAsPrinted([FromBody] List<int> orderIds)
-        {
-            if (orderIds == null || orderIds.Count == 0)
-                return BadRequest("No order IDs provided.");
 
-            var orders = await _context.Orders
-                .Where(o => orderIds.Contains(o.Id) && !o.IsPrinted)
-                .ToListAsync();
-
-            foreach (var order in orders)
-            {
-                order.IsPrinted = true;
-                order.PrintedAt = DateTime.UtcNow;
-            }
-
-            await _context.SaveChangesAsync();
-            return Ok(new { marked = orders.Count });
-        }
 
         private async Task<List<int>> GetInvalidDishIdsAsync(IEnumerable<int> dishIds)
         {

@@ -89,7 +89,7 @@ export const markOrdersAsPrinted = async (orderIds) => {
 // ── TOGGLE SINGLE ORDER PRINT STATUS ─────────────────────────────
 export const toggleOrderPrinted = async (id, isPrinted) => {
   try {
-    const res = await api.put(`/order/${id}`, { isPrinted });
+    const res = await api.patch(`/order/${id}/print-status`, { isPrinted });
     return res.data;
   } catch (error) {
     console.error("Failed to toggle print status:", error);

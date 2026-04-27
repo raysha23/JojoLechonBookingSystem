@@ -33,7 +33,7 @@ namespace api.Mappers
 
                 ProductId = order.ProductId,
                 ProductName = order.Product?.ProductName,
-
+                ProductTypeName = order.Product?.ProductType.TypeName,
                 // ✅ THIS FIXES YOUR UI - Return dish NAMES not IDs
                 Dishes = new OrderResponseDTO.DishesResponse
                 {
