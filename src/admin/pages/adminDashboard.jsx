@@ -1331,8 +1331,6 @@ const getAvailableTimes = (deliveryDate) => {
 
 // ── EDIT MODAL ────────────────────────────────────────────────────
 function EditModal({ booking, onClose, onSave }) {
-  const normalized = normalizeBooking(booking);
-
   const [form, setForm] = useState({
     orderType: booking.orderType || "delivery",
     deliveryDate: booking.deliveryDate?.split("T")[0] ?? "",
@@ -1347,25 +1345,22 @@ function EditModal({ booking, onClose, onSave }) {
   const [deliveryCharges, setDeliveryCharges] = useState([]);
   const [productTypes, setProductTypes] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [selectedProductId, setSelectedProductId] = useState(
-    normalized.productId,
-  );
-  const [selectedProduct, setSelectedProduct] = useState(null);
-  const [requiredDishes, setRequiredDishes] = useState([]);
-  const [extraDishes, setExtraDishes] = useState([]);
+
+  // Each item: { productId, selectedProduct, requiredDishes: [], extraDishes: [] }
+  const [items, setItems] = useState([]);
 
   const set = (key, val) => setForm((f) => ({ ...f, [key]: val }));
 
-  // ── LOAD REFERENCE DATA & PREFILL ─────────────────────────────
+  // ── LOAD REFERENCE DATA & PREFILL FROM EXISTING BOOKING ───────
   useEffect(() => {
     const load = async () => {
       try {
         const [productsRes, dishesRes, chargesRes, typesRes] =
           await Promise.all([
             api.get("/products"),
-            api.get("/dishes"),
-            api.get("/delivery-charges"),
-            api.get("/product-types"),
+            api.get("/products/dishes"),
+            api.get("/products/delivery-charges"),
+            api.get("/products/types"),
           ]);
 
         const products = productsRes.data ?? productsRes;
@@ -1378,63 +1373,62 @@ function EditModal({ booking, onClose, onSave }) {
         setDeliveryCharges(charges);
         setProductTypes(types);
 
-        // Prefill selected product
-        const currentProductId = normalized.productId;
-        if (currentProductId) {
-          const product = products.find(
-            (p) => p.id === Number(currentProductId),
-          );
-          if (product) {
-            setSelectedProduct(product);
+        // Prefill items from booking.items
+        const prefilled = (booking.items ?? []).map((item) => {
+          const product = products.find((p) => p.id === item.productId) || null;
 
-            // Prefill required dishes from existing booking data
-            const existingRequired = normalized.requiredDishes;
-            if (existingRequired.length > 0) {
-              // Map dish names back to IDs
-              const requiredIds = existingRequired.map((name) => {
-                const found = dishes.find(
-                  (d) => d.dishName?.toLowerCase() === name?.toLowerCase(),
-                );
-                return found ? String(found.id) : "";
-              });
-              const slots =
-                product.NoOfDishes || product.noOfDishes || requiredIds.length;
-              const padded = [...requiredIds];
-              while (padded.length < slots) padded.push("");
-              setRequiredDishes(padded);
-            } else {
-              // Use product defaults
-              const defaultIds = (product.defaultDishes ?? []).map((d) =>
-                String(d.dishId),
-              );
-              const slots = product.NoOfDishes || product.noOfDishes || 0;
-              const padded = [...defaultIds];
-              while (padded.length < slots) padded.push("");
-              setRequiredDishes(padded);
-            }
+          // Map required dish names → IDs
+          const requiredIds = (item.requiredDishes ?? []).map((name) => {
+            const found = dishes.find(
+              (d) => d.dishName?.toLowerCase() === name?.toLowerCase(),
+            );
+            return found ? String(found.id) : "";
+          });
 
-            // Prefill extra dishes
-            const existingExtra = normalized.extraDishes;
-            if (existingExtra.length > 0) {
-              const extraIds = existingExtra.map((name) => {
-                const found = dishes.find(
-                  (d) => d.dishName?.toLowerCase() === name?.toLowerCase(),
-                );
-                return found ? String(found.id) : "";
-              });
-              setExtraDishes(extraIds);
-            }
-          }
-        }
+          // Pad to product's slot count
+          const slots =
+            product?.noOfIncludedDishes ??
+            product?.NoOfIncludedDishes ??
+            requiredIds.length;
+          const padded = [...requiredIds];
+          while (padded.length < slots) padded.push("");
+
+          // Map extra dish names → IDs
+          const extraIds = (item.extraDishes ?? []).map((name) => {
+            const found = dishes.find(
+              (d) => d.dishName?.toLowerCase() === name?.toLowerCase(),
+            );
+            return found ? String(found.id) : "";
+          });
+
+          return {
+            productId: item.productId ? String(item.productId) : "",
+            selectedProduct: product,
+            requiredDishes: padded,
+            extraDishes: extraIds,
+          };
+        });
+
+        setItems(prefilled.length > 0 ? prefilled : [emptyItem()]);
       } catch (err) {
         console.error("Failed to load edit modal data:", err);
+        setItems([emptyItem()]);
       } finally {
         setLoading(false);
       }
     };
 
     load();
-  }, []); // runs once on mount
+  }, []);
+
+  function emptyItem() {
+    return {
+      productId: "",
+      selectedProduct: null,
+      requiredDishes: [],
+      extraDishes: [],
+    };
+  }
 
   // ── AUTO-DETECT ZONE ──────────────────────────────────────────
   useEffect(() => {
@@ -1449,25 +1443,39 @@ function EditModal({ booking, onClose, onSave }) {
     set("zone", "");
   }, [form.address, form.orderType]);
 
-  const handleProductChange = (productId) => {
-    const product = allProducts.find((p) => p.id === Number(productId));
-    setSelectedProductId(productId ? Number(productId) : null);
-    setSelectedProduct(product || null);
-
-    if (product) {
-      const defaultIds = (product.defaultDishes ?? []).map((d) =>
-        String(d.dishId),
-      );
-      const slots = product.NoOfDishes || product.noOfDishes || 0;
-      const padded = [...defaultIds];
-      while (padded.length < slots) padded.push("");
-      setRequiredDishes(padded);
-    } else {
-      setRequiredDishes([]);
-    }
-    setExtraDishes([]);
+  // ── ITEM HANDLERS ─────────────────────────────────────────────
+  const updateItem = (idx, patch) => {
+    setItems((prev) =>
+      prev.map((item, i) => (i === idx ? { ...item, ...patch } : item)),
+    );
   };
 
+  const handleProductChange = (idx, productId) => {
+    const product = allProducts.find((p) => p.id === Number(productId)) || null;
+    const slots =
+      product?.noOfIncludedDishes ?? product?.NoOfIncludedDishes ?? 0;
+    const defaultIds = (product?.defaultDishes ?? []).map((d) =>
+      String(d.dishId),
+    );
+    const padded = [...defaultIds];
+    while (padded.length < slots) padded.push("");
+
+    updateItem(idx, {
+      productId: productId ? String(productId) : "",
+      selectedProduct: product,
+      requiredDishes: padded,
+      extraDishes: [],
+    });
+  };
+
+  const addItem = () => setItems((prev) => [...prev, emptyItem()]);
+
+  const removeItem = (idx) => {
+    if (items.length === 1) return; // keep at least one
+    setItems((prev) => prev.filter((_, i) => i !== idx));
+  };
+
+  // ── PRICING ───────────────────────────────────────────────────
   const deliveryFee =
     form.orderType === "delivery"
       ? (() => {
@@ -1482,13 +1490,26 @@ function EditModal({ booking, onClose, onSave }) {
         })()
       : 0;
 
-  const packageTotal = selectedProduct?.amount ?? 0;
-  const extraTotal = extraDishes.filter(Boolean).length * EXTRA_DISH_PRICE;
-  const discount = selectedProduct?.promoAmount
-    ? Math.abs(Number(selectedProduct.promoAmount))
-    : 0;
+  const packageTotal = items.reduce(
+    (sum, item) => sum + (item.selectedProduct?.amount ?? 0),
+    0,
+  );
+  const extraTotal = items.reduce(
+    (sum, item) =>
+      sum + item.extraDishes.filter(Boolean).length * EXTRA_DISH_PRICE,
+    0,
+  );
+  const discount = items.reduce((sum, item) => {
+    return (
+      sum +
+      (item.selectedProduct?.promoAmount
+        ? Math.abs(Number(item.selectedProduct.promoAmount))
+        : 0)
+    );
+  }, 0);
   const total = packageTotal + extraTotal + deliveryFee - discount;
 
+  // ── SAVE ──────────────────────────────────────────────────────
   const handleSave = () => {
     onSave({
       orderType: form.orderType,
@@ -1498,17 +1519,17 @@ function EditModal({ booking, onClose, onSave }) {
       zone: form.orderType === "delivery" ? form.zone : null,
       paymentMethod: form.paymentMethod,
       totalAmount: total,
-      items: [
-        {
-          productId: selectedProductId,
+      items: items
+        .filter((item) => item.productId)
+        .map((item) => ({
+          productId: Number(item.productId),
           quantity: 1,
           upgradeAmount: 0,
           dishes: {
-            required: requiredDishes.filter(Boolean).map(Number),
-            extra: extraDishes.filter(Boolean).map(Number),
+            required: item.requiredDishes.filter(Boolean).map(Number),
+            extra: item.extraDishes.filter(Boolean).map(Number),
           },
-        },
-      ],
+        })),
     });
   };
 
@@ -1544,7 +1565,8 @@ function EditModal({ booking, onClose, onSave }) {
         subtitle={`#${booking.id}`}
         onClose={onClose}
       />
-      <div className="p-6 space-y-6 max-h-[70vh] overflow-y-auto">
+      <div className="p-6 space-y-6 max-h-[75vh] overflow-y-auto">
+        {/* ── DELIVERY DETAILS ── */}
         <Section title="Delivery Details" icon="🚚">
           <div className="pt-2 space-y-3">
             <div className="grid grid-cols-2 gap-2">
@@ -1587,6 +1609,7 @@ function EditModal({ booking, onClose, onSave }) {
                 </select>
               </div>
             </div>
+
             {form.orderType === "delivery" && (
               <div>
                 <label className="block text-xs font-black text-gray-500 uppercase tracking-widest mb-1.5">
@@ -1600,11 +1623,7 @@ function EditModal({ booking, onClose, onSave }) {
                   placeholder="Enter address"
                 />
                 <div
-                  className={`mt-1.5 px-3 py-2 rounded-lg text-xs font-bold ${
-                    form.zone
-                      ? "bg-emerald-50 text-emerald-700"
-                      : "bg-gray-100 text-gray-400"
-                  }`}
+                  className={`mt-1.5 px-3 py-2 rounded-lg text-xs font-bold ${form.zone ? "bg-emerald-50 text-emerald-700" : "bg-gray-100 text-gray-400"}`}
                 >
                   {form.zone
                     ? `📍 ${form.zone}`
@@ -1612,6 +1631,7 @@ function EditModal({ booking, onClose, onSave }) {
                 </div>
               </div>
             )}
+
             <div>
               <label className="block text-xs font-black text-gray-500 uppercase tracking-widest mb-1.5">
                 Payment Method
@@ -1638,146 +1658,203 @@ function EditModal({ booking, onClose, onSave }) {
           </div>
         </Section>
 
-        <Section title="Package" icon="🍖">
-          <div className="pt-2">
-            <label className="block text-xs font-black text-gray-500 uppercase tracking-widest mb-1.5">
-              Select Package
-            </label>
-            <select
-              value={selectedProductId || ""}
-              onChange={(e) => handleProductChange(e.target.value)}
-              className="w-full p-3 border border-gray-200 rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-red-500"
-            >
-              <option value="">No package</option>
-              {productsByType.map((pt) => (
-                <optgroup
-                  key={pt.id}
-                  label={pt.typeName?.replace("_", " ").toUpperCase()}
+        {/* ── ORDER ITEMS ── */}
+        {items.map((item, idx) => (
+          <div
+            key={idx}
+            className="border-2 border-gray-100 rounded-2xl p-4 space-y-4"
+          >
+            {/* Item header */}
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-black text-gray-500 uppercase tracking-widest">
+                🍖 Item {items.length > 1 ? idx + 1 : ""}
+              </p>
+              {items.length > 1 && (
+                <button
+                  onClick={() => removeItem(idx)}
+                  className="text-xs font-black text-red-400 hover:text-red-600 px-2 py-1 rounded-lg hover:bg-red-50 transition-all"
                 >
-                  {pt.products.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.productName} — ₱{Number(p.amount).toLocaleString()}
-                    </option>
+                  ✕ Remove
+                </button>
+              )}
+            </div>
+
+            {/* Product selector */}
+            <div>
+              <label className="block text-xs font-black text-gray-500 uppercase tracking-widest mb-1.5">
+                Package
+              </label>
+              <select
+                value={item.productId}
+                onChange={(e) => handleProductChange(idx, e.target.value)}
+                className="w-full p-3 border border-gray-200 rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-red-500"
+              >
+                <option value="">Select package</option>
+                {productsByType.map((pt) => (
+                  <optgroup
+                    key={pt.id}
+                    label={pt.typeName?.replace(/_/g, " ").toUpperCase()}
+                  >
+                    {pt.products.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.productName} — ₱{Number(p.amount).toLocaleString()}
+                      </option>
+                    ))}
+                  </optgroup>
+                ))}
+              </select>
+
+              {/* Freebies */}
+              {item.selectedProduct?.freebies?.length > 0 && (
+                <div className="mt-2 bg-emerald-50 rounded-xl px-4 py-3">
+                  <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-1">
+                    Freebies
+                  </p>
+                  <p className="text-xs font-bold text-emerald-800">
+                    {item.selectedProduct.freebies
+                      .map((f) => f.freebieName ?? f)
+                      .join(" · ")}
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Required dishes */}
+            {item.requiredDishes.length > 0 && (
+              <div>
+                <p className="text-xs font-black text-gray-500 uppercase tracking-widest mb-2">
+                  Included Dishes ({item.requiredDishes.length} slots)
+                </p>
+                <div className="space-y-2">
+                  {item.requiredDishes.map((dishId, di) => (
+                    <div key={di}>
+                      <label className="block text-[10px] font-black text-gray-400 uppercase mb-1">
+                        Dish {di + 1}
+                      </label>
+                      <select
+                        value={dishId}
+                        onChange={(e) => {
+                          const updated = [...item.requiredDishes];
+                          updated[di] = e.target.value;
+                          updateItem(idx, { requiredDishes: updated });
+                        }}
+                        className="w-full p-2.5 border border-gray-200 rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-red-400"
+                      >
+                        <option value="">Select dish</option>
+                        {allDishes.map((d) => (
+                          <option key={d.id} value={d.id}>
+                            {d.dishName}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
                   ))}
-                </optgroup>
-              ))}
-            </select>
-            {selectedProduct?.freebies?.length > 0 && (
-              <div className="mt-3 bg-emerald-50 rounded-xl px-4 py-3">
-                <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-1.5">
-                  Freebies
+                </div>
+              </div>
+            )}
+
+            {/* Extra dishes */}
+            {item.selectedProduct && (
+              <div>
+                <p className="text-xs font-black text-gray-500 uppercase tracking-widest mb-2">
+                  Extra Dishes
                 </p>
-                <p className="text-xs font-bold text-emerald-800">
-                  {selectedProduct.freebies.join(" · ")}
-                </p>
+                <div className="space-y-2">
+                  {item.extraDishes.map((dishId, di) => (
+                    <div key={di} className="flex gap-2 items-center">
+                      <select
+                        value={dishId}
+                        onChange={(e) => {
+                          const updated = [...item.extraDishes];
+                          updated[di] = e.target.value;
+                          updateItem(idx, { extraDishes: updated });
+                        }}
+                        className="flex-1 p-2.5 border border-gray-200 rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-red-400"
+                      >
+                        <option value="">Select dish</option>
+                        {allDishes.map((d) => (
+                          <option key={d.id} value={d.id}>
+                            {d.dishName}
+                          </option>
+                        ))}
+                      </select>
+                      <button
+                        onClick={() =>
+                          updateItem(idx, {
+                            extraDishes: item.extraDishes.filter(
+                              (_, i) => i !== di,
+                            ),
+                          })
+                        }
+                        className="p-2 rounded-lg bg-red-50 text-red-500 hover:bg-red-100 transition-colors"
+                      >
+                        <svg
+                          className="w-4 h-4"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth="2"
+                            d="M6 18L18 6M6 6l12 12"
+                          />
+                        </svg>
+                      </button>
+                    </div>
+                  ))}
+                  <button
+                    onClick={() =>
+                      updateItem(idx, {
+                        extraDishes: [...item.extraDishes, ""],
+                      })
+                    }
+                    className="w-full py-2.5 rounded-xl border-2 border-dashed border-gray-200 text-xs font-black text-gray-400 hover:border-red-300 hover:text-red-500 transition-all"
+                  >
+                    + Add Extra Dish (₱700 each)
+                  </button>
+                </div>
               </div>
             )}
           </div>
-        </Section>
+        ))}
 
-        {requiredDishes.length > 0 && (
-          <Section
-            title={`Included Dishes (${requiredDishes.length} slots)`}
-            icon="🥘"
-          >
-            <div className="pt-2 space-y-2">
-              {requiredDishes.map((dishId, i) => (
-                <div key={i}>
-                  <label className="block text-[10px] font-black text-gray-400 uppercase mb-1">
-                    Dish {i + 1}
-                  </label>
-                  <select
-                    value={dishId}
-                    onChange={(e) => {
-                      const updated = [...requiredDishes];
-                      updated[i] = e.target.value;
-                      setRequiredDishes(updated);
-                    }}
-                    className="w-full p-2.5 border border-gray-200 rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-red-400"
-                  >
-                    <option value="">Select dish</option>
-                    {allDishes.map((d) => (
-                      <option key={d.id} value={d.id}>
-                        {d.dishName}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              ))}
-            </div>
-          </Section>
-        )}
+        {/* ── ADD ITEM BUTTON ── */}
+        <button
+          onClick={addItem}
+          className="w-full py-3 rounded-xl border-2 border-dashed border-red-200 text-xs font-black text-red-400 hover:border-red-400 hover:text-red-600 hover:bg-red-50 transition-all"
+        >
+          + Add Another Product
+        </button>
 
-        {selectedProduct && (
-          <Section title="Extra Dishes" icon="➕">
-            <div className="pt-2 space-y-2">
-              {extraDishes.map((dishId, i) => (
-                <div key={i} className="flex gap-2 items-center">
-                  <select
-                    value={dishId}
-                    onChange={(e) => {
-                      const updated = [...extraDishes];
-                      updated[i] = e.target.value;
-                      setExtraDishes(updated);
-                    }}
-                    className="flex-1 p-2.5 border border-gray-200 rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-red-400"
-                  >
-                    <option value="">Select dish</option>
-                    {allDishes.map((d) => (
-                      <option key={d.id} value={d.id}>
-                        {d.dishName}
-                      </option>
-                    ))}
-                  </select>
-                  <button
-                    onClick={() =>
-                      setExtraDishes(extraDishes.filter((_, idx) => idx !== i))
-                    }
-                    className="p-2 rounded-lg bg-red-50 text-red-500 hover:bg-red-100 transition-colors"
-                  >
-                    <svg
-                      className="w-4 h-4"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth="2"
-                        d="M6 18L18 6M6 6l12 12"
-                      />
-                    </svg>
-                  </button>
-                </div>
-              ))}
-              <button
-                onClick={() => setExtraDishes([...extraDishes, ""])}
-                className="w-full py-2.5 rounded-xl border-2 border-dashed border-gray-200 text-xs font-black text-gray-400 hover:border-red-300 hover:text-red-500 transition-all"
-              >
-                + Add Extra Dish (₱700 each)
-              </button>
-            </div>
-          </Section>
-        )}
-
-        {/* Pricing Summary */}
+        {/* ── PRICING SUMMARY ── */}
         <div className="bg-gray-50 rounded-2xl p-4 space-y-2">
           <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">
             Pricing Summary
           </p>
-          {selectedProduct && (
-            <div className="flex justify-between text-sm">
-              <span className="font-bold text-gray-500">Package</span>
-              <span className="font-black text-gray-800">
-                {fmt(packageTotal)}
-              </span>
-            </div>
+          {items.map((item, idx) =>
+            item.selectedProduct ? (
+              <div key={idx} className="flex justify-between text-sm">
+                <span className="font-bold text-gray-500 truncate max-w-[60%]">
+                  {items.length > 1 ? `Item ${idx + 1}: ` : ""}
+                  {item.selectedProduct.productName}
+                </span>
+                <span className="font-black text-gray-800">
+                  {fmt(item.selectedProduct.amount)}
+                </span>
+              </div>
+            ) : null,
           )}
-          {extraDishes.filter(Boolean).length > 0 && (
+          {extraTotal > 0 && (
             <div className="flex justify-between text-sm">
               <span className="font-bold text-gray-500">
-                Extra Dishes ({extraDishes.filter(Boolean).length})
+                Extra Dishes (
+                {items.reduce(
+                  (s, i) => s + i.extraDishes.filter(Boolean).length,
+                  0,
+                )}
+                )
               </span>
               <span className="font-black text-gray-800">
                 {fmt(extraTotal)}

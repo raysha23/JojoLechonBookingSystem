@@ -45,13 +45,19 @@ export const createOrder = async (payload) => {
 // ── UPDATE ORDER ──────────────────────────────────────────────────
 export const updateOrder = async (id, updatedData) => {
   try {
+    // console.log(
+    //   "Sending update payload:",
+    //   JSON.stringify(updatedData, null, 2),
+    // ); // ADD THIS
     const res = await api.patch(`/order/${id}`, updatedData);
     return res.data;
   } catch (error) {
     console.error("Failed to update order:", error);
+    console.error("Response data:", error.response?.data); // ADD THIS
     return null;
   }
 };
+
 
 // ── SOFT DELETE ORDER ─────────────────────────────────────────────
 export const softDeleteOrder = async (id) => {
