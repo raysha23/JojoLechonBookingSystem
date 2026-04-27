@@ -30,7 +30,7 @@ namespace api.Mappers
                 DeliveryTime = order.DeliveryTime,
                 PaymentMethod = order.PaymentMethod,
                 TotalAmount = order.TotalAmount,
-
+                PromoAmount = order.Product?.PromoAmount,
                 ProductId = order.ProductId,
                 ProductName = order.Product?.ProductName,
                 ProductTypeName = order.Product?.ProductType.TypeName,

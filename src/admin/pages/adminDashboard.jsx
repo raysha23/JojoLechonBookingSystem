@@ -669,7 +669,8 @@ function BookingRow({
   onTogglePrinted,
 }) {
   const extraDishes = booking.dishes?.extra?.filter(Boolean) || [];
-  const discount = Math.abs(Number(booking.product?.promoAmount || 0));
+  const discount = Math.abs(Number(booking.promoAmount || 0));
+  console.log(discount);
   const processTime = getProcessTime(booking.deliveryTime);
 
   return (
@@ -916,7 +917,9 @@ function ActionBtn({ onClick, color, title, icon }) {
 function ViewModal({ booking, onClose }) {
   const extraDishes = booking.dishes?.extra?.filter(Boolean) || [];
   const extraTotal = extraDishes.length * EXTRA_DISH_PRICE;
-  const discount = Math.abs(Number(booking.product?.promoAmount || 0));
+  const discount = Math.abs(Number(booking.promoAmount || 0));
+
+
   const processTime = getProcessTime(booking.deliveryTime);
 
   return (

@@ -236,7 +236,8 @@ function buildLocationCell(booking) {
 // ── DATA ROW ──────────────────────────────────────────────────────
 function buildDataRow(booking) {
   const processTime = getProcessTime(booking.deliveryTime);
-  const discount = Math.abs(Number(booking.product?.promoAmount || 0));
+  const discount = Math.abs(Number(booking.promoAmount || 0));
+
 
   const totalParagraphs = [
     new Paragraph({
