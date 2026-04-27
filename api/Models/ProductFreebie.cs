@@ -8,10 +8,8 @@ namespace api.Models
         public int Id { get; set; }
         public string FreebieName { get; set; } = string.Empty;
 
-        // Foreign Key
         public int ProductId { get; set; }
 
-        // Navigation
         [JsonIgnore]
         public Product Product { get; set; } = null!;
     }

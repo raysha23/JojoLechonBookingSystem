@@ -5,48 +5,43 @@ namespace api.data
 {
     public class ApplicationDbContext : DbContext
     {
-        public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : base(options)
-        {
-        }
+        public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : base(options) { }
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
-            // ✅ Fix decimal precision for Order
-            modelBuilder.Entity<Order>()
-                .Property(o => o.TotalAmount)
-                .HasPrecision(18, 2);
+            modelBuilder.Entity<Order>().Property(o => o.TotalAmount).HasPrecision(18, 2);
+            modelBuilder.Entity<Product>().Property(p => p.Amount).HasPrecision(18, 2);
+            modelBuilder.Entity<Product>().Property(p => p.PromoAmount).HasPrecision(18, 2);
+            modelBuilder.Entity<Dish>().Property(d => d.Amount).HasPrecision(18, 2);
+            modelBuilder.Entity<OrderItem>().Property(i => i.UpgradeAmount).HasPrecision(18, 2);
 
-            // You should also fix others (based on your warnings)
-            modelBuilder.Entity<Product>()
-                .Property(p => p.Amount)
-                .HasPrecision(18, 2);
+            modelBuilder.Entity<Order>().HasIndex(o => o.DeliveryDate);
+            modelBuilder.Entity<Order>().HasIndex(o => o.Status);
+            modelBuilder.Entity<Product>().HasIndex(p => p.ProductTypeId);
+            modelBuilder.Entity<ProductType>().HasIndex(pt => pt.TypeName);
+            modelBuilder.Entity<Dish>().HasIndex(d => d.IsActive);
+            modelBuilder.Entity<User>().HasIndex(u => u.Username).IsUnique();
 
-            modelBuilder.Entity<Product>()
-                .Property(p => p.PromoAmount)
-                .HasPrecision(18, 2);
+            // OrderItem → Order
+            modelBuilder.Entity<OrderItem>()
+                .HasOne(oi => oi.Order)
+                .WithMany(o => o.OrderItems)
+                .HasForeignKey(oi => oi.OrderId)
+                .OnDelete(DeleteBehavior.Cascade);
 
-            modelBuilder.Entity<Dish>()
-                .Property(d => d.Amount)
-                .HasPrecision(18, 2);
+            // OrderItemDish → OrderItem
+            modelBuilder.Entity<OrderItemDish>()
+                .HasOne(oid => oid.OrderItem)
+                .WithMany(oi => oi.OrderItemDishes)
+                .HasForeignKey(oid => oid.OrderItemId)
+                .OnDelete(DeleteBehavior.Cascade);
 
-            // Database indexes for fast filtered queries
-            modelBuilder.Entity<Order>()
-                .HasIndex(o => o.DeliveryDate);
-
-            modelBuilder.Entity<Order>()
-                .HasIndex(o => o.Status);
-
-            modelBuilder.Entity<Product>()
-                .HasIndex(p => p.ProductTypeId);
-
-            modelBuilder.Entity<ProductType>()
-                .HasIndex(pt => pt.TypeName);
-
-            modelBuilder.Entity<Dish>()
-                .HasIndex(d => d.IsActive);
-
-            modelBuilder.Entity<User>()
-                .HasIndex(u => u.Username)
-                .IsUnique();
+            // OrderItemDish → Dish
+            modelBuilder.Entity<OrderItemDish>()
+                .HasOne(oid => oid.Dish)
+                .WithMany()
+                .HasForeignKey(oid => oid.DishId)
+                .OnDelete(DeleteBehavior.Restrict);
         }
 
         public DbSet<Role> Roles { get; set; }
@@ -59,7 +54,8 @@ namespace api.data
         public DbSet<Dish> Dishes { get; set; }
         public DbSet<ProductDefaultDish> ProductDefaultDishes { get; set; }
         public DbSet<Order> Orders { get; set; }
-        public DbSet<OrderDish> OrderDishes { get; set; }
+        public DbSet<OrderItem> OrderItems { get; set; }
+        public DbSet<OrderItemDish> OrderItemDishes { get; set; }
         public DbSet<DeliveryCharge> DeliveryCharges { get; set; }
     }
 }

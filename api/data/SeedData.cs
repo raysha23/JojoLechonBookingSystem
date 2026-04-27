@@ -56,7 +56,8 @@ namespace api.data
                     Description = "Lechon package",
                     HasIncludedDishes = true,
                     HasExtraDishes = true,
-                    HasFreebies = true
+                    HasFreebies = true,
+                    IsActive =true
                 },
                 new ProductType
                 {
@@ -64,7 +65,9 @@ namespace api.data
                     Description = "Belly package",
                     HasIncludedDishes = true,
                     HasExtraDishes = true,
-                    HasFreebies = true
+                    HasFreebies = true,
+                    IsActive =true
+
                 },
                 new ProductType
                 {
@@ -72,7 +75,9 @@ namespace api.data
                     Description = "Lechon only",
                     HasIncludedDishes = false,
                     HasExtraDishes = true,
-                    HasFreebies = true
+                    HasFreebies = true,
+                    IsActive =true
+
                 },
                 new ProductType
                 {
@@ -80,7 +85,9 @@ namespace api.data
                     Description = "Belly only",
                     HasIncludedDishes = false,
                     HasExtraDishes = false,
-                    HasFreebies = true
+                    HasFreebies = true,
+                    IsActive =true
+
                 },
                 new ProductType
                 {
@@ -88,7 +95,9 @@ namespace api.data
                     Description = "Dish only orders",
                     HasIncludedDishes = false,
                     HasExtraDishes = false,
-                    HasFreebies = false
+                    HasFreebies = false,
+                    IsActive =true
+
                 }
             };
         }
@@ -152,73 +161,73 @@ namespace api.data
             return new List<Product>
             {
                 // ── LECHON PACKAGE ────────────────────────────────────────
-                new Product { ProductName = "Fiesta 1 (16kg - 18kg)",          Amount = 14950, PromoAmount = -1000, NoOfIncludedDishes = 3, ProductTypeId = lechonPackage.Id },
-                new Product { ProductName = "Fiesta 2 (16kg - 18kg)",          Amount = 15600, PromoAmount = -1000, NoOfIncludedDishes = 4, ProductTypeId = lechonPackage.Id },
-                new Product { ProductName = "Fiesta 3 (16kg - 18kg)",          Amount = 16900, PromoAmount = -1000, NoOfIncludedDishes = 6, ProductTypeId = lechonPackage.Id },
-                new Product { ProductName = "Fiesta 4 (16kg - 18kg)",          Amount = 18200, PromoAmount = -1000, NoOfIncludedDishes = 8, ProductTypeId = lechonPackage.Id },
+                new Product { ProductName = "Fiesta 1 (16kg - 18kg)",          Amount = 14950, PromoAmount = -1000, NoOfIncludedDishes = 3, ProductTypeId = lechonPackage.Id, IsActive =true },
+                new Product { ProductName = "Fiesta 2 (16kg - 18kg)",          Amount = 15600, PromoAmount = -1000, NoOfIncludedDishes = 4, ProductTypeId = lechonPackage.Id, IsActive =true },
+                new Product { ProductName = "Fiesta 3 (16kg - 18kg)",          Amount = 16900, PromoAmount = -1000, NoOfIncludedDishes = 6, ProductTypeId = lechonPackage.Id, IsActive =true },
+                new Product { ProductName = "Fiesta 4 (16kg - 18kg)",          Amount = 18200, PromoAmount = -1000, NoOfIncludedDishes = 8, ProductTypeId = lechonPackage.Id, IsActive =true },
 
-                new Product { ProductName = "Jumbo Set A (22kg - 25kg)",       Amount = 16950, PromoAmount = -1000, NoOfIncludedDishes = 3, ProductTypeId = lechonPackage.Id },
-                new Product { ProductName = "Jumbo Set B (22kg - 25kg)",       Amount = 17600, PromoAmount = -1000, NoOfIncludedDishes = 4, ProductTypeId = lechonPackage.Id },
-                new Product { ProductName = "Jumbo Set C (22kg - 25kg)",       Amount = 18900, PromoAmount = -1000, NoOfIncludedDishes = 6, ProductTypeId = lechonPackage.Id },
-                new Product { ProductName = "Jumbo Set D (22kg - 25kg)",       Amount = 20200, PromoAmount = -1000, NoOfIncludedDishes = 8, ProductTypeId = lechonPackage.Id },
+                new Product { ProductName = "Jumbo Set A (22kg - 25kg)",       Amount = 16950, PromoAmount = -1000, NoOfIncludedDishes = 3, ProductTypeId = lechonPackage.Id, IsActive =true },
+                new Product { ProductName = "Jumbo Set B (22kg - 25kg)",       Amount = 17600, PromoAmount = -1000, NoOfIncludedDishes = 4, ProductTypeId = lechonPackage.Id, IsActive =true },
+                new Product { ProductName = "Jumbo Set C (22kg - 25kg)",       Amount = 18900, PromoAmount = -1000, NoOfIncludedDishes = 6, ProductTypeId = lechonPackage.Id, IsActive =true },
+                new Product { ProductName = "Jumbo Set D (22kg - 25kg)",       Amount = 20200, PromoAmount = -1000, NoOfIncludedDishes = 8, ProductTypeId = lechonPackage.Id, IsActive =true },
 
-                new Product { ProductName = "Medium 1 (8kg - 10kg)",           Amount = 10950, PromoAmount = -500,  NoOfIncludedDishes = 3, ProductTypeId = lechonPackage.Id },
-                new Product { ProductName = "Medium 2 (8kg - 10kg)",           Amount = 11600, PromoAmount = -500,  NoOfIncludedDishes = 4, ProductTypeId = lechonPackage.Id },
-                new Product { ProductName = "Medium 3 (8kg - 10kg)",           Amount = 12900, PromoAmount = -500,  NoOfIncludedDishes = 6, ProductTypeId = lechonPackage.Id },
-                new Product { ProductName = "Medium 4 (8kg - 10kg)",           Amount = 14200, PromoAmount = -500,  NoOfIncludedDishes = 8, ProductTypeId = lechonPackage.Id },
+                new Product { ProductName = "Medium 1 (8kg - 10kg)",           Amount = 10950, PromoAmount = -500,  NoOfIncludedDishes = 3, ProductTypeId = lechonPackage.Id, IsActive =true },
+                new Product { ProductName = "Medium 2 (8kg - 10kg)",           Amount = 11600, PromoAmount = -500,  NoOfIncludedDishes = 4, ProductTypeId = lechonPackage.Id, IsActive =true },
+                new Product { ProductName = "Medium 3 (8kg - 10kg)",           Amount = 12900, PromoAmount = -500,  NoOfIncludedDishes = 6, ProductTypeId = lechonPackage.Id, IsActive =true },
+                new Product { ProductName = "Medium 4 (8kg - 10kg)",           Amount = 14200, PromoAmount = -500,  NoOfIncludedDishes = 8, ProductTypeId = lechonPackage.Id, IsActive =true },
 
-                new Product { ProductName = "Regular 1 (11kg - 13kg)",         Amount = 11950, PromoAmount = -500,  NoOfIncludedDishes = 3, ProductTypeId = lechonPackage.Id },
-                new Product { ProductName = "Regular 2 (11kg - 13kg)",         Amount = 12600, PromoAmount = -500,  NoOfIncludedDishes = 4, ProductTypeId = lechonPackage.Id },
-                new Product { ProductName = "Regular 3 (11kg - 13kg)",         Amount = 13900, PromoAmount = -500,  NoOfIncludedDishes = 6, ProductTypeId = lechonPackage.Id },
-                new Product { ProductName = "Regular 4 (11kg - 13kg)",         Amount = 15200, PromoAmount = -500,  NoOfIncludedDishes = 8, ProductTypeId = lechonPackage.Id },
+                new Product { ProductName = "Regular 1 (11kg - 13kg)",         Amount = 11950, PromoAmount = -500,  NoOfIncludedDishes = 3, ProductTypeId = lechonPackage.Id, IsActive =true },
+                new Product { ProductName = "Regular 2 (11kg - 13kg)",         Amount = 12600, PromoAmount = -500,  NoOfIncludedDishes = 4, ProductTypeId = lechonPackage.Id, IsActive =true },
+                new Product { ProductName = "Regular 3 (11kg - 13kg)",         Amount = 13900, PromoAmount = -500,  NoOfIncludedDishes = 6, ProductTypeId = lechonPackage.Id, IsActive =true },
+                new Product { ProductName = "Regular 4 (11kg - 13kg)",         Amount = 15200, PromoAmount = -500,  NoOfIncludedDishes = 8, ProductTypeId = lechonPackage.Id, IsActive =true },
 
-                new Product { ProductName = "Small 1 (7kg - 8kg)",             Amount = 9450,  PromoAmount = -500,  NoOfIncludedDishes = 3, ProductTypeId = lechonPackage.Id },
-                new Product { ProductName = "Small 2 (7kg - 8kg)",             Amount = 10100, PromoAmount = -500,  NoOfIncludedDishes = 4, ProductTypeId = lechonPackage.Id },
-                new Product { ProductName = "Small 3 (7kg - 8kg)",             Amount = 11400, PromoAmount = -500,  NoOfIncludedDishes = 6, ProductTypeId = lechonPackage.Id },
-                new Product { ProductName = "Small 4 (7kg - 8kg)",             Amount = 12700, PromoAmount = -500,  NoOfIncludedDishes = 8, ProductTypeId = lechonPackage.Id },
+                new Product { ProductName = "Small 1 (7kg - 8kg)",             Amount = 9450,  PromoAmount = -500,  NoOfIncludedDishes = 3, ProductTypeId = lechonPackage.Id, IsActive =true },
+                new Product { ProductName = "Small 2 (7kg - 8kg)",             Amount = 10100, PromoAmount = -500,  NoOfIncludedDishes = 4, ProductTypeId = lechonPackage.Id, IsActive =true },
+                new Product { ProductName = "Small 3 (7kg - 8kg)",             Amount = 11400, PromoAmount = -500,  NoOfIncludedDishes = 6, ProductTypeId = lechonPackage.Id, IsActive =true },
+                new Product { ProductName = "Small 4 (7kg - 8kg)",             Amount = 12700, PromoAmount = -500,  NoOfIncludedDishes = 8, ProductTypeId = lechonPackage.Id, IsActive =true },
 
-                new Product { ProductName = "Buy Jumbo Get Lechon Belly",      Amount = 16000, PromoAmount = -500,  NoOfIncludedDishes = 0, ProductTypeId = lechonPackage.Id },
-                new Product { ProductName = "Twin Package 1 (8kg - 10kg) 2pcs",Amount = 18800, PromoAmount = -500, NoOfIncludedDishes = 8, ProductTypeId = lechonPackage.Id },
-                new Product { ProductName = "Twin Package 2 (11kg - 13kg) 2pcs",Amount = 22800,PromoAmount = -500, NoOfIncludedDishes = 8, ProductTypeId = lechonPackage.Id },
+                new Product { ProductName = "Buy Jumbo Get Lechon Belly",      Amount = 16000, PromoAmount = -500,  NoOfIncludedDishes = 0, ProductTypeId = lechonPackage.Id, IsActive =true },
+                new Product { ProductName = "Twin Package 1 (8kg - 10kg) 2pcs",Amount = 18800, PromoAmount = -500, NoOfIncludedDishes = 8, ProductTypeId = lechonPackage.Id, IsActive =true },
+                new Product { ProductName = "Twin Package 2 (11kg - 13kg) 2pcs",Amount = 22800,PromoAmount = -500, NoOfIncludedDishes = 8, ProductTypeId = lechonPackage.Id, IsActive =true },
 
                 // ── BELLY PACKAGE ─────────────────────────────────────────
-                new Product { ProductName = "Belly - 1 (4kg)",                 Amount = 4790,  PromoAmount = -500,  NoOfIncludedDishes = 3, ProductTypeId = bellyPackage.Id },
-                new Product { ProductName = "Belly - 2 (4kg)",                 Amount = 5400,  PromoAmount = -500,  NoOfIncludedDishes = 4, ProductTypeId = bellyPackage.Id },
-                new Product { ProductName = "Belly - 4 (4kg)",                 Amount = 6590,  PromoAmount = -500,  NoOfIncludedDishes = 6, ProductTypeId = bellyPackage.Id },
-                new Product { ProductName = "Big Belly A (6kg - 7kg)",         Amount = 6300,  PromoAmount = -500,  NoOfIncludedDishes = 4, ProductTypeId = bellyPackage.Id },
-                new Product { ProductName = "Big Belly B (6kg - 7kg)",         Amount = 6900,  PromoAmount = -500,  NoOfIncludedDishes = 5, ProductTypeId = bellyPackage.Id },
-                new Product { ProductName = "Big Belly C (6kg - 7kg)",         Amount = 7490,  PromoAmount = -500,  NoOfIncludedDishes = 6, ProductTypeId = bellyPackage.Id },
+                new Product { ProductName = "Belly - 1 (4kg)",                 Amount = 4790,  PromoAmount = -500,  NoOfIncludedDishes = 3, ProductTypeId = bellyPackage.Id, IsActive =true },
+                new Product { ProductName = "Belly - 2 (4kg)",                 Amount = 5400,  PromoAmount = -500,  NoOfIncludedDishes = 4, ProductTypeId = bellyPackage.Id, IsActive =true },
+                new Product { ProductName = "Belly - 4 (4kg)",                 Amount = 6590,  PromoAmount = -500,  NoOfIncludedDishes = 6, ProductTypeId = bellyPackage.Id, IsActive =true },
+                new Product { ProductName = "Big Belly A (6kg - 7kg)",         Amount = 6300,  PromoAmount = -500,  NoOfIncludedDishes = 4, ProductTypeId = bellyPackage.Id, IsActive =true },
+                new Product { ProductName = "Big Belly B (6kg - 7kg)",         Amount = 6900,  PromoAmount = -500,  NoOfIncludedDishes = 5, ProductTypeId = bellyPackage.Id, IsActive =true },
+                new Product { ProductName = "Big Belly C (6kg - 7kg)",         Amount = 7490,  PromoAmount = -500,  NoOfIncludedDishes = 6, ProductTypeId = bellyPackage.Id, IsActive =true },
 
                 // ── LECHON ONLY ───────────────────────────────────────────
-                new Product { ProductName = "Cochinillo",                       Amount = 7000,  PromoAmount = 0,     ProductTypeId = lechonOnly.Id },
-                new Product { ProductName = "Solo Lechon 7000",                 Amount = 7000,  PromoAmount = -500,  ProductTypeId = lechonOnly.Id },
-                new Product { ProductName = "Solo Lechon 7500",                 Amount = 7500,  PromoAmount = -500,  ProductTypeId = lechonOnly.Id },
-                new Product { ProductName = "Solo Lechon 8000",                 Amount = 8000,  PromoAmount = -500,  ProductTypeId = lechonOnly.Id },
-                new Product { ProductName = "Solo Lechon 9000",                 Amount = 9000,  PromoAmount = -500,  ProductTypeId = lechonOnly.Id },
-                new Product { ProductName = "Solo Lechon 9500",                 Amount = 9500,  PromoAmount = -500,  ProductTypeId = lechonOnly.Id },
-                new Product { ProductName = "Solo Lechon 10000",                Amount = 10000, PromoAmount = -500,  ProductTypeId = lechonOnly.Id },
-                new Product { ProductName = "Solo Lechon 11000",                Amount = 11000, PromoAmount = -500,  ProductTypeId = lechonOnly.Id },
-                new Product { ProductName = "Solo Lechon 12000",                Amount = 12000, PromoAmount = -500,  ProductTypeId = lechonOnly.Id },
-                new Product { ProductName = "Solo Lechon 14000",                Amount = 14000, PromoAmount = -500,  ProductTypeId = lechonOnly.Id },
-                new Product { ProductName = "Solo Lechon 15000",                Amount = 15000, PromoAmount = -500,  ProductTypeId = lechonOnly.Id },
-                new Product { ProductName = "Solo Lechon 16000",                Amount = 16000, PromoAmount = -500,  ProductTypeId = lechonOnly.Id },
-                new Product { ProductName = "Solo Lechon 20000",                Amount = 20000, PromoAmount = -500,  ProductTypeId = lechonOnly.Id },
-                new Product { ProductName = "Solo Lechon 25000",                Amount = 25000, PromoAmount = -500,  ProductTypeId = lechonOnly.Id },
+                new Product { ProductName = "Cochinillo",                       Amount = 7000,  PromoAmount = 0,     ProductTypeId = lechonOnly.Id, IsActive =true },
+                new Product { ProductName = "Solo Lechon 7000",                 Amount = 7000,  PromoAmount = -500,  ProductTypeId = lechonOnly.Id, IsActive =true },
+                new Product { ProductName = "Solo Lechon 7500",                 Amount = 7500,  PromoAmount = -500,  ProductTypeId = lechonOnly.Id, IsActive =true },
+                new Product { ProductName = "Solo Lechon 8000",                 Amount = 8000,  PromoAmount = -500,  ProductTypeId = lechonOnly.Id, IsActive =true },
+                new Product { ProductName = "Solo Lechon 9000",                 Amount = 9000,  PromoAmount = -500,  ProductTypeId = lechonOnly.Id, IsActive =true },
+                new Product { ProductName = "Solo Lechon 9500",                 Amount = 9500,  PromoAmount = -500,  ProductTypeId = lechonOnly.Id, IsActive =true },
+                new Product { ProductName = "Solo Lechon 10000",                Amount = 10000, PromoAmount = -500,  ProductTypeId = lechonOnly.Id, IsActive =true },
+                new Product { ProductName = "Solo Lechon 11000",                Amount = 11000, PromoAmount = -500,  ProductTypeId = lechonOnly.Id, IsActive =true },
+                new Product { ProductName = "Solo Lechon 12000",                Amount = 12000, PromoAmount = -500,  ProductTypeId = lechonOnly.Id, IsActive =true },
+                new Product { ProductName = "Solo Lechon 14000",                Amount = 14000, PromoAmount = -500,  ProductTypeId = lechonOnly.Id, IsActive =true },
+                new Product { ProductName = "Solo Lechon 15000",                Amount = 15000, PromoAmount = -500,  ProductTypeId = lechonOnly.Id, IsActive =true },
+                new Product { ProductName = "Solo Lechon 16000",                Amount = 16000, PromoAmount = -500,  ProductTypeId = lechonOnly.Id, IsActive =true },
+                new Product { ProductName = "Solo Lechon 20000",                Amount = 20000, PromoAmount = -500,  ProductTypeId = lechonOnly.Id, IsActive =true },
+                new Product { ProductName = "Solo Lechon 25000",                Amount = 25000, PromoAmount = -500,  ProductTypeId = lechonOnly.Id, IsActive =true },
 
                 // ── BELLY ONLY ────────────────────────────────────────────
-                new Product { ProductName = "Belly 3000",                       Amount = 3000,  PromoAmount = -500,  ProductTypeId = bellyOnly.Id },
-                new Product { ProductName = "Belly 3400",                       Amount = 3400,  PromoAmount = -500,  ProductTypeId = bellyOnly.Id },
-                new Product { ProductName = "Belly 3700",                       Amount = 3700,  PromoAmount = -500,  ProductTypeId = bellyOnly.Id },
-                new Product { ProductName = "Belly 4000",                       Amount = 4000,  PromoAmount = -500,  ProductTypeId = bellyOnly.Id },
-                new Product { ProductName = "Belly 4300",                       Amount = 4300,  PromoAmount = -500,  ProductTypeId = bellyOnly.Id },
-                new Product { ProductName = "Belly 4700",                       Amount = 4700,  PromoAmount = -500,  ProductTypeId = bellyOnly.Id },
-                new Product { ProductName = "Belly 5000",                       Amount = 5000,  PromoAmount = -500,  ProductTypeId = bellyOnly.Id },
-                new Product { ProductName = "Belly 5300",                       Amount = 5300,  PromoAmount = -500,  ProductTypeId = bellyOnly.Id },
-                new Product { ProductName = "Belly 5500",                       Amount = 5500,  PromoAmount = -500,  ProductTypeId = bellyOnly.Id },
+                new Product { ProductName = "Belly 3000",                       Amount = 3000,  PromoAmount = -500,  ProductTypeId = bellyOnly.Id, IsActive =true },
+                new Product { ProductName = "Belly 3400",                       Amount = 3400,  PromoAmount = -500,  ProductTypeId = bellyOnly.Id, IsActive =true },
+                new Product { ProductName = "Belly 3700",                       Amount = 3700,  PromoAmount = -500,  ProductTypeId = bellyOnly.Id, IsActive =true },
+                new Product { ProductName = "Belly 4000",                       Amount = 4000,  PromoAmount = -500,  ProductTypeId = bellyOnly.Id, IsActive =true },
+                new Product { ProductName = "Belly 4300",                       Amount = 4300,  PromoAmount = -500,  ProductTypeId = bellyOnly.Id, IsActive =true },
+                new Product { ProductName = "Belly 4700",                       Amount = 4700,  PromoAmount = -500,  ProductTypeId = bellyOnly.Id, IsActive =true },
+                new Product { ProductName = "Belly 5000",                       Amount = 5000,  PromoAmount = -500,  ProductTypeId = bellyOnly.Id, IsActive =true },
+                new Product { ProductName = "Belly 5300",                       Amount = 5300,  PromoAmount = -500,  ProductTypeId = bellyOnly.Id, IsActive =true },
+                new Product { ProductName = "Belly 5500",                       Amount = 5500,  PromoAmount = -500,  ProductTypeId = bellyOnly.Id, IsActive =true },
 
                 // ── DISH ONLY ─────────────────────────────────────────────
-                new Product { ProductName = "Dish Order (Small Tray)",          Amount = 700,   ProductTypeId = dishOnly.Id },
-                new Product { ProductName = "Dish Order (Large Tray)",          Amount = 1200,  ProductTypeId = dishOnly.Id },
+                new Product { ProductName = "Dish Order (Small Tray)",          Amount = 700,   ProductTypeId = dishOnly.Id, IsActive =true },
+                new Product { ProductName = "Dish Order (Large Tray)",          Amount = 1200,  ProductTypeId = dishOnly.Id, IsActive =true },
             };
         }
 

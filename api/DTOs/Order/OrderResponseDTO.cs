@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using api.DTOs.Product;
+using static api.DTOs.Order.OrderItemDTO;
 
 namespace api.DTOs.Order
 {
@@ -23,27 +24,13 @@ namespace api.DTOs.Order
         public string? OrderType { get; set; }
         public string? Address { get; set; }
         public string? Zone { get; set; }
-
         public DateTime DeliveryDate { get; set; }
         public string? DeliveryTime { get; set; }
-
         public string? PaymentMethod { get; set; }
         public decimal TotalAmount { get; set; }
-        public decimal? PromoAmount { get; set; }
 
-        public int? ProductId { get; set; }
-        public string? ProductName { get; set; }
-        public string? ProductTypeName { get; set; }
+        public List<OrderItemResponseDTO> Items { get; set; } = new();
 
-        // ✅ Changed to store dish NAMES instead of IDs
-        public class DishesResponse
-        {
-            public List<string> Required { get; set; } = new();
-            public List<string> Extra { get; set; } = new();
-        }
-
-        public DishesResponse Dishes { get; set; } = new();
-        public FreebiesDTO Freebies { get; set; } = new();
 
     }
 }

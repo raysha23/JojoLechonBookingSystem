@@ -9,6 +9,7 @@ function getDeliveryFee(zone, deliveryCharges = []) {
     ? Number(charge.baseFee || 0) + Number(charge.surcharge || 0)
     : 0;
 }
+
 export default function Step3({ orderState }) {
   const {
     orderType,
@@ -16,32 +17,44 @@ export default function Step3({ orderState }) {
     address,
     deliveryDate,
     deliveryTime,
-    selectedProduct,
-    extraDishes,
+    items, // ✅ FIXED: Use items array
     paymentMethod,
     customerName,
     contacts,
     facebookProfile,
     dishes,
     deliveryCharges,
-    upgradeAmount,
   } = orderState;
 
+  // ✅ FIXED: Calculate totals for ALL items
   const deliveryFee =
     orderType === "delivery" ? getDeliveryFee(zone, deliveryCharges) : 0;
-  const filledExtraDishes = (extraDishes || []).filter((d) => d !== "");
+
+  const allExtraDishes = items.flatMap((item) => item.extraDishes || []);
+  const filledExtraDishes = allExtraDishes.filter((d) => d !== "");
   const dishesTotal = filledExtraDishes.length * EXTRA_DISH_PRICE;
-  const packageTotal = selectedProduct ? selectedProduct.amount : 0;
-  const discount = selectedProduct?.promoAmount
-    ? Math.abs(Number(selectedProduct.promoAmount))
-    : 0;
-  const upgradeTotal = upgradeAmount || 0;
-  const total =
-    packageTotal + dishesTotal + deliveryFee + upgradeTotal - discount;
+
+  // Sum all packages + upgrades
+  const packageTotal = items.reduce((sum, item) => {
+    const pkg = item.selectedProduct?.amount || 0;
+    const upgrade = item.upgradeAmount || 0;
+    return sum + pkg + upgrade;
+  }, 0);
+
+  // Calculate total discount
+  const discount = items.reduce((sum, item) => {
+    return (
+      sum +
+      (item.selectedProduct?.promoAmount
+        ? Math.abs(Number(item.selectedProduct.promoAmount))
+        : 0)
+    );
+  }, 0);
+
+  const total = packageTotal + dishesTotal + deliveryFee - discount;
 
   const fmt = (n) =>
     "₱" + Number(n).toLocaleString("en-PH", { minimumFractionDigits: 2 });
-
   const getUpgradeKg = (amount) => {
     if (amount === 500) return "1kg";
     if (amount === 1000) return "2-3kg";
@@ -95,10 +108,9 @@ export default function Step3({ orderState }) {
             <>
               <DetailRow label="Address" value={address || "N/A"} />
               <DetailRow label="Zone" value={zone || "N/A"} />
-              {/* ← Remove the deliveryFee > 0 check, always show the row */}
               <DetailRow
                 label="Delivery Fee"
-                value={deliveryFee > 0 ? fmt(deliveryFee) : "To be confirmed"}
+                value={deliveryFee > 0 ? fmt(deliveryFee) : "FREE"}
               />
             </>
           )}
@@ -116,122 +128,150 @@ export default function Step3({ orderState }) {
         </div>
       </div>
 
-      {/* 2. ORDER DETAILS */}
+      {/* 3. ORDER ITEMS - ✅ FIXED MULTIPLE ITEMS */}
       <div className="bg-white rounded-[2rem] shadow-sm border border-gray-100 overflow-hidden">
         <div className="p-5 border-b border-gray-50 bg-gray-50/50">
           <h3 className="font-black text-gray-800 tracking-tight flex items-center gap-2">
             <span className="w-1.5 h-5 bg-red-600 rounded-full"></span>
-            Order Details
+            Order Summary ({items.length}{" "}
+            {items.length === 1 ? "item" : "items"})
           </h3>
         </div>
-
         <div className="p-6">
-          {/* SELECTED PACKAGE */}
-          {selectedProduct ? (
-            <div className="mb-8">
-              <p className="text-[10px] font-black text-red-600 uppercase tracking-[0.2em] mb-3">
-                Selected Package
-              </p>
-              <div className="flex justify-between items-center mb-3">
-                <span className="text-base font-black text-gray-900">
-                  {selectedProduct.productName}
-                </span>
-                <span className="text-base font-black text-gray-900">
-                  {fmt(selectedProduct.amount)}
-                </span>
-              </div>
-
-              {/* UPGRADE */}
-              {upgradeTotal > 0 && (
-                <div className="flex justify-between items-center mb-3">
-                  <span className="text-base font-black text-gray-900">
-                    Upgrade ({getUpgradeKg(upgradeAmount)})
-                  </span>
-                  <span className="text-base font-black text-gray-900">
-                    {fmt(upgradeTotal)}
-                  </span>
-                </div>
-              )}
-
-              {/* Included dishes from package */}
-              {selectedProduct.freebies &&
-                selectedProduct.freebies.length > 0 && (
-                  <div className="bg-gray-50/80 rounded-2xl p-4 border border-dashed border-gray-200">
-                    <p className="text-[9px] font-bold text-gray-400 uppercase mb-2">
-                      Included Sides:
-                    </p>
-                    <div className="grid grid-cols-1 gap-2">
-                      {selectedProduct.freebies.map((side, i) => (
-                        <div
-                          key={i}
-                          className="flex items-center gap-2 text-gray-600"
-                        >
-                          <div className="w-1 h-1 bg-gray-300 rounded-full"></div>
-                          <span className="text-xs font-bold">{side}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-            </div>
-          ) : (
-            <p className="text-sm text-gray-400 italic mb-8">
-              No package selected.
-            </p>
-          )}
+          {/* ALL ORDER ITEMS */}
+          {items.map((item, index) => (
+            <OrderItemSummary
+              key={item.id}
+              item={item}
+              index={index + 1}
+              dishes={dishes}
+              fmt={fmt}
+            />
+          ))}
 
           {/* EXTRA DISHES */}
           {filledExtraDishes.length > 0 && (
-            <div>
-              <div className="flex items-center justify-between mb-3">
+            <>
+              <div className="h-px bg-gray-200 my-6"></div>
+              <div className="flex items-center justify-between mb-4">
                 <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">
-                  Additional Dishes
+                  Additional Dishes ({filledExtraDishes.length})
                 </p>
                 <span className="text-[10px] font-bold bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">
-                  Extras
+                  ₱{EXTRA_DISH_PRICE} each
                 </span>
               </div>
-              <div className="space-y-3">
+              <div className="space-y-2 mb-6">
                 {filledExtraDishes.map((dishIndex, i) => {
                   const dish = dishes.find(
-                    (item) => String(item.id) === String(dishIndex),
+                    (d) => String(d.id) === String(dishIndex),
                   );
-                  return dish ? (
-                    <ItemRow
+                  return (
+                    <div
                       key={i}
-                      name={
-                        dish.dishName || dish.productName || "Selected Dish"
-                      }
-                      price={fmt(EXTRA_DISH_PRICE)}
-                    />
-                  ) : (
-                    <ItemRow
-                      key={i}
-                      name="Unknown dish"
-                      price={fmt(EXTRA_DISH_PRICE)}
-                    />
+                      className="flex items-center justify-between py-2 px-3 bg-gray-50 rounded-xl"
+                    >
+                      <span className="text-sm font-bold text-gray-700">
+                        {dish?.dishName || "Selected Dish"}
+                      </span>
+                      <span className="font-black text-gray-900">
+                        {fmt(EXTRA_DISH_PRICE)}
+                      </span>
+                    </div>
                   );
                 })}
               </div>
-            </div>
+            </>
           )}
 
-          {/* TOTAL */}
-          <div className="mt-6 pt-4 border-t-2 border-gray-100">
-            <ItemRow name="Total" price={fmt(total)} isBold />
+          {/* GRAND TOTAL */}
+          <div className="mt-8 pt-6 border-t-2 border-gray-100 space-y-3">
+            <div className="flex justify-between text-sm">
+              <span className="text-gray-500">Subtotal</span>
+              <span className="font-bold">{fmt(packageTotal)}</span>
+            </div>
+            {discount > 0 && (
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-500">Discount</span>
+                <span className="font-bold text-green-600">
+                  - {fmt(discount)}
+                </span>
+              </div>
+            )}
+            {dishesTotal > 0 && (
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-500">Extra Dishes</span>
+                <span className="font-bold">{fmt(dishesTotal)}</span>
+              </div>
+            )}
+            {deliveryFee > 0 && (
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-500">Delivery Fee</span>
+                <span className="font-bold">{fmt(deliveryFee)}</span>
+              </div>
+            )}
+            <div className="h-px bg-gray-200 my-2"></div>
+            <ItemRow name="TOTAL" price={fmt(total)} isBold />
           </div>
         </div>
       </div>
+    </div>
+  );
+}
 
-      {/* 3. FREEBIES */}
-      {selectedProduct?.freebies && selectedProduct.freebies.length > 0 && (
-        <div className="bg-emerald-50/40 rounded-[2rem] border border-emerald-100 p-6 relative overflow-hidden">
-          <h3 className="font-black text-emerald-800 mb-4 tracking-tight">
-            Included Freebies
-          </h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {selectedProduct.freebies.map((text, i) => (
-              <FreebieCard key={i} text={text} />
+// ✅ NEW: Order Item Summary Component
+function OrderItemSummary({ item, index, dishes, fmt }) {
+  if (!item.selectedProduct) return null;
+
+  const requiredDishes = (item.requiredDishes || []).filter((d) => d !== "");
+  const dishNames = requiredDishes.map((dishId) => {
+    const dish = dishes.find((d) => String(d.id) === String(dishId));
+    return dish?.dishName || "Dish";
+  });
+
+  return (
+    <div className="mb-6 pb-6 border-b border-gray-100 last:border-b-0 last:mb-0 last:pb-0">
+      {/* Item Header */}
+      <div className="flex items-start justify-between mb-3">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 bg-red-600 rounded-lg flex items-center justify-center text-white font-black shrink-0">
+            {index}
+          </div>
+          <div>
+            <p className="font-black text-lg text-gray-900 leading-tight">
+              {item.selectedProduct.productName}
+            </p>
+            {item.upgradeAmount > 0 && (
+              <p className="text-sm text-red-600 font-bold">
+                + Upgrade ({getUpgradeKg(item.upgradeAmount)})
+              </p>
+            )}
+          </div>
+        </div>
+        <div className="text-right">
+          <p className="font-black text-lg">
+            {fmt(item.selectedProduct.amount)}
+          </p>
+          {item.upgradeAmount > 0 && (
+            <p className="text-sm text-gray-500">+ {fmt(item.upgradeAmount)}</p>
+          )}
+        </div>
+      </div>
+
+      {/* Included Dishes */}
+      {requiredDishes.length > 0 && (
+        <div className="bg-gray-50 rounded-xl p-4 mb-4">
+          <p className="text-xs font-bold text-gray-500 uppercase mb-2 tracking-wide">
+            Included Dishes:
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {dishNames.map((name, i) => (
+              <span
+                key={i}
+                className="px-2.5 py-1 bg-white text-xs font-bold text-gray-700 rounded-full shadow-sm"
+              >
+                {name}
+              </span>
             ))}
           </div>
         </div>
@@ -240,8 +280,7 @@ export default function Step3({ orderState }) {
   );
 }
 
-/* ================= SUB COMPONENTS ================= */
-
+// Keep your existing sub-components (DetailRow, ItemRow, FreebieCard)
 function DetailRow({ label, value, isHighlight = false }) {
   return (
     <div className="flex justify-between items-center py-3 border-b border-gray-50 last:border-0 group">
@@ -262,42 +301,17 @@ function DetailRow({ label, value, isHighlight = false }) {
 function ItemRow({ name, price, isBold = false }) {
   return (
     <div
-      className={`flex justify-between items-center ${isBold ? "pb-3 border-b-2 border-gray-100" : ""}`}
+      className={`flex justify-between items-center py-2 ${isBold ? "pt-3 pb-4" : ""}`}
     >
       <span
-        className={`text-sm font-bold ${isBold ? "text-gray-900" : "text-gray-500"}`}
+        className={`text-sm font-bold ${isBold ? "text-xl text-gray-900" : "text-gray-500"}`}
       >
         {name}
       </span>
       <span
-        className={`font-black ${isBold ? "text-gray-900 text-lg" : "text-sm text-gray-800"}`}
+        className={`font-black ${isBold ? "text-2xl text-gray-900" : "text-sm text-gray-800"}`}
       >
         {price}
-      </span>
-    </div>
-  );
-}
-
-function FreebieCard({ text }) {
-  return (
-    <div className="flex items-center gap-3 bg-white/80 border border-emerald-100 p-3.5 rounded-2xl shadow-sm transition-transform hover:scale-[1.02]">
-      <div className="bg-emerald-500 rounded-full p-1 flex-shrink-0">
-        <svg
-          className="w-3 h-3 text-white"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth="4"
-            d="M5 13l4 4L19 7"
-          />
-        </svg>
-      </div>
-      <span className="text-[11px] font-black text-emerald-800 uppercase tracking-tight leading-tight">
-        {text}
       </span>
     </div>
   );

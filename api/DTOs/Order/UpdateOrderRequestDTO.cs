@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using api.DTOs.Product;
+using static api.DTOs.Order.OrderItemDTO;
 
 namespace api.DTOs.Order
 {
@@ -14,10 +15,6 @@ namespace api.DTOs.Order
         public string? PaymentMethod { get; set; }
         public decimal TotalAmount { get; set; }
         public bool? IsPrinted { get; set; }
-
-        // ← NEW
-        public int? ProductId { get; set; }
-        public DishesDTO? Dishes { get; set; }
-
+        public List<OrderItemRequestDTO>? Items { get; set; }
     }
 }

@@ -142,65 +142,92 @@ function buildHeaderRow() {
 function buildOrderDetailsCell(booking) {
   const paragraphs = [];
 
-  // Product name — bold, slightly larger
-  paragraphs.push(
-    new Paragraph({
-      children: [
-        run(booking.productName || "—", { bold: true, size: SZ.bold }),
-      ],
-      spacing: { after: 30 },
-    }),
-  );
-
-  // Included dishes — label + all dishes on ONE line
-  const required = booking.dishes?.required?.filter(Boolean) || [];
-  if (required.length > 0) {
+  (booking.items || []).forEach((item, index) => {
+    // Item header
     paragraphs.push(
       new Paragraph({
         children: [
-          run(`DISHES (${required.length}): `, {
-            size: SZ.label,
-            color: "888888",
-            bold: true,
-          }),
-          run(required.join(" · "), { size: SZ.label, color: "333333" }),
+          run(
+            booking.items.length > 1
+              ? `[${index + 1}] ${item.productName}`
+              : item.productName,
+            { bold: true, size: SZ.bold },
+          ),
+          ...(item.upgradeAmount > 0
+            ? [
+                run(` +₱${item.upgradeAmount} upgrade`, {
+                  size: SZ.label,
+                  color: "DC2626",
+                }),
+              ]
+            : []),
         ],
-        spacing: { after: 20 },
+        spacing: { after: 30 },
       }),
     );
-  }
 
-  // Extra dishes — label + all on ONE line
-  const extra = booking.dishes?.extra?.filter(Boolean) || [];
-  if (extra.length > 0) {
-    paragraphs.push(
-      new Paragraph({
-        children: [
-          run(`EXTRA (${extra.length}×₱700): `, {
-            size: SZ.label,
-            color: "DC2626",
-            bold: true,
-          }),
-          run(extra.join(" · "), { size: SZ.label, color: "333333" }),
-        ],
-        spacing: { after: 20 },
-      }),
-    );
-  }
+    // Required dishes
+    const required = item.requiredDishes?.filter(Boolean) || [];
+    if (required.length > 0) {
+      paragraphs.push(
+        new Paragraph({
+          children: [
+            run(`DISHES (${required.length}): `, {
+              size: SZ.label,
+              color: "888888",
+              bold: true,
+            }),
+            run(required.join(" · "), { size: SZ.label, color: "333333" }),
+          ],
+          spacing: { after: 20 },
+        }),
+      );
+    }
 
-  // Freebies — label + all on ONE line
-  const freebies = booking.freebies?.freebies?.filter(Boolean) || [];
-  if (freebies.length > 0) {
-    paragraphs.push(
-      new Paragraph({
-        children: [
-          run("FREEBIES: ", { size: SZ.label, color: "16A34A", bold: true }),
-          run(freebies.join(" · "), { size: SZ.label, color: "333333" }),
-        ],
-        spacing: { after: 0 },
-      }),
-    );
-  }
+    // Extra dishes
+    const extra = item.extraDishes?.filter(Boolean) || [];
+    if (extra.length > 0) {
+      paragraphs.push(
+        new Paragraph({
+          children: [
+            run(`EXTRA (${extra.length}×₱700): `, {
+              size: SZ.label,
+              color: "DC2626",
+              bold: true,
+            }),
+            run(extra.join(" · "), { size: SZ.label, color: "333333" }),
+          ],
+          spacing: { after: 20 },
+        }),
+      );
+    }
+
+    // Freebies
+    const freebies = item.freebies?.filter(Boolean) || [];
+    if (freebies.length > 0) {
+      paragraphs.push(
+        new Paragraph({
+          children: [
+            run("FREEBIES: ", { size: SZ.label, color: "16A34A", bold: true }),
+            run(freebies.join(" · "), { size: SZ.label, color: "333333" }),
+          ],
+          spacing: { after: index < booking.items.length - 1 ? 60 : 0 },
+        }),
+      );
+    }
+
+    // Divider between items
+    if (index < booking.items.length - 1) {
+      paragraphs.push(
+        new Paragraph({
+          children: [
+            run("────────────────", { size: SZ.label, color: "DDDDDD" }),
+          ],
+          spacing: { after: 30 },
+        }),
+      );
+    }
+  });
 
   return makeCell(paragraphs, 3);
 }
@@ -237,7 +264,6 @@ function buildLocationCell(booking) {
 function buildDataRow(booking) {
   const processTime = getProcessTime(booking.deliveryTime);
   const discount = Math.abs(Number(booking.promoAmount || 0));
-
 
   const totalParagraphs = [
     new Paragraph({

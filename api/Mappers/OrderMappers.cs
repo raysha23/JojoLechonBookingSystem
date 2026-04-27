@@ -1,12 +1,11 @@
 using api.DTOs.Order;
-using api.DTOs.Product;
 using api.Models;
+using static api.DTOs.Order.OrderItemDTO;
 
 namespace api.Mappers
 {
     public static class OrderMappers
     {
-        // Order → OrderDTO (for GET responses)
         public static OrderResponseDTO ToOrderDTO(this Order order)
         {
             return new OrderResponseDTO
@@ -17,11 +16,8 @@ namespace api.Mappers
                 DeletedAt = order.DeletedAt,
                 IsPrinted = order.IsPrinted,
                 PrintedAt = order.PrintedAt,
-
                 CustomerName = order.Customer.Name,
-                Contacts = order.Customer.Contacts
-                    .Select(c => c.ContactNumber).ToList(),
-
+                Contacts = order.Customer.Contacts.Select(c => c.ContactNumber).ToList(),
                 FacebookProfile = order.Customer.FacebookProfile,
                 OrderType = order.OrderType,
                 Address = order.Address,
@@ -30,31 +26,27 @@ namespace api.Mappers
                 DeliveryTime = order.DeliveryTime,
                 PaymentMethod = order.PaymentMethod,
                 TotalAmount = order.TotalAmount,
-                PromoAmount = order.Product?.PromoAmount,
-                ProductId = order.ProductId,
-                ProductName = order.Product?.ProductName,
-                ProductTypeName = order.Product?.ProductType.TypeName,
-                // ✅ THIS FIXES YOUR UI - Return dish NAMES not IDs
-                Dishes = new OrderResponseDTO.DishesResponse
+                Items = order.OrderItems.Select(item => new OrderItemResponseDTO
                 {
-                    Required = order.OrderDishes?
-                    .Where(od => od.DishType == "included")
-                    .Select(od => od.Dish.DishName)
-                    .ToList() ?? new List<string>(),
-
-                    Extra = order.OrderDishes?
-                    .Where(od => od.DishType == "extra")
-                    .Select(od => od.Dish.DishName)
-                    .ToList() ?? new List<string>()
-                },
-                Freebies = new FreebiesDTO
-                {
-                    Freebies = order.Product?.Freebies.Select(f => f.FreebieName).ToList()
-                }
+                    Id = item.Id,
+                    ProductId = item.ProductId,
+                    ProductName = item.Product.ProductName,
+                    ProductTypeName = item.Product.ProductType.TypeName,
+                    ProductAmount = item.Product.Amount,
+                    PromoAmount = item.Product.PromoAmount,
+                    UpgradeAmount = item.UpgradeAmount,
+                    // ✅ FIXED: IsExtra == false means Required, IsExtra == true means Extra
+                    RequiredDishes = item.OrderItemDishes
+                        .Where(d => d.IsExtra == false)
+                        .Select(d => d.Dish.DishName).ToList(),
+                    ExtraDishes = item.OrderItemDishes
+                        .Where(d => d.IsExtra == true)
+                        .Select(d => d.Dish.DishName).ToList(),
+                    Freebies = item.Product.Freebies.Select(f => f.FreebieName).ToList()
+                }).ToList()
             };
         }
 
-        // CreateOrderDTO → Order (for POST saving)
         public static Order ToOrderFromCreateDTO(this CreateOrderRequestDTO dto, int customerId)
         {
             return new Order
@@ -67,15 +59,12 @@ namespace api.Mappers
                 DeliveryTime = dto.DeliveryTime,
                 PaymentMethod = dto.PaymentMethod,
                 TotalAmount = dto.TotalAmount,
-                SubmittedByType = dto.SubmittedByUserId.HasValue ? "encoder" : "customer",
+                // ✅ FIXED: Removed SubmittedByType (doesn't exist on Order model)
                 SubmittedByUserId = dto.SubmittedByUserId,
                 Status = "active",
                 IsPrinted = false,
                 CreatedAt = DateTime.UtcNow,
                 CustomerId = customerId,
-                ProductId = dto.ProductId.HasValue && dto.ProductId.Value > 0
-                                        ? dto.ProductId
-                                        : null
             };
         }
     }

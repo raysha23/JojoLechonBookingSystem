@@ -27,23 +27,40 @@ namespace api.Repository
         {
             var query = _context.Products
                 .AsNoTracking()
-                .Include(p => p.ProductType)
-                .Include(p => p.Freebies)
-                .Include(p => p.DefaultDishes)
-                    .ThenInclude(pd => pd.Dish)
-                .Where(p => p.IsActive)
-                .AsQueryable();
+                .Where(p => p.IsActive);
 
             if (productTypeId.HasValue)
                 query = query.Where(p => p.ProductTypeId == productTypeId.Value);
-            else if (!string.IsNullOrWhiteSpace(productTypeName))
-            {
-                var normalized = productTypeName.Trim().ToLower();
-                query = query.Where(p => p.ProductType.TypeName.ToLower() == normalized);
-            }
 
-            return await query.OrderBy(p => p.ProductName).ToListAsync();
+            return await query
+                .OrderBy(p => p.ProductName)
+                .Select(p => new Product
+                {
+                    Id = p.Id,
+                    ProductName = p.ProductName,
+                    Amount = p.Amount,
+                    PromoAmount = p.PromoAmount,
+                    ProductTypeId = p.ProductTypeId,
+                    NoOfIncludedDishes = p.NoOfIncludedDishes,
+                    IsActive = p.IsActive,
+                    // ✅ ADD THESE:
+                    DefaultDishes = p.DefaultDishes.Select(pd => new ProductDefaultDish
+                    {
+                        Id = pd.Id,
+                        ProductId = pd.ProductId,
+                        DishId = pd.DishId,
+                        Dish = new Dish { Id = pd.Dish.Id, DishName = pd.Dish.DishName }
+                    }).ToList(),
+                    Freebies = p.Freebies.Select(f => new ProductFreebie
+                    {
+                        Id = f.Id,
+                        ProductId = f.ProductId,
+                        FreebieName = f.FreebieName
+                    }).ToList()
+                })
+                .ToListAsync();
         }
+
 
         public async Task<Product?> GetByIdAsync(int productId)
         {

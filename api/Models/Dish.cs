@@ -8,13 +8,10 @@ namespace api.Models
     {
         public int Id { get; set; }
         public string DishName { get; set; } = string.Empty;
-        public decimal Amount { get; set; } = 700;
+        public decimal Amount { get; set; }
         public bool IsActive { get; set; } = true;
 
-        // Navigation
-        [JsonIgnore]
         public ICollection<ProductDefaultDish> ProductDefaultDishes { get; set; } = new List<ProductDefaultDish>();
-        [JsonIgnore]
-        public ICollection<OrderDish> OrderDishes { get; set; } = new List<OrderDish>();
+        public ICollection<OrderItemDish> OrderItemDishes { get; set; } = new List<OrderItemDish>();
     }
 }

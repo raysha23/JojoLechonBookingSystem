@@ -1,15 +1,13 @@
-// File Path: JojoLechonBookingSystem/src/pages/step1.jsx
+// File Path: JojoLechonBookingSystem/src/pages/Step1.jsx
 import { useEffect, useState } from "react";
 import DatePicker from "../components/datetimepicker/DatePicker";
-// ── ZONE KEYWORDS MAPPING ────────────────────────
+import { getProductsByType } from "../api/productApi";
+
+// ── ZONE KEYWORDS MAPPING ────────────────────────────────────────
 const zoneKeywords = [
-  // =========================
   // TALISAY CITY
-  // =========================
   {
     zoneName: "Talisay-Proper",
-    city: "Talisay City",
-    areaType: "proper",
     keywords: [
       "talisay",
       "biasong",
@@ -35,8 +33,6 @@ const zoneKeywords = [
   },
   {
     zoneName: "Talisay-Mountain",
-    city: "Talisay City",
-    areaType: "mountain",
     keywords: [
       "camp 4",
       "camp iv",
@@ -48,13 +44,9 @@ const zoneKeywords = [
       "bukid",
     ],
   },
-  // =========================
   // MINGLANILLA
-  // =========================
   {
     zoneName: "Minglanilla-Proper",
-    city: "Minglanilla",
-    areaType: "proper",
     keywords: [
       "minglanilla",
       "tampo",
@@ -74,8 +66,6 @@ const zoneKeywords = [
   },
   {
     zoneName: "Minglanilla-Mountain",
-    city: "Minglanilla",
-    areaType: "mountain",
     keywords: [
       "guindaruhan",
       "manduang",
@@ -91,14 +81,9 @@ const zoneKeywords = [
       "highland",
     ],
   },
-
-  // =========================
   // NAGA CITY
-  // =========================
   {
     zoneName: "Naga-Proper",
-    city: "Naga City",
-    areaType: "proper",
     keywords: [
       "naga",
       "naga city",
@@ -124,8 +109,6 @@ const zoneKeywords = [
   },
   {
     zoneName: "Naga-Mountain",
-    city: "Naga City",
-    areaType: "mountain",
     keywords: [
       "alpaco",
       "bairan",
@@ -144,18 +127,12 @@ const zoneKeywords = [
       "highland",
     ],
   },
-  // =========================
   // CEBU CITY
-  // =========================
   {
     zoneName: "Cebu-Proper",
-    city: "Cebu City",
-    areaType: "proper",
     keywords: [
       "cebu city",
       "cebu",
-
-      // SOUTH / POBLACION
       "pardo",
       "basak pardo",
       "mambaling",
@@ -165,8 +142,6 @@ const zoneKeywords = [
       "labangon",
       "punta princesa",
       "guadalupe",
-
-      // CENTRAL
       "sambag",
       "sambag 1",
       "sambag 2",
@@ -178,8 +153,6 @@ const zoneKeywords = [
       "colon",
       "sto nino",
       "kalubihan",
-
-      // NORTH / BUSINESS AREAS
       "lahug",
       "mabolo",
       "kasambagan",
@@ -193,8 +166,6 @@ const zoneKeywords = [
       "pit-os",
       "banilad road",
       "as fortuna",
-
-      // PORT / INDUSTRIAL
       "suba",
       "ermita",
       "tejero",
@@ -206,8 +177,6 @@ const zoneKeywords = [
   },
   {
     zoneName: "Cebu-Mountain",
-    city: "Cebu City",
-    areaType: "mountain",
     keywords: [
       "busay",
       "sirao",
@@ -222,8 +191,6 @@ const zoneKeywords = [
       "tabunan",
       "babag",
       "malubog",
-
-      // common user terms
       "transcentral",
       "mountain view",
       "tops",
@@ -232,18 +199,12 @@ const zoneKeywords = [
       "highland",
     ],
   },
-  // =========================
   // MANDAUE CITY
-  // =========================
   {
     zoneName: "Mandaue-Proper",
-    city: "Mandaue City",
-    areaType: "proper",
     keywords: [
       "mandaue",
       "mandaue city",
-
-      // MAJOR AREAS
       "bakilid",
       "banilad",
       "basak",
@@ -268,8 +229,6 @@ const zoneKeywords = [
       "tawason",
       "tipolo",
       "umapad",
-
-      // COMMON LANDMARKS / USER INPUTS
       "parkmall",
       "sm mandaue",
       "jcentre",
@@ -280,27 +239,13 @@ const zoneKeywords = [
   },
   {
     zoneName: "Mandaue-Mountain",
-    city: "Mandaue City",
-    areaType: "mountain",
-    keywords: [
-      // Mandaue is mostly flat, but include fallback terms
-      "mandaue mountain",
-      "upland",
-      "bukid",
-      "highland",
-    ],
+    keywords: ["mandaue mountain", "upland", "bukid", "highland"],
   },
-  // =========================
   // LILOAN
-  // =========================
   {
     zoneName: "Liloan-Proper",
-    city: "Liloan",
-    areaType: "proper",
     keywords: [
       "liloan",
-
-      // CORE / COMMON AREAS
       "poblacion",
       "cotcot",
       "jublag",
@@ -309,8 +254,6 @@ const zoneKeywords = [
       "yati",
       "looc",
       "catarman",
-
-      // HIGHWAY / LANDMARKS
       "gaisano liloan",
       "liloan port",
       "parola",
@@ -320,8 +263,6 @@ const zoneKeywords = [
   },
   {
     zoneName: "Liloan-Mountain",
-    city: "Liloan",
-    areaType: "mountain",
     keywords: [
       "cansaga",
       "pitogo",
@@ -332,18 +273,13 @@ const zoneKeywords = [
       "bukid",
       "highland",
     ],
-  }, // =========================
+  },
   // DANAO CITY
-  // =========================
   {
     zoneName: "Danao-Proper",
-    city: "Danao City",
-    areaType: "proper",
     keywords: [
       "danao",
       "danao city",
-
-      // CENTRAL / URBAN BARANGAYS
       "poblacion",
       "looc",
       "guinsay",
@@ -358,8 +294,6 @@ const zoneKeywords = [
       "masaba",
       "san vicente",
       "san fernando",
-
-      // COMMON LANDMARK INPUTS
       "danao port",
       "robinsons danao",
       "sm city danao",
@@ -368,32 +302,23 @@ const zoneKeywords = [
   },
   {
     zoneName: "Danao-Mountain",
-    city: "Danao City",
-    areaType: "mountain",
     keywords: [
       "lamac",
       "magtagobtob",
       "panalipan",
       "sacsac",
       "cabungahan",
-      "carmen (upland context)",
       "danao mountain",
       "bukid",
       "upland",
       "highland",
     ],
   },
-  // =========================
   // COMPOSTELA
-  // =========================
   {
     zoneName: "Compostela-Proper",
-    city: "Compostela",
-    areaType: "proper",
     keywords: [
       "compostela",
-
-      // CORE BARANGAYS
       "poblacion",
       "bagalnga",
       "nangka",
@@ -404,8 +329,6 @@ const zoneKeywords = [
       "malogo",
       "manlayag",
       "lupa",
-
-      // COMMON USAGE / LANDMARKS
       "compostela cebu",
       "compostela town",
       "gaisano compostela",
@@ -414,8 +337,6 @@ const zoneKeywords = [
   },
   {
     zoneName: "Compostela-Mountain",
-    city: "Compostela",
-    areaType: "mountain",
     keywords: [
       "canduman upland",
       "mountain compostela",
@@ -427,13 +348,9 @@ const zoneKeywords = [
       "panangatan",
     ],
   },
-  // =========================
   // MOALBOAL
-  // =========================
   {
     zoneName: "Moalboal-Proper",
-    city: "Moalboal",
-    areaType: "proper",
     keywords: [
       "moalboal",
       "moalboal cebu",
@@ -457,8 +374,6 @@ const zoneKeywords = [
   },
   {
     zoneName: "Moalboal-Mountain",
-    city: "Moalboal",
-    areaType: "mountain",
     keywords: [
       "upland moalboal",
       "moalboal mountain",
@@ -467,13 +382,9 @@ const zoneKeywords = [
       "hill area",
     ],
   },
-  // =========================
   // SIBONGA
-  // =========================
   {
     zoneName: "Sibonga-Proper",
-    city: "Sibonga",
-    areaType: "proper",
     keywords: [
       "sibonga",
       "sibonga cebu",
@@ -498,8 +409,6 @@ const zoneKeywords = [
   },
   {
     zoneName: "Sibonga-Mountain",
-    city: "Sibonga",
-    areaType: "mountain",
     keywords: [
       "simala upland",
       "sibonga mountain",
@@ -509,13 +418,9 @@ const zoneKeywords = [
       "hill area",
     ],
   },
-  // =========================
   // SAN FERNANDO
-  // =========================
   {
     zoneName: "SanFernando-Proper",
-    city: "San Fernando",
-    areaType: "proper",
     keywords: [
       "san fernando",
       "san fernando cebu",
@@ -542,8 +447,6 @@ const zoneKeywords = [
   },
   {
     zoneName: "SanFernando-Mountain",
-    city: "San Fernando",
-    areaType: "mountain",
     keywords: [
       "san fernando mountain",
       "bukid",
@@ -552,13 +455,9 @@ const zoneKeywords = [
       "hill area",
     ],
   },
-  // =========================
   // ARGAO
-  // =========================
   {
     zoneName: "Argao-Proper",
-    city: "Argao",
-    areaType: "proper",
     keywords: [
       "argao",
       "argao cebu",
@@ -587,8 +486,6 @@ const zoneKeywords = [
   },
   {
     zoneName: "Argao-Mountain",
-    city: "Argao",
-    areaType: "mountain",
     keywords: [
       "argao mountain",
       "bukid",
@@ -600,6 +497,66 @@ const zoneKeywords = [
   },
 ];
 
+// ── HELPERS ──────────────────────────────────────────────────────
+const err = (invalid) =>
+  invalid ? "border-red-500 ring-1 ring-red-400" : "border-gray-200";
+
+const getAvailableTimes = (deliveryDate) => {
+  const allTimes = [
+    "12:00 AM",
+    "1:00 AM",
+    "2:00 AM",
+    "3:00 AM",
+    "4:00 AM",
+    "5:00 AM",
+    "6:00 AM",
+    "7:00 AM",
+    "8:00 AM",
+    "9:00 AM",
+    "10:00 AM",
+    "11:00 AM",
+    "12:00 PM",
+    "1:00 PM",
+    "2:00 PM",
+    "3:00 PM",
+    "4:00 PM",
+    "5:00 PM",
+    "6:00 PM",
+    "7:00 PM",
+    "8:00 PM",
+    "9:00 PM",
+    "10:00 PM",
+    "11:00 PM",
+  ];
+  if (!deliveryDate) return allTimes;
+  const today = new Date().toISOString().split("T")[0];
+  if (deliveryDate !== today) return allTimes;
+  const now = new Date();
+  const cutoffHour = now.getHours() + 5;
+  const currentMinutes = now.getMinutes();
+  return allTimes.filter((timeStr) => {
+    const [time, period] = timeStr.split(" ");
+    let [hours, minutes] = time.split(":").map(Number);
+    if (period === "PM" && hours !== 12) hours += 12;
+    if (period === "AM" && hours === 12) hours = 0;
+    if (hours > cutoffHour) return true;
+    if (hours === cutoffHour && minutes >= currentMinutes) return true;
+    return false;
+  });
+};
+
+const detectZone = (address) => {
+  if (!address) return "";
+  const lower = address.toLowerCase().replace(/\s+/g, "");
+  for (const z of zoneKeywords) {
+    if (z.keywords.some((k) => lower.includes(k.replace(/\s+/g, "")))) {
+      return z.zoneName;
+    }
+  }
+  return "";
+};
+
+// ── MAIN COMPONENT ────────────────────────────────────────────────
 export default function Step1({ orderState }) {
   const {
     orderType,
@@ -612,141 +569,36 @@ export default function Step1({ orderState }) {
     setDeliveryDate,
     deliveryTime,
     setDeliveryTime,
-    productType,
-    setProductType,
-    selectedProductIndex,
-    setSelectedProductIndex,
-    setSelectedProduct,
-    requiredDishes,
-    setRequiredDishes,
-    extraDishes,
-    setExtraDishes,
-    upgradeAmount,
-    setUpgradeAmount,
+    items,
+    setItems,
+    makeEmptyItem,
     productTypes,
     products,
     dishes,
-    deliveryCharges,
     isLoading,
     attempted,
   } = orderState;
-  const err = (invalid) =>
-    invalid ? "border-red-500 ring-1 ring-red-400" : "border-gray-200";
-  // Modal is UI-only, stays local
-  const [showModal, setShowModal] = useState(false);
-  const [selectedProductTypeId, setSelectedProductTypeId] = useState("");
-  const [showUpgrade, setShowUpgrade] = useState(false);
 
-  // ── Keep productType name in sync ────────────
-  useEffect(() => {
-    if (!productType) {
-      setSelectedProductTypeId("");
-      return;
-    }
-    const selectedType = productTypes.find((t) => t.typeName === productType);
-    setSelectedProductTypeId(selectedType ? String(selectedType.id) : "");
-  }, [productType, productTypes]);
+  const availableTimes = getAvailableTimes(deliveryDate);
 
+  // Auto-detect zone from address
   useEffect(() => {
     if (!address || orderType !== "delivery") return;
-    const lowerAddress = address.toLowerCase().replace(/\s+/g, ""); // Remove all spaces
-    for (const zone of zoneKeywords) {
-      if (
-        zone.keywords.some((keyword) =>
-          lowerAddress.includes(keyword.replace(/\s+/g, "")),
-        )
-      ) {
-        setZone(zone.zoneName);
-        return;
-      }
-    }
-    // Optional: Set a default or log if no match
-    setZone(""); // Or handle no match case
+    setZone(detectZone(address));
   }, [address, orderType]);
 
-  // ── Sync selectedProduct to parent state ─────
-  const selectedProduct =
-    selectedProductIndex !== ""
-      ? (products.find((p) => String(p.id) === String(selectedProductIndex)) ??
-        null)
-      : null;
+  const updateItem = (id, patch) =>
+    setItems((prev) =>
+      prev.map((it) => (it.id === id ? { ...it, ...patch } : it)),
+    );
 
-  useEffect(() => {
-    setSelectedProduct(selectedProduct);
-  }, [selectedProduct, setSelectedProduct]);
-
-  // ── GET AVAILABLE TIMES (with 5-hour processing buffer) ──
-  const getAvailableTimes = () => {
-    const allTimes = [
-      "12:00 AM",
-      "1:00 AM",
-      "2:00 AM",
-      "3:00 AM",
-      "4:00 AM",
-      "5:00 AM",
-      "6:00 AM",
-      "7:00 AM",
-      "8:00 AM",
-      "9:00 AM",
-      "10:00 AM",
-      "11:00 AM",
-      "12:00 PM",
-      "1:00 PM",
-      "2:00 PM",
-      "3:00 PM",
-      "4:00 PM",
-      "5:00 PM",
-      "6:00 PM",
-      "7:00 PM",
-      "8:00 PM",
-      "9:00 PM",
-      "10:00 PM",
-      "11:00 PM",
-    ];
-
-    if (!deliveryDate) return allTimes;
-
-    const today = new Date().toISOString().split("T")[0];
-    const isToday = deliveryDate === today;
-    if (!isToday) return allTimes;
-
-    const now = new Date();
-    const currentHour = now.getHours();
-    const currentMinutes = now.getMinutes();
-    const cutoffHour = currentHour + 5;
-
-    return allTimes.filter((timeStr) => {
-      const [time, period] = timeStr.split(" ");
-      let [hours, minutes] = time.split(":").map(Number);
-      if (period === "PM" && hours !== 12) hours += 12;
-      if (period === "AM" && hours === 12) hours = 0;
-      if (hours > cutoffHour) return true;
-      if (hours === cutoffHour && minutes >= currentMinutes) return true;
-      return false;
-    });
-  };
-
-  const availableTimes = getAvailableTimes();
-
-  // ── Logic Flags ──────────────────────────────
-  const showProductDropdown = productType !== "" && productType !== "dish_only";
-  const showDishes =
-    productType === "dish_only" ||
-    ((productType === "lechon_package" || productType === "belly_package") &&
-      selectedProductIndex !== "");
-
-  const showFreebies =
-    (productType === "lechon_package" ||
-      productType === "belly_package" ||
-      productType === "lechon_only" ||
-      productType === "belly_only") &&
-    selectedProductIndex !== "";
+  const removeItem = (id) =>
+    setItems((prev) => prev.filter((it) => it.id !== id));
 
   return (
     <div className="grid gap-6">
-      {/* ORDER CONFIG */}
+      {/* ── ORDER CONFIG CARD ── */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-        {/* HEADER */}
         <div className="flex items-center space-x-3 mb-6">
           <div className="w-10 h-10 bg-red-600 rounded-lg flex items-center justify-center">
             <svg
@@ -768,7 +620,6 @@ export default function Step1({ orderState }) {
           </h2>
         </div>
 
-        {/* LOADING STATE */}
         {isLoading ? (
           <div className="flex items-center justify-center py-12 text-gray-400">
             <svg
@@ -800,7 +651,7 @@ export default function Step1({ orderState }) {
                 Order Type
               </label>
               <select
-                className="w-full p-3 border rounded-xl"
+                className="w-full p-3 border border-gray-200 rounded-xl"
                 value={orderType}
                 onChange={(e) => setOrderType(e.target.value)}
               >
@@ -815,43 +666,31 @@ export default function Step1({ orderState }) {
                 <label className="block text-sm font-bold text-gray-700">
                   Delivery Details
                 </label>
-
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-[1fr_180px] gap-3">
-                  {/* ADDRESS FIELD */}
+                  {/* ADDRESS */}
                   <div className="flex flex-col">
                     <input
                       type="text"
                       placeholder="Enter address"
                       value={address}
                       onChange={(e) => setAddress(e.target.value)}
-                      className={`w-full p-3 border rounded-xl ${
-                        attempted && address.trim() === ""
-                          ? "border-red-500"
-                          : "border-gray-300"
-                      }`}
+                      className={`w-full p-3 border rounded-xl ${attempted && address.trim() === "" ? "border-red-500" : "border-gray-300"}`}
                     />
-
                     {attempted && address.trim() === "" && (
                       <p className="text-xs text-red-500 font-medium mt-1">
                         ⚠ Address is required.
                       </p>
                     )}
                   </div>
-
-                  {/* ZONE FIELD */}
+                  {/* ZONE */}
                   <div className="flex flex-col">
                     <div
-                      className={`w-full p-3 border rounded-xl bg-gray-100 ${
-                        attempted && zone.trim() === ""
-                          ? "border-red-500"
-                          : "border-gray-300"
-                      }`}
+                      className={`w-full p-3 border rounded-xl bg-gray-100 ${attempted && zone.trim() === "" ? "border-red-500" : "border-gray-300"}`}
                     >
                       {zone || (
                         <span className="text-gray-400">Zone not detected</span>
                       )}
                     </div>
-
                     {attempted &&
                       zone.trim() === "" &&
                       address.trim() !== "" && (
@@ -869,11 +708,14 @@ export default function Step1({ orderState }) {
               <label className="block text-sm font-bold text-gray-700 mb-2">
                 Delivery Date
               </label>
-              <DatePicker value={deliveryDate} onChange={setDeliveryDate} attempted={attempted} />
-
+              <DatePicker
+                value={deliveryDate}
+                onChange={setDeliveryDate}
+                attempted={attempted}
+              />
             </div>
 
-            {/* TIME — shown only after date is selected */}
+            {/* TIME */}
             {deliveryDate && (
               <div>
                 <label className="block text-sm font-bold text-gray-700 mb-2">
@@ -905,380 +747,383 @@ export default function Step1({ orderState }) {
                 )}
               </div>
             )}
-
-            {/* PRODUCT TYPE */}
-            <div>
-              <label className="block text-sm font-bold text-gray-700 mb-2">
-                Product Type
-              </label>
-              <select
-                className={`w-full p-3 border rounded-xl ${err(attempted && !productType)}`}
-                value={selectedProductTypeId}
-                onChange={(e) => {
-                  const selectedId = e.target.value;
-                  setSelectedProductTypeId(selectedId);
-                  const selectedType = productTypes.find(
-                    (type) => String(type.id) === String(selectedId),
-                  );
-                  setProductType(selectedType?.typeName ?? "");
-                  setSelectedProductIndex("");
-                  setSelectedProduct(null);
-                  setRequiredDishes([]);
-                  setExtraDishes([]);
-                  setUpgradeAmount(0); // reset upgrade when changing type
-                  setShowUpgrade(false);
-                }}
-              >
-                <option value="">— Select a product type —</option>
-                {productTypes.map((type) => (
-                  <option key={type.id} value={type.id}>
-                    {type.typeName
-                      .split("_")
-                      .map(
-                        (part) => part.charAt(0).toUpperCase() + part.slice(1),
-                      )
-                      .join(" ")}
-                  </option>
-                ))}
-              </select>
-              {attempted && !productType && (
-                <p className="text-xs text-red-500 font-medium mt-1">
-                  ⚠ Please select a product type.
-                </p>
-              )}
-            </div>
-
-            {/* PRODUCT SELECT */}
-            {showProductDropdown && (
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <label className="block text-sm font-bold text-gray-700">
-                    Select Product
-                  </label>
-                  {selectedProductIndex !== "" && (
-                    <button
-                      onClick={() => setShowUpgrade(!showUpgrade)}
-                      className="text-xs font-bold text-red-600 hover:text-red-700 underline"
-                    >
-                      Upgrade
-                    </button>
-                  )}
-                </div>
-                <select
-                  className={`w-full p-3 border rounded-xl ${err(attempted && selectedProductIndex === "")}`}
-                  value={selectedProductIndex}
-                  onChange={(e) => {
-                    const selectedId = e.target.value;
-                    setSelectedProductIndex(selectedId);
-
-                    if (selectedId !== "") {
-                      const product = products.find(
-                        (p) => String(p.id) === String(selectedId),
-                      );
-                      setSelectedProduct(product);
-
-                      const defaultDishIds = (product?.defaultDishes ?? []).map(
-                        (d) => d.dishId,
-                      );
-                      const filledRequired = Array.from(
-                        { length: product?.NoOfDishes || 0 },
-                        (_, index) => defaultDishIds[index] ?? "",
-                      );
-                      setRequiredDishes(filledRequired);
-                    } else {
-                      setSelectedProduct(null);
-                      setRequiredDishes([]);
-                    }
-                    setUpgradeAmount(0); // reset upgrade when changing product
-                    setShowUpgrade(false);
-                  }}
-                >
-                  <option value="">— Select a product —</option>
-                  {products
-                    .filter(
-                      (p) =>
-                        String(p.productTypeId) ===
-                        String(selectedProductTypeId),
-                    )
-                    .map((item) => (
-                      <option key={item.id} value={item.id}>
-                        {item.productName} — ₱{item.amount}
-                      </option>
-                    ))}
-                </select>
-                {attempted && selectedProductIndex === "" && (
-                  <p className="text-xs text-red-500 font-medium mt-1">
-                    ⚠ Please select a product.
-                  </p>
-                )}
-                {showUpgrade && (
-                  <div className="mt-2">
-                    <label className="block text-xs font-bold text-gray-600 mb-1">
-                      Upgrade Weight (₱)
-                    </label>
-                    <select
-                      className="w-full p-2 border rounded-lg text-sm"
-                      value={upgradeAmount}
-                      onChange={(e) => setUpgradeAmount(Number(e.target.value))}
-                    >
-                      <option value={0}>No Upgrade</option>
-                      <option value={500}>500 (1kg)</option>
-                      <option value={1000}>1000 (2-3kg)</option>
-                      <option value={2000}>2000 (5-6kg)</option>
-                    </select>
-                  </div>
-                )}
-              </div>
-            )}
           </div>
         )}
       </div>
 
-      {/* DISH SECTION */}
-      {showDishes && (
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 flex flex-col min-h-[250px]">
-          <div className="flex flex-wrap items-start justify-between gap-3 mb-6">
-            <div className="flex items-center space-x-3 min-w-0">
-              <div className="w-10 h-10 bg-red-600 rounded-lg flex items-center justify-center">
-                <svg
-                  className="w-6 h-6 text-white"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    d="M16 11V7a4 4 0 118 0m-4 8v2a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm5 7a2 2 0 11-4 0 2 2 0 014 0z"
-                  />
-                </svg>
-              </div>
-              <div>
-                <h2 className="text-xl font-bold text-gray-800">Dishes</h2>
-                <p className="text-sm text-gray-500">
-                  Note: Each extra dish costs{" "}
-                  <span className="font-semibold text-red-600">₱700</span>
-                </p>
-              </div>
-            </div>
-            <button
-              onClick={() => {
-                if (
-                  productType !== "dish_only" &&
-                  selectedProductIndex === ""
-                ) {
-                  setShowModal(true);
-                  return;
-                }
-                setExtraDishes([...extraDishes, ""]);
-              }}
-              className="bg-red-600 text-white px-6 py-2.5 rounded-full font-bold flex items-center justify-center hover:bg-red-700 transition-colors w-full sm:w-auto shrink-0"
-            >
-              {productType === "dish_only" ? "+ Add Dish" : "+ Add Extra Dish"}
-            </button>
+      {/* ── ITEMS ── */}
+      {!isLoading &&
+        items.map((item, index) => (
+          <ItemBlock
+            key={item.id}
+            item={item}
+            index={index}
+            canRemove={items.length > 1}
+            onUpdate={(patch) => updateItem(item.id, patch)}
+            onRemove={() => removeItem(item.id)}
+            productTypes={productTypes}
+            products={products}
+            dishes={dishes}
+            attempted={attempted}
+          />
+        ))}
+
+      {/* ── ADD ITEM BUTTON ── */}
+      {!isLoading && (
+        <button
+          onClick={() => setItems((prev) => [...prev, makeEmptyItem()])}
+          className="w-full py-4 rounded-2xl border-2 border-dashed border-red-200 text-red-500 font-black text-sm hover:border-red-400 hover:bg-red-50 transition-all flex items-center justify-center gap-2"
+        >
+          <svg
+            className="w-5 h-5"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth="2.5"
+              d="M12 4v16m8-8H4"
+            />
+          </svg>
+          Add Another Lechon / Belly
+        </button>
+      )}
+    </div>
+  );
+}
+
+// ── ITEM BLOCK ────────────────────────────────────────────────────
+function ItemBlock({
+  item,
+  index,
+  canRemove,
+  onUpdate,
+  onRemove,
+  productTypes,
+  products,
+  dishes,
+  attempted,
+}) {
+  const [selectedProductTypeId, setSelectedProductTypeId] = useState("");
+  const [showUpgrade, setShowUpgrade] = useState(false);
+  const [showModal, setShowModal] = useState(false);
+  const [filteredProducts, setFilteredProducts] = useState([]);
+  const [loadingProducts, setLoadingProducts] = useState(false);
+
+  // Sync selectedProductTypeId when item.productType changes
+  // 1. Existing (keep this)
+  useEffect(() => {
+    if (!item.productType) {
+      setSelectedProductTypeId("");
+      setFilteredProducts([]);
+      return;
+    }
+    const found = productTypes.find((t) => t.typeName === item.productType);
+    setSelectedProductTypeId(found ? String(found.id) : "");
+  }, [item.productType, productTypes]);
+
+  // 2. ✅ NEW FIX - Repopulate when returning from Step2
+  // ✅ FIXED - Proper dependencies
+  useEffect(() => {
+    // Only restore if we have product but empty filteredProducts
+    if (item.selectedProduct && filteredProducts.length === 0) {
+      setFilteredProducts([item.selectedProduct]);
+    }
+  }, [item.selectedProduct]); // Only depend on item.selectedProduct
+
+  
+  const handleProductTypeChange = async (typeId) => {
+    setSelectedProductTypeId(typeId);
+    setLoadingProducts(true);
+
+    const selectedType = productTypes.find(
+      (t) => String(t.id) === String(typeId),
+    );
+
+    // Reset item state
+    onUpdate({
+      productType: selectedType?.typeName ?? "",
+      selectedProductIndex: "",
+      selectedProduct: null,
+      requiredDishes: [],
+      extraDishes: [],
+      upgradeAmount: 0,
+    });
+
+    setShowUpgrade(false);
+
+    if (!typeId) {
+      setFilteredProducts([]);
+      setLoadingProducts(false);
+      return;
+    }
+
+    try {
+      // ✅ YOUR API ENDPOINT: /api/products?productTypeId=X
+      const response = await getProductsByType(typeId);
+      console.log("API Response:", response); // Debug
+
+      // Map API response to match your expected shape
+      // In handleProductTypeChange - update mapping:
+      const mappedProducts = (response || []).map((p) => ({
+        id: p.id,
+        productName: p.productName,
+        amount: p.amount,
+        promoAmount: p.promoAmount || 0,
+        productTypeId: p.productTypeId,
+        NoOfDishes: p.noOfIncludedDishes ?? p.NoOfDishes ?? 0,
+        // ✅ FIXED DEFAULT DISHES:
+        defaultDishes:
+          p.defaultDishes?.map((pd) => ({
+            dishId: pd.dishId || pd.Dish?.id || pd.dish?.id,
+          })) || [],
+        // ✅ FIXED FREEBIES:
+        freebies: p.freebies?.map((f) => f.freebieName || f.name) || [],
+      }));
+
+      setFilteredProducts(mappedProducts);
+      setFilteredProducts(mappedProducts);
+      console.log("Mapped products:", mappedProducts); // Debug
+    } catch (err) {
+      console.error("Failed to fetch products:", err);
+      setFilteredProducts([]);
+    } finally {
+      setLoadingProducts(false);
+    }
+  };
+
+  // ✅ FIXED: Use filteredProducts state (from API)
+  const handleProductChange = (productId) => {
+    if (!productId) {
+      onUpdate({
+        selectedProductIndex: "",
+        selectedProduct: null,
+        requiredDishes: [],
+        upgradeAmount: 0,
+      });
+      setShowUpgrade(false);
+      return;
+    }
+
+    const product = filteredProducts.find(
+      (p) => String(p.id) === String(productId),
+    );
+
+    if (!product) return;
+
+    // ✅ FIXED: Handle various API shapes
+    let defaultDishIds = [];
+    if (product.defaultDishes && Array.isArray(product.defaultDishes)) {
+      defaultDishIds = product.defaultDishes.map((d) =>
+        String(d.dishId || d.Dish?.id || d.id),
+      );
+    }
+
+    const slots = product.NoOfDishes || product.noOfIncludedDishes || 0;
+    const padded = [...defaultDishIds];
+    while (padded.length < slots) padded.push("");
+
+    console.log("Default dishes:", defaultDishIds, "Slots:", slots); // DEBUG
+
+    onUpdate({
+      selectedProductIndex: productId,
+      selectedProduct: product,
+      requiredDishes: padded, // ✅ This populates dishes dropdowns
+      extraDishes: [],
+      upgradeAmount: 0,
+    });
+    setShowUpgrade(false);
+  };
+  const isDishOnly = item.productType === "dish_only";
+  const hasPackage =
+    item.productType === "lechon_package" ||
+    item.productType === "belly_package";
+  const showDishes =
+    isDishOnly || (hasPackage && item.selectedProductIndex !== "");
+  const showFreebies =
+    (item.productType === "lechon_package" ||
+      item.productType === "belly_package" ||
+      item.productType === "lechon_only" ||
+      item.productType === "belly_only") &&
+    item.selectedProductIndex !== "";
+  const showProductDropdown = item.productType !== "" && !isDishOnly;
+
+  return (
+    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+      {/* Item Header */}
+      <div className="flex items-center justify-between px-6 py-4 bg-gray-50 border-b border-gray-100">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 bg-red-600 rounded-lg flex items-center justify-center text-white font-black text-sm shrink-0">
+            {index + 1}
           </div>
+          <div>
+            <p className="font-black text-gray-800 text-sm leading-none">
+              {item.selectedProduct?.productName || `Item ${index + 1}`}
+            </p>
+            {item.selectedProduct && (
+              <p className="text-xs text-gray-400 font-medium mt-0.5">
+                ₱{Number(item.selectedProduct.amount).toLocaleString()}
+                {item.upgradeAmount > 0 && ` + ₱${item.upgradeAmount} upgrade`}
+              </p>
+            )}
+          </div>
+        </div>
+        {canRemove && (
+          <button
+            onClick={onRemove}
+            className="flex items-center gap-1.5 text-xs font-bold text-red-400 hover:text-red-600 hover:bg-red-50 px-3 py-1.5 rounded-lg transition-all"
+          >
+            <svg
+              className="w-3.5 h-3.5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2.5"
+                d="M6 18L18 6M6 6l12 12"
+              />
+            </svg>
+            Remove
+          </button>
+        )}
+      </div>
 
-          {productType !== "dish_only" && selectedProductIndex === "" ? (
-            <div className="flex flex-col items-center justify-center py-8 space-y-2 opacity-50 flex-1">
-              <svg
-                className="w-8 h-8 text-gray-400"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="1.5"
-                  d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
-                />
-              </svg>
-              <p className="text-sm font-semibold text-gray-500">
-                No product selected
-              </p>
-              <p className="text-xs text-gray-400">
-                Please select a product to manage its dishes.
-              </p>
-            </div>
-          ) : requiredDishes.length === 0 && extraDishes.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-8 space-y-2 opacity-50 flex-1">
-              <svg
-                className="w-8 h-8 text-gray-400"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="1.5"
-                  d="M12 6v6m0 0v6m0-6h6m-6 0H6"
-                />
-              </svg>
-              <p className="text-sm font-semibold text-gray-500">
-                No dishes added yet
-              </p>
-              <p className="text-xs text-gray-400">
-                Click "+ Add Dish" to include additional dishes.
-              </p>
-            </div>
-          ) : (
-            <>
-              {requiredDishes.length > 0 && (
-                <div className="space-y-3 mb-6">
-                  <p className="text-sm font-bold text-gray-700">
-                    Required Dishes (Included in Package)
-                  </p>
-                  {requiredDishes.map((val, index) => (
-                    <select
-                      key={`required-${index}`}
-                      className={`w-full p-3 border rounded-xl bg-gray-100 ${err(attempted && val === "")}`}
-                      value={val}
-                      onChange={(e) => {
-                        const updated = [...requiredDishes];
-                        updated[index] = e.target.value;
-                        setRequiredDishes(updated);
-                      }}
-                    >
-                      <option value="">— Select Dish —</option>
-                      {dishes.map((dish) => (
-                        <option key={dish.id} value={dish.id}>
-                          {dish.dishName}
-                        </option>
-                      ))}
-                    </select>
-                  ))}
-                </div>
-              )}
-
-              {extraDishes.length > 0 && (
-                <div className="space-y-3 mb-6">
-                  {productType !== "dish_only" && (
-                    <p className="text-sm font-bold text-gray-700">
-                      Extra Dishes
-                    </p>
-                  )}
-                  {extraDishes.map((dish, index) => (
-                    <div key={index} className="flex gap-2">
-                      <select
-                        className={`flex-1 min-w-0 p-3 border rounded-xl ${err(attempted && dish === "")}`}
-                        value={dish}
-                        onChange={(e) => {
-                          const updated = [...extraDishes];
-                          updated[index] = e.target.value;
-                          setExtraDishes(updated);
-                        }}
-                      >
-                        <option value="">— Select Dish —</option>
-                        {dishes.map((dishItem) => (
-                          <option key={dishItem.id} value={dishItem.id}>
-                            {dishItem.dishName} — ₱{dishItem.amount}
-                          </option>
-                        ))}
-                      </select>
-                      <button
-                        onClick={() =>
-                          setExtraDishes(
-                            extraDishes.filter((_, i) => i !== index),
-                          )
-                        }
-                        className="bg-red-500 text-white px-3 rounded-lg hover:bg-red-600 transition-colors"
-                      >
-                        ✕
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </>
+      <div className="p-6 space-y-5">
+        {/* PRODUCT TYPE */}
+        <div>
+          <label className="block text-sm font-bold text-gray-700 mb-2">
+            Product Type
+          </label>
+          <select
+            className={`w-full p-3 border rounded-xl ${err(attempted && !item.productType)}`}
+            value={selectedProductTypeId}
+            onChange={(e) => handleProductTypeChange(e.target.value)}
+          >
+            <option value="">— Select a product type —</option>
+            {productTypes.map((type) => (
+              <option key={type.id} value={type.id}>
+                {type.typeName
+                  .split("_")
+                  .map((p) => p.charAt(0).toUpperCase() + p.slice(1))
+                  .join(" ")}
+              </option>
+            ))}
+          </select>
+          {attempted && !item.productType && (
+            <p className="text-xs text-red-500 font-medium mt-1">
+              ⚠ Please select a product type.
+            </p>
           )}
         </div>
-      )}
 
-      {/* FREEBIES SECTION */}
-      {showFreebies && (
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center space-x-3 min-w-0">
-              <div className="w-10 h-10 bg-emerald-600 rounded-lg flex items-center justify-center">
+        {/* PRODUCT SELECT */}
+        {showProductDropdown && (
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <label className="block text-sm font-bold text-gray-700">
+                Select Product
+              </label>
+              {item.selectedProductIndex !== "" && (
+                <button
+                  onClick={() => setShowUpgrade(!showUpgrade)}
+                  className="text-xs font-bold text-red-600 hover:text-red-700 underline"
+                >
+                  {showUpgrade ? "Hide Upgrade" : "Upgrade"}
+                </button>
+              )}
+            </div>
+
+            {/* ✅ LOADING STATE */}
+            {loadingProducts ? (
+              <div className="w-full p-3 border border-gray-200 rounded-xl bg-gray-50 flex items-center justify-center py-8">
                 <svg
-                  className="w-6 h-6 text-white"
+                  className="animate-spin w-6 h-6 text-gray-400 mr-3"
                   fill="none"
-                  stroke="currentColor"
                   viewBox="0 0 24 24"
                 >
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                  />
                   <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8v8z"
                   />
                 </svg>
+                <span className="text-sm font-medium text-gray-600">
+                  Loading products...
+                </span>
               </div>
-              <h2 className="text-xl font-bold text-gray-800">
-                Included Freebies
-              </h2>
-            </div>
-            <span className="bg-emerald-100 text-emerald-600 text-[10px] font-bold px-3 py-1 rounded-full uppercase">
-              Auto-Generated
-            </span>
-          </div>
+            ) : filteredProducts.length === 0 ? (
+              <div className="w-full p-3 border border-yellow-200 bg-yellow-50 rounded-xl text-sm text-yellow-700 font-medium py-4">
+                No products available for this type
+              </div>
+            ) : (
+              <select
+                className={`w-full p-3 border rounded-xl ${err(attempted && item.selectedProductIndex === "")}`}
+                value={item.selectedProductIndex}
+                onChange={(e) => handleProductChange(e.target.value)}
+              >
+                <option value="">
+                  — Select a product ({filteredProducts.length} available) —
+                </option>
+                {filteredProducts.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.productName} — ₱{Number(p.amount).toLocaleString()}
+                  </option>
+                ))}
+              </select>
+            )}
 
-          {!selectedProduct ? (
-            <div className="flex flex-col items-center justify-center py-8 space-y-2 opacity-50">
-              <svg
-                className="w-8 h-8 text-gray-400"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="1.5"
-                  d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
-                />
-              </svg>
-              <p className="text-sm font-semibold text-gray-500">
-                No product selected
-              </p>
-              <p className="text-xs text-gray-400">
-                Please select a product to view its included freebies.
-              </p>
-            </div>
-          ) : !selectedProduct.freebies ||
-            selectedProduct.freebies.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-8 space-y-2 opacity-50">
-              <svg
-                className="w-8 h-8 text-gray-400"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="1.5"
-                  d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"
-                />
-              </svg>
-              <p className="text-sm font-semibold text-gray-500">
-                No freebies available
-              </p>
-              <p className="text-xs text-gray-400">
-                This product does not include any freebies.
-              </p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {selectedProduct.freebies.map((item, index) => (
-                <div
-                  key={index}
-                  className="flex items-center space-x-2 p-3 bg-emerald-50 rounded-lg"
+            {attempted &&
+              item.selectedProductIndex === "" &&
+              !loadingProducts && (
+                <p className="text-xs text-red-500 font-medium mt-1">
+                  ⚠ Please select a product.
+                </p>
+              )}
+
+            {/* UPGRADE */}
+            {showUpgrade && item.selectedProduct && (
+              <div className="mt-2 pt-3 border-t border-gray-100">
+                <label className="block text-xs font-bold text-gray-600 mb-1">
+                  Upgrade Weight (₱)
+                </label>
+                <select
+                  className="w-full p-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-red-500"
+                  value={item.upgradeAmount}
+                  onChange={(e) =>
+                    onUpdate({ upgradeAmount: Number(e.target.value) })
+                  }
                 >
+                  <option value={0}>No Upgrade</option>
+                  <option value={500}>₱500 (+1kg)</option>
+                  <option value={1000}>₱1,000 (+2-3kg)</option>
+                  <option value={2000}>₱2,000 (+5-6kg)</option>
+                </select>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* DISHES */}
+        {showDishes && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 bg-red-600 rounded-lg flex items-center justify-center">
                   <svg
-                    className="w-4 h-4 text-emerald-500 shrink-0"
+                    className="w-4 h-4 text-white"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -1286,24 +1131,231 @@ export default function Step1({ orderState }) {
                     <path
                       strokeLinecap="round"
                       strokeLinejoin="round"
-                      strokeWidth="2.5"
-                      d="M5 13l4 4L19 7"
+                      strokeWidth="2"
+                      d="M16 11V7a4 4 0 118 0m-4 8v2a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm5 7a2 2 0 11-4 0 2 2 0 014 0z"
                     />
                   </svg>
-                  <span className="text-sm font-medium text-emerald-800">
-                    {item}
-                  </span>
                 </div>
-              ))}
+                <div>
+                  <p className="text-sm font-bold text-gray-800">Dishes</p>
+                  <p className="text-xs text-gray-400">
+                    Extra dishes cost{" "}
+                    <span className="font-bold text-red-600">₱700</span> each
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  if (!isDishOnly && item.selectedProductIndex === "") {
+                    setShowModal(true);
+                    return;
+                  }
+                  onUpdate({ extraDishes: [...item.extraDishes, ""] });
+                }}
+                className="bg-red-600 text-white px-4 py-2 rounded-full font-bold text-xs flex items-center gap-1.5 hover:bg-red-700 transition-colors shrink-0"
+              >
+                <svg
+                  className="w-3.5 h-3.5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2.5"
+                    d="M12 4v16m8-8H4"
+                  />
+                </svg>
+                {isDishOnly ? "Add Dish" : "Add Extra"}
+              </button>
             </div>
-          )}
-        </div>
-      )}
 
-      {/* MODAL */}
+            {/* EMPTY STATE */}
+            {!isDishOnly && item.selectedProductIndex === "" ? (
+              <div className="flex flex-col items-center justify-center py-8 space-y-2 opacity-50">
+                <svg
+                  className="w-8 h-8 text-gray-400"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="1.5"
+                    d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
+                  />
+                </svg>
+                <p className="text-sm font-semibold text-gray-500 text-center">
+                  Select a product first
+                </p>
+              </div>
+            ) : item.requiredDishes.length === 0 &&
+              item.extraDishes.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-8 space-y-2 opacity-50">
+                <svg
+                  className="w-8 h-8 text-gray-400"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="1.5"
+                    d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+                  />
+                </svg>
+                <p className="text-sm font-semibold text-gray-500 text-center">
+                  No dishes added yet
+                </p>
+              </div>
+            ) : (
+              <>
+                {/* REQUIRED DISHES */}
+                {item.requiredDishes.length > 0 && (
+                  <div className="space-y-2">
+                    <p className="text-xs font-black text-gray-500 uppercase tracking-widest px-1">
+                      Required Dishes — Included
+                    </p>
+                    {item.requiredDishes.map((val, i) => (
+                      <select
+                        key={`req-${i}`}
+                        className={`w-full p-3 border rounded-xl bg-gray-50 ${err(attempted && val === "")}`}
+                        value={val}
+                        onChange={(e) => {
+                          const updated = [...item.requiredDishes];
+                          updated[i] = e.target.value;
+                          onUpdate({ requiredDishes: updated });
+                        }}
+                      >
+                        <option value="">— Select Dish —</option>
+                        {dishes.map((d) => (
+                          <option key={d.id} value={d.id}>
+                            {d.dishName}
+                          </option>
+                        ))}
+                      </select>
+                    ))}
+                  </div>
+                )}
+
+                {/* EXTRA DISHES */}
+                {item.extraDishes.length > 0 && (
+                  <div className="space-y-2">
+                    {!isDishOnly && (
+                      <p className="text-xs font-black text-gray-500 uppercase tracking-widest px-1">
+                        Extra Dishes ({item.extraDishes.length} × ₱700)
+                      </p>
+                    )}
+                    {item.extraDishes.map((dish, i) => (
+                      <div key={i} className="flex gap-2">
+                        <select
+                          className={`flex-1 min-w-0 p-3 border rounded-xl ${err(attempted && dish === "")}`}
+                          value={dish}
+                          onChange={(e) => {
+                            const updated = [...item.extraDishes];
+                            updated[i] = e.target.value;
+                            onUpdate({ extraDishes: updated });
+                          }}
+                        >
+                          <option value="">— Select Dish —</option>
+                          {dishes.map((d) => (
+                            <option key={d.id} value={d.id}>
+                              {d.dishName} — ₱{d.amount}
+                            </option>
+                          ))}
+                        </select>
+                        <button
+                          onClick={() =>
+                            onUpdate({
+                              extraDishes: item.extraDishes.filter(
+                                (_, idx) => idx !== i,
+                              ),
+                            })
+                          }
+                          className="bg-red-500 text-white px-3 py-3 rounded-lg hover:bg-red-600 transition-colors shrink-0 flex items-center justify-center"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        )}
+
+        {/* FREEBIES */}
+        {showFreebies && item.selectedProduct && (
+          <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-4">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <div className="w-6 h-6 bg-emerald-600 rounded-md flex items-center justify-center">
+                  <svg
+                    className="w-3.5 h-3.5 text-white"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="2"
+                      d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"
+                    />
+                  </svg>
+                </div>
+                <p className="text-sm font-bold text-emerald-800">
+                  Included Freebies
+                </p>
+              </div>
+              <span className="bg-emerald-100 text-emerald-600 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
+                FREE
+              </span>
+            </div>
+            {!item.selectedProduct.freebies ||
+            item.selectedProduct.freebies.length === 0 ? (
+              <p className="text-xs text-emerald-600 font-medium opacity-60">
+                No freebies for this product.
+              </p>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {item.selectedProduct.freebies.map((freebie, i) => (
+                  <div
+                    key={i}
+                    className="flex items-center gap-2 bg-white rounded-lg px-3 py-2 border border-emerald-100"
+                  >
+                    <svg
+                      className="w-3.5 h-3.5 text-emerald-500 shrink-0"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth="2.5"
+                        d="M5 13l4 4L19 7"
+                      />
+                    </svg>
+                    <span className="text-xs font-medium text-emerald-800">
+                      {freebie}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* NO PRODUCT SELECTED MODAL */}
       {showModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl shadow-xl p-8 max-w-sm w-full mx-4 text-center">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-xl p-8 max-w-sm w-full text-center">
             <div className="w-14 h-14 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
               <svg
                 className="w-7 h-7 text-red-600"
@@ -1320,10 +1372,10 @@ export default function Step1({ orderState }) {
               </svg>
             </div>
             <h3 className="text-lg font-bold text-gray-800 mb-2">
-              No Product Selected
+              Select Product First
             </h3>
             <p className="text-sm text-gray-500 mb-6">
-              Please select a product first before adding dishes.
+              Please choose a product before adding dishes.
             </p>
             <button
               onClick={() => setShowModal(false)}

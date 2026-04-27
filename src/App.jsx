@@ -10,14 +10,29 @@ import Step2 from "./pages/Step2";
 import Step3 from "./pages/Step3";
 
 import { getLandingData } from "./api/landingApi";
-import { createOrder } from "./api/orderApi";
+// import { createOrder } from "./api/orderApi";
+import { createOrder } from "./api/orderService";
 
+// ── HELPERS ───────────────────────────────────────────────────────
 function getDeliveryFee(zone, deliveryCharges = []) {
   if (!zone || deliveryCharges.length === 0) return 0;
   const charge = deliveryCharges.find((item) => item.zoneName === zone);
   return charge ? Number(charge.minAmount || 0) : 0;
 }
 
+// ── makeEmptyItem must be defined OUTSIDE the component
+// so it can be used in useState() initial value safely
+const makeEmptyItem = () => ({
+  id: Date.now(),
+  productType: "",
+  selectedProductIndex: "",
+  selectedProduct: null,
+  requiredDishes: [],
+  extraDishes: [],
+  upgradeAmount: 0,
+});
+
+// ── MAIN COMPONENT ────────────────────────────────────────────────
 function App({ submittedByUserId = null, encoderName = null }) {
   const [step, setStep] = useState(1);
   const [productTypes, setProductTypes] = useState([]);
@@ -26,19 +41,16 @@ function App({ submittedByUserId = null, encoderName = null }) {
   const [deliveryCharges, setDeliveryCharges] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
 
+  // ─── ITEMS (replaces single-product state) ────────────────────────
+  const [items, setItems] = useState(() => [makeEmptyItem()]);
+
   // ─── SHARED ORDER STATE ───────────────────────────────────────────
   const [orderType, setOrderType] = useState("delivery");
   const [zone, setZone] = useState("");
   const [address, setAddress] = useState("");
   const [deliveryDate, setDeliveryDate] = useState("");
   const [deliveryTime, setDeliveryTime] = useState("");
-  const [productType, setProductType] = useState("");
-  const [selectedProductIndex, setSelectedProductIndex] = useState("");
-  const [selectedProduct, setSelectedProduct] = useState(null);
-  const [requiredDishes, setRequiredDishes] = useState([]);
-  const [extraDishes, setExtraDishes] = useState([]);
   const [paymentMethod, setPaymentMethod] = useState("gcash");
-  const [upgradeAmount, setUpgradeAmount] = useState(0);
   const [totalAmount, setTotalAmount] = useState(0);
 
   // ─── CUSTOMER STATE ───────────────────────────────────────────────
@@ -57,39 +69,19 @@ function App({ submittedByUserId = null, encoderName = null }) {
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // FETCH 1: on page load
   useEffect(() => {
-    const fetchLanding = async () => {
+    const fetchAll = async () => {
       setIsLoading(true);
       try {
-        const data = await getLandingData();
-        setProductTypes(data.types ?? []);
-        setDeliveryCharges(data.charges ?? []);
-      } catch (error) {
-        console.error("Failed to load landing data:", error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    fetchLanding();
-  }, []);
-
-  // FETCH 2: when user picks a product type
-  useEffect(() => {
-    if (!productType) {
-      setAllProducts([]);
-      setDishes([]);
-      return;
-    }
-
-    const fetchProductData = async () => {
-      try {
-        const [rawProducts, rawDishes] = await Promise.all([
-          getProductsByType(productType),
+        const [landingData, rawDishes] = await Promise.all([
+          getLandingData(),
           getDishes(),
         ]);
 
-        const mappedProducts = rawProducts.map((product) => ({
+        setProductTypes(landingData.types ?? []);
+        setDeliveryCharges(landingData.charges ?? []);
+
+        const mappedProducts = (landingData.products ?? []).map((product) => ({
           id: product.id,
           productName: product.productName,
           amount: product.amount,
@@ -103,41 +95,33 @@ function App({ submittedByUserId = null, encoderName = null }) {
         setAllProducts(mappedProducts);
         setDishes(rawDishes);
       } catch (error) {
-        console.error("Failed to load products/dishes:", error);
+        console.error("Failed to load data:", error);
+      } finally {
+        setIsLoading(false);
       }
     };
 
-    fetchProductData();
-  }, [productType]);
+    fetchAll();
+  }, []);
 
   // ─── VALIDATION ───────────────────────────────────────────────────
-  const hasValidContacts = contacts.some(
-    (contact) => contact.trim() !== "" && /^[0-9]+$/.test(contact.trim()),
-  );
-  const hasInvalidContacts = contacts.some(
-    (contact) => contact.trim() !== "" && !/^[0-9]+$/.test(contact.trim()),
-  );
   const isFacebookValid =
     facebookProfile.trim() === "" ||
     facebookProfile.includes("facebook.com") ||
     facebookProfile.includes("fb.com");
 
-  const allDishesSelected =
-    productType === "dish_only"
-      ? extraDishes.length > 0 && extraDishes.every((d) => d !== "") // ← must have at least 1 dish filled
-      : requiredDishes.every((d) => d !== "") &&
-        extraDishes.every((d) => d !== "");
-
-        
   const isStep1Valid =
-    orderType &&
-    deliveryDate &&
-    deliveryTime &&
-    productType &&
-    (productType === "dish_only" || selectedProduct !== null) &&
-    (orderType !== "delivery" ||
-      (address.trim() !== "" && zone.trim() !== "")) &&
-    allDishesSelected;
+    !!orderType &&
+    !!deliveryDate &&
+    !!deliveryTime &&
+    items.length > 0 &&
+    items.every(
+      (item) =>
+        item.selectedProduct !== null &&
+        item.requiredDishes.every((d) => d !== "") &&
+        item.extraDishes.every((d) => d !== ""),
+    ) &&
+    (orderType !== "delivery" || (address.trim() !== "" && zone.trim() !== ""));
 
   const isStep2Valid =
     customerName.trim() !== "" &&
@@ -152,19 +136,24 @@ function App({ submittedByUserId = null, encoderName = null }) {
     step === 1 ? isStep1Valid : step === 2 ? isStep2Valid : isStep3Valid;
 
   const getBlockedMessage = () => {
-    if (step === 1) {
-      return "Complete Step 1 required fields: order type, date/time, delivery details (if delivery), product type, and product selection.";
-    }
-    if (step === 2) {
-      return "Complete Step 2 required fields: valid customer name and at least one valid contact number.";
-    }
+    if (step === 1)
+      return "Complete Step 1: order type, date/time, delivery details (if delivery), and at least one product with all dishes selected.";
+    if (step === 2)
+      return "Complete Step 2: valid customer name and at least one valid contact number.";
     return "Please complete all required order details before recording.";
   };
 
   // ─── NAVIGATION HANDLERS ─────────────────────────────────────────
+  // In App.jsx - REPLACE handleNext:
   const handleNext = () => {
-    setAttemptedSteps((prev) => ({ ...prev, [step]: true }));
-    if (!canProceedCurrentStep) return;
+    // ✅ ONLY set attempted AFTER validation fails
+    if (!canProceedCurrentStep) {
+      setAttemptedSteps((prev) => ({ ...prev, [step]: true }));
+      return;
+    }
+
+    // ✅ SUCCESS: Clear current step validation, move forward
+    setAttemptedSteps((prev) => ({ ...prev, [step]: false }));
     setStep(step + 1);
   };
 
@@ -172,6 +161,58 @@ function App({ submittedByUserId = null, encoderName = null }) {
     setAttemptedSteps({ 1: true, 2: true, 3: true });
     if (!isStep3Valid) return;
     setShowConfirmModal(true);
+  };
+
+  // ─── CONFIRM HANDLER ──────────────────────────────────────────────
+  const handleConfirm = async () => {
+    setIsSubmitting(true);
+    const payload = {
+      customerName,
+      contacts: contacts.filter(Boolean),
+      facebookProfile,
+      orderType,
+      address,
+      zone,
+      deliveryDate,
+      deliveryTime,
+      paymentMethod,
+      totalAmount,
+      submittedByUserId: submittedByUserId ?? null,
+      items: items.map((item) => ({
+        productId: item.selectedProduct.id,
+        upgradeAmount: item.upgradeAmount,
+        dishes: {
+          required: item.requiredDishes.filter(Boolean).map(Number),
+          extra: item.extraDishes.filter(Boolean).map(Number),
+        },
+      })),
+    };
+
+    try {
+      await createOrder(payload);
+    } catch (error) {
+      console.error("Order submission error:", error);
+      alert("Something went wrong.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // ─── RESET HANDLER ────────────────────────────────────────────────
+  const handleBookAgain = () => {
+    setShowConfirmModal(false);
+    setAttemptedSteps({ 1: false, 2: false, 3: false });
+    setStep(1);
+    setOrderType("delivery");
+    setZone("");
+    setAddress("");
+    setDeliveryDate("");
+    setDeliveryTime("");
+    setPaymentMethod("gcash");
+    setCustomerName("");
+    setContacts([""]);
+    setFacebookProfile("");
+    setItems([makeEmptyItem()]);
   };
 
   // ─── ORDER STATE OBJECT ───────────────────────────────────────────
@@ -186,20 +227,11 @@ function App({ submittedByUserId = null, encoderName = null }) {
     setDeliveryDate,
     deliveryTime,
     setDeliveryTime,
-    productType,
-    setProductType,
-    selectedProductIndex,
-    setSelectedProductIndex,
-    selectedProduct,
-    setSelectedProduct,
-    requiredDishes,
-    setRequiredDishes,
-    extraDishes,
-    setExtraDishes,
+    items,
+    setItems,
+    makeEmptyItem,
     paymentMethod,
     setPaymentMethod,
-    upgradeAmount,
-    setUpgradeAmount,
     customerName,
     setCustomerName,
     contacts,
@@ -213,61 +245,7 @@ function App({ submittedByUserId = null, encoderName = null }) {
     isLoading,
     totalAmount,
     setTotalAmount,
-    attempted: attemptedSteps[step], // ← step-aware attempted flag
-  };
-
-  // Called when user clicks "Confirm Order" inside the modal
-  const handleConfirm = async () => {
-    setIsSubmitting(true);
-
-    const payload = {
-      customerName,
-      contacts: contacts.filter(Boolean),
-      facebookProfile,
-      orderType,
-      address,
-      zone,
-      deliveryDate,
-      deliveryTime,
-      productId: selectedProduct?.id ?? null,
-      paymentMethod,
-      totalAmount,
-      dishes: {
-        required: requiredDishes.filter(Boolean).map(Number),
-        extra: extraDishes.filter(Boolean).map(Number),
-      },
-      submittedByUserId: submittedByUserId ?? null,
-    };
-
-    try {
-      const result = await createOrder(payload);
-      // console.log("Order success:", result);
-    } catch (error) {
-      console.error("Order submission error:", error);
-      alert("Something went wrong.");
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const handleBookAgain = () => {
-    setShowConfirmModal(false);
-    setAttemptedSteps({ 1: false, 2: false, 3: false }); // ← reset all steps
-    setStep(1);
-    setOrderType("delivery");
-    setZone("");
-    setAddress("");
-    setDeliveryDate("");
-    setDeliveryTime("");
-    setProductType("");
-    setSelectedProductIndex("");
-    setSelectedProduct(null);
-    setRequiredDishes([]);
-    setExtraDishes([]);
-    setPaymentMethod("gcash");
-    setCustomerName("");
-    setContacts([""]);
-    setFacebookProfile("");
+    attempted: attemptedSteps[step],
   };
 
   const showSidebar = step !== 2;
@@ -330,9 +308,7 @@ function App({ submittedByUserId = null, encoderName = null }) {
 
         {/* MAIN LAYOUT */}
         <div
-          className={`grid grid-cols-1 gap-6 ${
-            step === 2 ? "lg:grid-cols-1" : "lg:grid-cols-3"
-          }`}
+          className={`grid grid-cols-1 gap-6 ${step === 2 ? "lg:grid-cols-1" : "lg:grid-cols-3"}`}
         >
           {/* LEFT CONTENT */}
           <div className={step === 2 ? "space-y-6" : "lg:col-span-2 space-y-6"}>

@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using api.data;
 
@@ -11,9 +12,11 @@ using api.data;
 namespace api.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260427105010_NewTablesForDoubleBooking")]
+    partial class NewTablesForDoubleBooking
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -22,7 +25,7 @@ namespace api.Migrations
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
-            modelBuilder.Entity("Customer", b =>
+            modelBuilder.Entity("api.Models.Customer", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -74,6 +77,9 @@ namespace api.Migrations
                         .HasColumnType("int");
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal>("Amount")
+                        .HasColumnType("decimal(18,2)");
 
                     b.Property<string>("AreaType")
                         .IsRequired()
@@ -171,9 +177,16 @@ namespace api.Migrations
                     b.Property<DateTime?>("PrintedAt")
                         .HasColumnType("datetime2");
 
+                    b.Property<int?>("ProductId")
+                        .HasColumnType("int");
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("SubmittedByType")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<int?>("SubmittedByUserId")
                         .HasColumnType("int");
@@ -193,11 +206,43 @@ namespace api.Migrations
 
                     b.HasIndex("DeliveryDate");
 
+                    b.HasIndex("ProductId");
+
                     b.HasIndex("Status");
 
                     b.HasIndex("SubmittedByUserId");
 
                     b.ToTable("Orders");
+                });
+
+            modelBuilder.Entity("api.Models.OrderDish", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("DishId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("DishType")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("IsExtra")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("OrderId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DishId");
+
+                    b.HasIndex("OrderId");
+
+                    b.ToTable("OrderDish");
                 });
 
             modelBuilder.Entity("api.Models.OrderItem", b =>
@@ -212,9 +257,6 @@ namespace api.Migrations
                         .HasColumnType("int");
 
                     b.Property<int>("ProductId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("Quantity")
                         .HasColumnType("int");
 
                     b.Property<decimal>("UpgradeAmount")
@@ -241,10 +283,7 @@ namespace api.Migrations
                     b.Property<int>("DishId")
                         .HasColumnType("int");
 
-                    b.Property<int?>("DishId1")
-                        .HasColumnType("int");
-
-                    b.Property<string>("DishName")
+                    b.Property<string>("DishType")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
@@ -254,14 +293,9 @@ namespace api.Migrations
                     b.Property<int>("OrderItemId")
                         .HasColumnType("int");
 
-                    b.Property<decimal>("Price")
-                        .HasColumnType("decimal(18,2)");
-
                     b.HasKey("Id");
 
                     b.HasIndex("DishId");
-
-                    b.HasIndex("DishId1");
 
                     b.HasIndex("OrderItemId");
 
@@ -447,7 +481,7 @@ namespace api.Migrations
 
             modelBuilder.Entity("api.Models.CustomerContact", b =>
                 {
-                    b.HasOne("Customer", "Customer")
+                    b.HasOne("api.Models.Customer", "Customer")
                         .WithMany("Contacts")
                         .HasForeignKey("CustomerId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -458,15 +492,19 @@ namespace api.Migrations
 
             modelBuilder.Entity("api.Models.Order", b =>
                 {
-                    b.HasOne("Customer", "Customer")
+                    b.HasOne("api.Models.Customer", "Customer")
                         .WithMany("Orders")
                         .HasForeignKey("CustomerId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.HasOne("api.Models.DeliveryCharge", "DeliveryCharge")
-                        .WithMany("Orders")
+                        .WithMany()
                         .HasForeignKey("DeliveryChargeId");
+
+                    b.HasOne("api.Models.Product", null)
+                        .WithMany("Orders")
+                        .HasForeignKey("ProductId");
 
                     b.HasOne("api.Models.User", "SubmittedByUser")
                         .WithMany("Orders")
@@ -477,6 +515,25 @@ namespace api.Migrations
                     b.Navigation("DeliveryCharge");
 
                     b.Navigation("SubmittedByUser");
+                });
+
+            modelBuilder.Entity("api.Models.OrderDish", b =>
+                {
+                    b.HasOne("api.Models.Dish", "Dish")
+                        .WithMany("OrderDishes")
+                        .HasForeignKey("DishId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("api.Models.Order", "Order")
+                        .WithMany()
+                        .HasForeignKey("OrderId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Dish");
+
+                    b.Navigation("Order");
                 });
 
             modelBuilder.Entity("api.Models.OrderItem", b =>
@@ -505,10 +562,6 @@ namespace api.Migrations
                         .HasForeignKey("DishId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
-
-                    b.HasOne("api.Models.Dish", null)
-                        .WithMany("OrderItemDishes")
-                        .HasForeignKey("DishId1");
 
                     b.HasOne("api.Models.OrderItem", "OrderItem")
                         .WithMany("OrderItemDishes")
@@ -573,21 +626,16 @@ namespace api.Migrations
                     b.Navigation("Role");
                 });
 
-            modelBuilder.Entity("Customer", b =>
+            modelBuilder.Entity("api.Models.Customer", b =>
                 {
                     b.Navigation("Contacts");
 
                     b.Navigation("Orders");
                 });
 
-            modelBuilder.Entity("api.Models.DeliveryCharge", b =>
-                {
-                    b.Navigation("Orders");
-                });
-
             modelBuilder.Entity("api.Models.Dish", b =>
                 {
-                    b.Navigation("OrderItemDishes");
+                    b.Navigation("OrderDishes");
 
                     b.Navigation("ProductDefaultDishes");
                 });
@@ -607,6 +655,8 @@ namespace api.Migrations
                     b.Navigation("DefaultDishes");
 
                     b.Navigation("Freebies");
+
+                    b.Navigation("Orders");
                 });
 
             modelBuilder.Entity("api.Models.ProductType", b =>

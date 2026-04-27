@@ -7,13 +7,10 @@ namespace api.Models
     {
         public int Id { get; set; }
 
-        // Foreign Keys
         public int ProductId { get; set; }
-        public int DishId { get; set; }
-
-        // Navigation
-        [JsonIgnore]
         public Product Product { get; set; } = null!;
+
+        public int DishId { get; set; }
         public Dish Dish { get; set; } = null!;
     }
 }

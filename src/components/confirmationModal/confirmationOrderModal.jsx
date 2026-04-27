@@ -26,13 +26,10 @@ export default function ConfirmOrderModal({
     address,
     deliveryDate,
     deliveryTime,
-    selectedProduct,
-    requiredDishes,
-    extraDishes,
+    items, // ✅ MULTIPLE ITEMS SUPPORT
     paymentMethod,
     deliveryCharges,
     dishes,
-    upgradeAmount,
   } = orderState;
 
   const [orderSuccess, setOrderSuccess] = useState(false);
@@ -47,8 +44,33 @@ export default function ConfirmOrderModal({
     import("html2canvas").then((m) => (html2canvasRef.current = m.default));
   }, []);
 
+  // ✅ SAME CALCULATIONS AS STEP 3
+  const deliveryFee =
+    orderType === "delivery" ? getDeliveryFee(zone, deliveryCharges) : 0;
+
+  const allExtraDishes = items.flatMap((item) => item.extraDishes || []);
+  const filledExtraDishes = allExtraDishes.filter((d) => d !== "");
+  const dishesTotal = filledExtraDishes.length * EXTRA_DISH_PRICE;
+
+  const packageTotal = items.reduce((sum, item) => {
+    const pkg = item.selectedProduct?.amount || 0;
+    const upgrade = item.upgradeAmount || 0;
+    return sum + pkg + upgrade;
+  }, 0);
+
+  const discount = items.reduce((sum, item) => {
+    return (
+      sum +
+      (item.selectedProduct?.promoAmount
+        ? Math.abs(Number(item.selectedProduct.promoAmount))
+        : 0)
+    );
+  }, 0);
+
+  const total = packageTotal + dishesTotal + deliveryFee - discount;
+
   const fmt = (n) =>
-    "PHP " + Number(n).toLocaleString("en-PH", { minimumFractionDigits: 2 });
+    "₱" + Number(n).toLocaleString("en-PH", { minimumFractionDigits: 2 });
 
   const getUpgradeKg = (amount) => {
     if (amount === 500) return "1kg";
@@ -57,26 +79,8 @@ export default function ConfirmOrderModal({
     return "";
   };
 
-  const filledExtraDishes = (extraDishes || []).filter((d) => d !== "");
-  const extraDishesTotal = filledExtraDishes.length * EXTRA_DISH_PRICE;
-  const packageTotal = selectedProduct ? selectedProduct.amount : 0;
-  const deliveryFee =
-    orderType === "delivery" ? getDeliveryFee(zone, deliveryCharges) : 0;
-  const discount = selectedProduct?.promoAmount
-    ? Math.abs(Number(selectedProduct.promoAmount))
-    : 0;
-  const upgradeTotal = upgradeAmount || 0;
-  const subtotal = packageTotal + extraDishesTotal + deliveryFee + upgradeTotal;
-  const total = subtotal - discount;
-
-  const resolvedRequiredDishes = (requiredDishes || [])
-    .filter(Boolean)
-    .map((id) => dishes?.find((d) => String(d.id) === String(id)))
-    .filter(Boolean);
-
-  const resolvedExtraDishes = filledExtraDishes
-    .map((id) => dishes?.find((d) => String(d.id) === String(id)))
-    .filter(Boolean);
+  const paymentLabel = paymentMethod === "gcash" ? "GCash" : "Cash on Delivery";
+  const paymentIcon = paymentMethod === "gcash" ? "📱" : "💵";
 
   // Close on Escape
   useEffect(() => {
@@ -98,13 +102,12 @@ export default function ConfirmOrderModal({
     }
   };
 
-  // ── PDF DOWNLOAD ──────────────────────────────────────────────────
+  // ── PDF DOWNLOAD (UPDATED FOR MULTIPLE ITEMS) ──
   const handleDownloadPDF = async () => {
     const jsPDF = jsPDFRef.current;
     if (!jsPDF) return;
 
     const doc = new jsPDF({ unit: "mm", format: "a5" });
-
     const W = doc.internal.pageSize.getWidth();
     const margin = 14;
     const contentW = W - margin * 2;
@@ -146,19 +149,15 @@ export default function ConfirmOrderModal({
       doc.text(String(value), W - margin - 3, fy, { align: "right" });
     };
 
+    // Header
     fillRect(0, 0, W, 30, RED);
     setFont(18, "bold", WHITE);
     doc.text("Jojo's Lechon", W / 2, 13, { align: "center" });
     setFont(8, "normal", [254, 202, 202]);
     doc.text("Official Order Receipt", W / 2, 20, { align: "center" });
-    doc.setDrawColor(...WHITE);
-    doc.setLineWidth(0.4);
-    doc.setLineDashPattern([2, 2], 0);
-    doc.line(W / 2 - 20, 23, W / 2 + 20, 23);
-    doc.setLineDashPattern([], 0);
-
     y = 36;
 
+    // Order info
     fillRect(margin, y - 4.5, 38, 7, RED_LIGHT, 2);
     setFont(7.5, "bold", RED);
     doc.text(orderNumber, margin + 3, y);
@@ -173,9 +172,8 @@ export default function ConfirmOrderModal({
       y,
       { align: "right" },
     );
-
-    y += 5;
-    hRule(y, RED);
+    y += 12;
+    hRule(y);
     y += 7;
 
     const section = (title) => {
@@ -192,12 +190,14 @@ export default function ConfirmOrderModal({
       hRule(y - 1.5);
     };
 
+    // Customer
     section("Customer Information");
     row("Full Name", customerName || "—", { valBold: true });
     row("Contact", contacts.filter(Boolean).join("  •  ") || "—");
     if (facebookProfile) row("Facebook", facebookProfile);
     y += 3;
 
+    // Delivery
     section("Delivery Details");
     row("Order Type", orderType === "delivery" ? "Delivery" : "Pickup", {
       valBold: true,
@@ -209,60 +209,75 @@ export default function ConfirmOrderModal({
       row("Address", address || "—");
       row("Zone", zone || "—");
     }
-    row(
-      "Payment Method",
-      paymentMethod === "gcash" ? "GCash" : "Cash on Delivery",
-    );
+    row("Payment Method", paymentLabel);
     y += 3;
 
+    // ✅ MULTIPLE ITEMS IN ORDER SECTION
     section("Order Details");
+    items.forEach((item, index) => {
+      if (!item.selectedProduct) return;
 
-    if (selectedProduct) {
+      // Item header
       fillRect(margin, y - 3.5, contentW, 9, BG, 2);
       setFont(8.5, "bold", DARK);
-      doc.text(selectedProduct.productName, margin + 4, y);
-      setFont(8.5, "bold", RED);
-      doc.text(fmt(packageTotal), W - margin - 4, y, { align: "right" });
-      y += 9;
-    }
-
-    if (upgradeTotal > 0) {
-      y += 2;
-      setFont(8, "bold", DARK);
       doc.text(
-        `UPGRADE (${getUpgradeKg(upgradeAmount).toUpperCase()})`,
+        `${index + 1}. ${item.selectedProduct.productName}`,
         margin + 4,
         y,
       );
-      setFont(8, "bold", RED);
-      doc.text(fmt(upgradeTotal), W - margin - 4, y, { align: "right" });
-      y += 6;
-    }
-
-    if (resolvedRequiredDishes.length > 0) {
-      y += 2;
-      setFont(7, "bold", MID);
-      doc.text("INCLUDED DISHES", margin + 3, y);
-      y += 4.5;
-      resolvedRequiredDishes.forEach((d) => {
-        doc.setFillColor(...MID);
-        doc.circle(margin + 4.5, y - 1.5, 0.8, "F");
-        setFont(8, "normal", DARK);
-        doc.text(d.dishName, margin + 7, y);
-        y += 5;
+      setFont(8.5, "bold", RED);
+      doc.text(fmt(item.selectedProduct.amount), W - margin - 4, y, {
+        align: "right",
       });
-    }
+      y += 9;
 
-    if (resolvedExtraDishes.length > 0) {
+      if (item.upgradeAmount > 0) {
+        y += 2;
+        setFont(8, "bold", DARK);
+        doc.text(
+          `UPGRADE (${getUpgradeKg(item.upgradeAmount).toUpperCase()})`,
+          margin + 4,
+          y,
+        );
+        setFont(8, "bold", RED);
+        doc.text(fmt(item.upgradeAmount), W - margin - 4, y, {
+          align: "right",
+        });
+        y += 6;
+      }
+
+      const requiredDishes = (item.requiredDishes || []).filter(
+        (d) => d !== "",
+      );
+      if (requiredDishes.length > 0) {
+        y += 2;
+        setFont(7, "bold", MID);
+        doc.text("INCLUDED DISHES", margin + 3, y);
+        y += 4.5;
+        requiredDishes.slice(0, 3).forEach((dishId) => {
+          // Limit to 3 for space
+          const dish = dishes.find((d) => String(d.id) === String(dishId));
+          doc.setFillColor(...MID);
+          doc.circle(margin + 4.5, y - 1.5, 0.8, "F");
+          setFont(8, "normal", DARK);
+          doc.text(dish?.dishName || "Dish", margin + 7, y);
+          y += 5;
+        });
+      }
+    });
+
+    // Extra dishes
+    if (filledExtraDishes.length > 0) {
       y += 2;
       setFont(7, "bold", MID);
-      doc.text("EXTRA DISHES", margin + 3, y);
+      doc.text(`EXTRA DISHES (${filledExtraDishes.length})`, margin + 3, y);
       y += 4.5;
-      resolvedExtraDishes.forEach((d) => {
+      filledExtraDishes.slice(0, 3).forEach((dishId) => {
+        const dish = dishes.find((d) => String(d.id) === String(dishId));
         doc.setFillColor(...RED);
         doc.circle(margin + 4.5, y - 1.5, 0.8, "F");
         setFont(8, "normal", DARK);
-        doc.text(d.dishName, margin + 7, y);
+        doc.text(dish?.dishName || "Selected Dish", margin + 7, y);
         setFont(8, "bold", DARK);
         doc.text(fmt(EXTRA_DISH_PRICE), W - margin - 3, y, { align: "right" });
         y += 5;
@@ -270,19 +285,14 @@ export default function ConfirmOrderModal({
     }
 
     y += 4;
-
     section("Pricing Summary");
-    if (selectedProduct) row("Package", fmt(packageTotal));
-    if (filledExtraDishes.length > 0)
-      row("Extra Dishes", fmt(extraDishesTotal));
-    if (upgradeTotal > 0)
-      row(`Upgrade (${getUpgradeKg(upgradeAmount)})`, fmt(upgradeTotal));
-    if (orderType === "delivery") row("Delivery Fee", fmt(deliveryFee));
+    row("Subtotal", fmt(packageTotal));
+    if (dishesTotal > 0) row("Extra Dishes", fmt(dishesTotal));
+    if (deliveryFee > 0) row("Delivery Fee", fmt(deliveryFee));
     if (discount > 0)
       row("Discount", `-${fmt(discount)}`, { valColor: GREEN, valBold: true });
 
-    y += 4;
-
+    // Total
     fillRect(margin + 0.5, y + 0.5, contentW, 14, [150, 20, 20], 3);
     fillRect(margin, y, contentW, 14, RED, 3);
     setFont(9, "bold", WHITE);
@@ -291,7 +301,6 @@ export default function ConfirmOrderModal({
     doc.text(fmt(total), W - margin - 5, y + 9, { align: "right" });
 
     y += 22;
-
     hRule(y, LIGHT);
     y += 5;
     setFont(7, "italic", [180, 180, 180]);
@@ -351,700 +360,714 @@ export default function ConfirmOrderModal({
       />
 
       {/* MODAL */}
-      <div className="relative bg-white rounded-[2rem] shadow-2xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+      <div className="relative bg-white rounded-[2rem] shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden animate-in fade-in zoom-in-95 duration-200">
         {/* TOP ACCENT BAR */}
         <div className="h-1.5 w-full bg-gradient-to-r from-red-500 via-red-600 to-red-700" />
 
         {orderSuccess ? (
-          <>
-            {/* ── RECEIPT VIEW ── */}
-            <div ref={receiptRef}>
-              {/* HEADER */}
-              <div className="px-8 pt-7 pb-5 border-b border-gray-100 text-center relative">
-                {/* X BUTTON — closes receipt, triggers book again */}
-                <button
-                  onClick={onBookAgain}
-                  className="absolute top-4 right-6 w-8 h-8 flex items-center justify-center rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-all"
-                >
-                  <svg
-                    className="w-5 h-5"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth="2.5"
-                      d="M6 18L18 6M6 6l12 12"
-                    />
-                  </svg>
-                </button>
-
-                <div className="w-14 h-14 rounded-full bg-emerald-50 flex items-center justify-center mx-auto mb-3">
-                  <svg
-                    className="w-7 h-7 text-emerald-500"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth="2.5"
-                      d="M5 13l4 4L19 7"
-                    />
-                  </svg>
-                </div>
-                <h2 className="text-xl font-black text-gray-900 tracking-tight">
-                  Order Recorded!
-                </h2>
-                <p className="text-sm text-gray-400 font-medium mt-1">
-                  <span className="font-black text-red-600">{orderNumber}</span>
-                </p>
-              </div>
-
-              {/* RECEIPT BODY */}
-              <div className="px-8 py-5 space-y-4 max-h-[55vh] overflow-y-auto">
-                <ReceiptSection title="Customer">
-                  <ReceiptRow label="Name" value={customerName || "—"} />
-                  <ReceiptRow
-                    label="Contact"
-                    value={contacts.filter(Boolean).join(", ") || "—"}
-                  />
-                  {facebookProfile && (
-                    <ReceiptRow label="Facebook" value={facebookProfile} />
-                  )}
-                </ReceiptSection>
-
-                <ReceiptSection title="Delivery">
-                  <ReceiptRow
-                    label="Type"
-                    value={orderType === "delivery" ? "Delivery" : "Pickup"}
-                    highlight
-                  />
-                  <ReceiptRow label="Date" value={deliveryDate || "—"} />
-                  <ReceiptRow label="Time" value={deliveryTime || "—"} />
-                  {orderType === "delivery" && (
-                    <>
-                      <ReceiptRow label="Address" value={address || "—"} />
-                      <ReceiptRow label="Zone" value={zone || "—"} />
-                    </>
-                  )}
-                  <ReceiptRow
-                    label="Payment"
-                    value={
-                      paymentMethod === "gcash"
-                        ? "📱 GCash"
-                        : "💵 Cash on Delivery"
-                    }
-                  />
-                </ReceiptSection>
-
-                <ReceiptSection title="Order">
-                  {selectedProduct && (
-                    <ReceiptRow
-                      label="Package"
-                      value={selectedProduct.productName}
-                    />
-                  )}
-                  {upgradeTotal > 0 && (
-                    <ReceiptRow
-                      label={`Upgrade (${getUpgradeKg(upgradeAmount)})`}
-                      value={fmt(upgradeTotal)}
-                    />
-                  )}
-                  {resolvedRequiredDishes.length > 0 && (
-                    <div className="py-2 border-b border-gray-50">
-                      <p className="text-[10px] font-black text-gray-400 uppercase mb-1.5">
-                        Included Dishes
-                      </p>
-                      {resolvedRequiredDishes.map((d, i) => (
-                        <p
-                          key={i}
-                          className="text-xs text-gray-600 font-medium py-0.5"
-                        >
-                          • {d.dishName}
-                        </p>
-                      ))}
-                    </div>
-                  )}
-                  {resolvedExtraDishes.length > 0 && (
-                    <div className="py-2 border-b border-gray-50">
-                      <p className="text-[10px] font-black text-gray-400 uppercase mb-1.5">
-                        Extra Dishes
-                      </p>
-                      {resolvedExtraDishes.map((d, i) => (
-                        <div
-                          key={i}
-                          className="flex justify-between text-xs text-gray-600 font-medium py-0.5"
-                        >
-                          <span>• {d.dishName}</span>
-                          <span className="text-gray-800 font-black">
-                            {fmt(EXTRA_DISH_PRICE)}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </ReceiptSection>
-
-                <ReceiptSection title="Pricing">
-                  {selectedProduct && (
-                    <ReceiptRow label="Package" value={fmt(packageTotal)} />
-                  )}
-                  {filledExtraDishes.length > 0 && (
-                    <ReceiptRow
-                      label="Extra Dishes"
-                      value={fmt(extraDishesTotal)}
-                    />
-                  )}
-                  {upgradeTotal > 0 && (
-                    <ReceiptRow
-                      label={`Upgrade (${getUpgradeKg(upgradeAmount)})`}
-                      value={fmt(upgradeTotal)}
-                    />
-                  )}
-                  {orderType === "delivery" && (
-                    <ReceiptRow label="Delivery Fee" value={fmt(deliveryFee)} />
-                  )}
-                  {discount > 0 && (
-                    <ReceiptRow
-                      label="Discount"
-                      value={`-${fmt(discount)}`}
-                      green
-                    />
-                  )}
-                  <div className="mt-2 pt-3 border-t-2 border-gray-100 flex justify-between items-center">
-                    <span className="text-sm font-black text-gray-800">
-                      Total
-                    </span>
-                    <span className="text-lg font-black text-red-600">
-                      {fmt(total)}
-                    </span>
-                  </div>
-                </ReceiptSection>
-              </div>
-            </div>
-
-            {/* FOOTER BUTTONS */}
-            <div className="px-8 py-5 bg-gray-50/80 border-t border-gray-100 flex flex-col sm:flex-row gap-3">
-              <button
-                onClick={handleDownloadPDF}
-                className="flex-1 px-6 py-3 rounded-2xl bg-gray-900 text-white font-black text-sm hover:bg-gray-800 transition-all flex items-center justify-center gap-2"
-              >
-                <svg
-                  className="w-4 h-4"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2.5"
-                    d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
-                  />
-                </svg>
-                Download Receipt
-              </button>
-              <button
-                onClick={handleDownloadImage}
-                disabled={isDownloading}
-                className="flex-1 px-6 py-3 rounded-2xl border-2 border-gray-200 text-gray-600 font-bold text-sm hover:bg-gray-100 transition-all flex items-center justify-center gap-2 disabled:opacity-60"
-              >
-                {isDownloading ? (
-                  <>
-                    <svg
-                      className="w-4 h-4 animate-spin"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                    >
-                      <circle
-                        className="opacity-25"
-                        cx="12"
-                        cy="12"
-                        r="10"
-                        stroke="currentColor"
-                        strokeWidth="4"
-                      />
-                      <path
-                        className="opacity-75"
-                        fill="currentColor"
-                        d="M4 12a8 8 0 018-8v8z"
-                      />
-                    </svg>
-                    Saving...
-                  </>
-                ) : (
-                  <>
-                    <svg
-                      className="w-4 h-4"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth="2.5"
-                        d="M4 7h16M4 12h16M4 17h16"
-                      />
-                    </svg>
-                    Save as Image
-                  </>
-                )}
-              </button>
-              <button
-                onClick={onBookAgain}
-                className="flex-1 px-6 py-3 rounded-2xl bg-red-600 text-white font-black text-sm hover:bg-red-700 transition-all shadow-lg shadow-red-200 flex items-center justify-center gap-2"
-              >
-                <svg
-                  className="w-4 h-4"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2.5"
-                    d="M12 4v16m8-8H4"
-                  />
-                </svg>
-                Book Again
-              </button>
-            </div>
-          </>
+          <ReceiptView
+            orderNumber={orderNumber}
+            customerName={customerName}
+            contacts={contacts}
+            facebookProfile={facebookProfile}
+            orderType={orderType}
+            zone={zone}
+            address={address}
+            deliveryDate={deliveryDate}
+            deliveryTime={deliveryTime}
+            items={items}
+            dishes={dishes}
+            filledExtraDishes={filledExtraDishes}
+            packageTotal={packageTotal}
+            dishesTotal={dishesTotal}
+            deliveryFee={deliveryFee}
+            discount={discount}
+            total={total}
+            paymentMethod={paymentMethod}
+            fmt={fmt}
+            getUpgradeKg={getUpgradeKg}
+            onBookAgain={onBookAgain}
+            onDownloadPDF={handleDownloadPDF}
+            onDownloadImage={handleDownloadImage}
+            isDownloading={isDownloading}
+          />
         ) : (
-          <>
-            {/* ── CONFIRM VIEW ── */}
-            <div className="px-8 pt-7 pb-5 border-b border-gray-100">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-2xl bg-red-50 flex items-center justify-center shrink-0">
-                    <svg
-                      className="w-6 h-6 text-red-600"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth="2"
-                        d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                      />
-                    </svg>
-                  </div>
-                  <div>
-                    <h2 className="text-xl font-black text-gray-900 tracking-tight">
-                      Confirm Order
-                    </h2>
-                    <p className="text-sm text-gray-400 font-medium">
-                      Please review before submitting
-                    </p>
-                  </div>
-                </div>
-
-                {/* X BUTTON — same as Cancel */}
-                <button
-                  onClick={onCancel}
-                  disabled={isSubmitting}
-                  className="w-8 h-8 flex items-center justify-center rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-all disabled:opacity-40"
-                >
-                  <svg
-                    className="w-5 h-5"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth="2.5"
-                      d="M6 18L18 6M6 6l12 12"
-                    />
-                  </svg>
-                </button>
-              </div>
-            </div>
-
-            {/* BODY */}
-            <div className="px-8 py-6 space-y-5 max-h-[55vh] overflow-y-auto">
-              <Section title="Customer">
-                <Row label="Name" value={customerName || "—"} />
-                <Row
-                  label="Contact"
-                  value={contacts.filter(Boolean).join(", ") || "—"}
-                />
-                {facebookProfile && (
-                  <Row label="Facebook" value={facebookProfile} />
-                )}
-              </Section>
-
-              <Section title="Delivery">
-                <Row
-                  label="Type"
-                  value={orderType === "delivery" ? "Delivery" : "Pickup"}
-                  highlight={orderType === "delivery"}
-                />
-                <Row label="Date" value={deliveryDate || "—"} />
-                <Row label="Time" value={deliveryTime || "—"} />
-                {orderType === "delivery" && (
-                  <>
-                    <Row label="Address" value={address || "—"} />
-                    <Row label="Zone" value={zone || "—"} />
-                  </>
-                )}
-              </Section>
-
-              <Section title="Order">
-                <Row
-                  label="Product"
-                  value={selectedProduct ? selectedProduct.productName : "—"}
-                />
-                {upgradeTotal > 0 && (
-                  <Row
-                    label={`Upgrade (${getUpgradeKg(upgradeAmount)})`}
-                    value={fmt(upgradeTotal)}
-                  />
-                )}
-                {filledExtraDishes.length > 0 && (
-                  <Row
-                    label="Extra Dishes"
-                    value={`${filledExtraDishes.length} dish${filledExtraDishes.length > 1 ? "es" : ""}`}
-                  />
-                )}
-              </Section>
-
-              <Section title="Pricing">
-                <Row label="Package total" value={fmt(packageTotal)} />
-                {filledExtraDishes.length > 0 && (
-                  <Row label="Extra dishes" value={fmt(extraDishesTotal)} />
-                )}
-                {upgradeTotal > 0 && (
-                  <Row
-                    label={`Upgrade (${getUpgradeKg(upgradeAmount)})`}
-                    value={fmt(upgradeTotal)}
-                  />
-                )}
-                {orderType === "delivery" && (
-                  <Row label="Delivery fee" value={fmt(deliveryFee)} />
-                )}
-                {discount > 0 && (
-                  <Row label="Discount" value={`-${fmt(discount)}`} green />
-                )}
-                <div className="mt-2 pt-3 border-t border-gray-100 flex justify-between items-center">
-                  <span className="text-sm font-black text-gray-800">
-                    Total
-                  </span>
-                  <span className="text-lg font-black text-red-600">
-                    {fmt(total)}
-                  </span>
-                </div>
-              </Section>
-
-              <Section title="Payment">
-                <Row
-                  label="Method"
-                  value={
-                    paymentMethod === "gcash"
-                      ? "📱 GCash"
-                      : "💵 Cash on Delivery"
-                  }
-                />
-              </Section>
-            </div>
-
-            {/* FOOTER */}
-            <div className="px-8 py-5 bg-gray-50/80 border-t border-gray-100 flex flex-col sm:flex-row gap-3">
-              <button
-                onClick={onCancel}
-                disabled={isSubmitting}
-                className="flex-1 px-6 py-3 rounded-2xl border-2 border-gray-200 text-gray-600 font-bold text-sm hover:bg-gray-100 hover:border-gray-300 transition-all disabled:opacity-50"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleConfirm}
-                disabled={isSubmitting}
-                className="flex-1 px-6 py-3 rounded-2xl bg-red-600 text-white font-black text-sm hover:bg-red-700 transition-all shadow-lg shadow-red-200 disabled:opacity-70 flex items-center justify-center gap-2"
-              >
-                {isSubmitting ? (
-                  <>
-                    <svg
-                      className="w-4 h-4 animate-spin"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                    >
-                      <circle
-                        className="opacity-25"
-                        cx="12"
-                        cy="12"
-                        r="10"
-                        stroke="currentColor"
-                        strokeWidth="4"
-                      />
-                      <path
-                        className="opacity-75"
-                        fill="currentColor"
-                        d="M4 12a8 8 0 018-8v8z"
-                      />
-                    </svg>
-                    Recording...
-                  </>
-                ) : (
-                  <>
-                    <svg
-                      className="w-4 h-4"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth="2.5"
-                        d="M5 13l4 4L19 7"
-                      />
-                    </svg>
-                    Confirm Order
-                  </>
-                )}
-              </button>
-            </div>
-          </>
+          <ConfirmView
+            customerName={customerName}
+            contacts={contacts}
+            facebookProfile={facebookProfile}
+            orderType={orderType}
+            zone={zone}
+            address={address}
+            deliveryDate={deliveryDate}
+            deliveryTime={deliveryTime}
+            items={items}
+            dishes={dishes}
+            filledExtraDishes={filledExtraDishes}
+            packageTotal={packageTotal}
+            dishesTotal={dishesTotal}
+            deliveryFee={deliveryFee}
+            discount={discount}
+            total={total}
+            paymentMethod={paymentMethod}
+            paymentLabel={paymentLabel}
+            paymentIcon={paymentIcon}
+            fmt={fmt}
+            getUpgradeKg={getUpgradeKg}
+            isSubmitting={isSubmitting}
+            onConfirm={handleConfirm}
+            onCancel={onCancel}
+          />
         )}
       </div>
 
       {/* HIDDEN FULL RECEIPT FOR IMAGE CAPTURE */}
       {orderSuccess && (
-        <div
-          id="receipt-full-capture"
-          style={{
-            display: "none",
-            position: "fixed",
-            left: "-9999px",
-            top: 0,
-            width: "480px",
-            backgroundColor: "#ffffff",
-            padding: "0",
-            fontFamily: "sans-serif",
-          }}
-        >
-          <div
-            style={{
-              backgroundColor: "#b91c1c",
-              padding: "24px 32px",
-              textAlign: "center",
-            }}
-          >
-            <div style={{ fontSize: "22px", fontWeight: "900", color: "#fff" }}>
-              Jojo's Lechon
+        <FullReceiptCapture
+          orderNumber={orderNumber}
+          customerName={customerName}
+          contacts={contacts}
+          facebookProfile={facebookProfile}
+          orderType={orderType}
+          zone={zone}
+          address={address}
+          deliveryDate={deliveryDate}
+          deliveryTime={deliveryTime}
+          items={items}
+          dishes={dishes}
+          filledExtraDishes={filledExtraDishes}
+          packageTotal={packageTotal}
+          dishesTotal={dishesTotal}
+          deliveryFee={deliveryFee}
+          discount={discount}
+          total={total}
+          paymentMethod={paymentMethod}
+          fmt={fmt}
+          getUpgradeKg={getUpgradeKg}
+        />
+      )}
+    </div>
+  );
+}
+
+// ✅ CONFIRM VIEW - IDENTICAL TO STEP 3
+function ConfirmView({
+  customerName,
+  contacts,
+  facebookProfile,
+  orderType,
+  zone,
+  address,
+  deliveryDate,
+  deliveryTime,
+  items,
+  dishes,
+  filledExtraDishes,
+  packageTotal,
+  dishesTotal,
+  deliveryFee,
+  discount,
+  total,
+  paymentMethod,
+  paymentLabel,
+  paymentIcon,
+  fmt,
+  getUpgradeKg,
+  isSubmitting,
+  onConfirm,
+  onCancel,
+}) {
+  return (
+    <>
+      {/* HEADER */}
+      <div className="px-8 pt-7 pb-5 border-b border-gray-100">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-2xl bg-red-50 flex items-center justify-center shrink-0">
+              <svg
+                className="w-6 h-6 text-red-600"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                />
+              </svg>
             </div>
-            <div
-              style={{ fontSize: "11px", color: "#fecaca", marginTop: "4px" }}
-            >
-              Order Receipt
+            <div>
+              <h2 className="text-xl font-black text-gray-900 tracking-tight">
+                Confirm Order
+              </h2>
+              <p className="text-sm text-gray-400 font-medium">
+                Please review before submitting
+              </p>
             </div>
           </div>
-
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              padding: "14px 24px 10px",
-              borderBottom: "2px solid #b91c1c",
-            }}
+          <button
+            onClick={onCancel}
+            disabled={isSubmitting}
+            className="w-8 h-8 flex items-center justify-center rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-all disabled:opacity-40"
           >
-            <span
-              style={{ fontWeight: "900", color: "#b91c1c", fontSize: "13px" }}
+            <svg
+              className="w-5 h-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
             >
-              {orderNumber}
-            </span>
-            <span style={{ color: "#aaa", fontSize: "12px" }}>
-              {new Date().toLocaleDateString("en-PH", {
-                year: "numeric",
-                month: "long",
-                day: "numeric",
-              })}
-            </span>
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2.5"
+                d="M6 18L18 6M6 6l12 12"
+              />
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      {/* BODY - SAME AS STEP 3 */}
+      <div className="px-8 py-6 space-y-6 max-h-[55vh] overflow-y-auto">
+        {/* 1. CUSTOMER DETAILS */}
+        <div className="bg-white rounded-[2rem] shadow-sm border border-gray-100 overflow-hidden">
+          <div className="p-5 border-b border-gray-50 bg-gray-50/50">
+            <h3 className="font-black text-gray-800 tracking-tight flex items-center gap-2 text-sm">
+              <span className="w-1.5 h-5 bg-red-600 rounded-full"></span>
+              Customer Details
+            </h3>
           </div>
+          <div className="p-4 space-y-1">
+            <DetailRow label="Name" value={customerName || "N/A"} />
+            <DetailRow
+              label="Contact Number"
+              value={contacts.filter((c) => c !== "").join(", ") || "N/A"}
+            />
+            <DetailRow
+              label="Facebook Profile"
+              value={facebookProfile || "N/A"}
+            />
+          </div>
+        </div>
 
-          <div style={{ padding: "0 24px 24px" }}>
-            <CaptureSection title="Customer">
-              <CaptureRow label="Name" value={customerName || "—"} />
-              <CaptureRow
-                label="Contact"
-                value={contacts.filter(Boolean).join(", ") || "—"}
-              />
-              {facebookProfile && (
-                <CaptureRow label="Facebook" value={facebookProfile} />
-              )}
-            </CaptureSection>
-
-            <CaptureSection title="Delivery">
-              <CaptureRow
-                label="Type"
-                value={orderType === "delivery" ? "Delivery" : "Pickup"}
-              />
-              <CaptureRow label="Date" value={deliveryDate || "—"} />
-              <CaptureRow label="Time" value={deliveryTime || "—"} />
-              {orderType === "delivery" && (
-                <>
-                  <CaptureRow label="Address" value={address || "—"} />
-                  <CaptureRow label="Zone" value={zone || "—"} />
-                </>
-              )}
-              <CaptureRow
-                label="Payment"
-                value={paymentMethod === "gcash" ? "GCash" : "Cash on Delivery"}
-              />
-            </CaptureSection>
-
-            <CaptureSection title="Order">
-              {selectedProduct && (
-                <CaptureRow
-                  label="Package"
-                  value={selectedProduct.productName}
+        {/* 2. DELIVERY DETAILS */}
+        <div className="bg-white rounded-[2rem] shadow-sm border border-gray-100 overflow-hidden">
+          <div className="p-5 border-b border-gray-50 bg-gray-50/50">
+            <h3 className="font-black text-gray-800 tracking-tight flex items-center gap-2 text-sm">
+              <span className="w-1.5 h-5 bg-red-600 rounded-full"></span>
+              Delivery Details
+            </h3>
+          </div>
+          <div className="p-4 space-y-1">
+            <DetailRow
+              label="Delivery Type"
+              value={orderType === "delivery" ? "Delivery" : "Pickup"}
+              isHighlight
+            />
+            <DetailRow label="Delivery Date" value={deliveryDate || "N/A"} />
+            <DetailRow label="Delivery Time" value={deliveryTime || "N/A"} />
+            {orderType === "delivery" && (
+              <>
+                <DetailRow label="Address" value={address || "N/A"} />
+                <DetailRow label="Zone" value={zone || "N/A"} />
+                <DetailRow
+                  label="Delivery Fee"
+                  value={deliveryFee > 0 ? fmt(deliveryFee) : "FREE"}
                 />
-              )}
-              {resolvedRequiredDishes.length > 0 && (
-                <div
-                  style={{
-                    padding: "8px 0",
-                    borderBottom: "1px solid #f0f0f0",
-                  }}
-                >
-                  <div
-                    style={{
-                      fontSize: "9px",
-                      fontWeight: "800",
-                      color: "#aaa",
-                      textTransform: "uppercase",
-                      marginBottom: "6px",
-                    }}
-                  >
-                    Included Dishes
-                  </div>
-                  {resolvedRequiredDishes.map((d, i) => (
-                    <div
-                      key={i}
-                      style={{
-                        fontSize: "12px",
-                        color: "#555",
-                        padding: "2px 0",
-                      }}
-                    >
-                      • {d.dishName}
-                    </div>
-                  ))}
+              </>
+            )}
+            <div className="flex justify-between items-center py-3">
+              <span className="text-sm font-bold text-gray-400">
+                Payment Method
+              </span>
+              <div className="flex items-center gap-2 bg-[#0d0d0d] text-white px-3 py-1.5 rounded-xl shadow-lg">
+                <span className="text-xs">{paymentIcon}</span>
+                <span className="text-[10px] font-black uppercase tracking-widest">
+                  {paymentLabel}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* 3. ORDER ITEMS - SAME AS STEP 3 */}
+        <div className="bg-white rounded-[2rem] shadow-sm border border-gray-100 overflow-hidden">
+          <div className="p-5 border-b border-gray-50 bg-gray-50/50">
+            <h3 className="font-black text-gray-800 tracking-tight flex items-center gap-2 text-sm">
+              <span className="w-1.5 h-5 bg-red-600 rounded-full"></span>
+              Order Summary ({items.length}{" "}
+              {items.length === 1 ? "item" : "items"})
+            </h3>
+          </div>
+          <div className="p-4">
+            {items.map((item, index) => (
+              <OrderItemSummary
+                key={item.id}
+                item={item}
+                index={index + 1}
+                dishes={dishes}
+                fmt={fmt}
+              />
+            ))}
+
+            {/* EXTRA DISHES */}
+            {filledExtraDishes.length > 0 && (
+              <>
+                <div className="h-px bg-gray-200 my-4"></div>
+                <div className="flex items-center justify-between mb-3">
+                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">
+                    Additional Dishes ({filledExtraDishes.length})
+                  </p>
+                  <span className="text-[10px] font-bold bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">
+                    ₱{EXTRA_DISH_PRICE} each
+                  </span>
                 </div>
-              )}
-              {resolvedExtraDishes.length > 0 && (
-                <div style={{ padding: "8px 0" }}>
-                  <div
-                    style={{
-                      fontSize: "9px",
-                      fontWeight: "800",
-                      color: "#aaa",
-                      textTransform: "uppercase",
-                      marginBottom: "6px",
-                    }}
-                  >
-                    Extra Dishes
-                  </div>
-                  {resolvedExtraDishes.map((d, i) => (
-                    <div
-                      key={i}
-                      style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        fontSize: "12px",
-                        color: "#555",
-                        padding: "2px 0",
-                      }}
-                    >
-                      <span>• {d.dishName}</span>
-                      <span style={{ fontWeight: "700", color: "#111" }}>
-                        {fmt(EXTRA_DISH_PRICE)}
-                      </span>
-                    </div>
-                  ))}
+                <div className="space-y-2 mb-4 max-h-20 overflow-y-auto">
+                  {filledExtraDishes.slice(0, 4).map((dishIndex, i) => {
+                    const dish = dishes.find(
+                      (d) => String(d.id) === String(dishIndex),
+                    );
+                    return (
+                      <div
+                        key={i}
+                        className="flex items-center justify-between py-2 px-3 bg-gray-50 rounded-xl text-xs"
+                      >
+                        <span className="font-bold text-gray-700 truncate">
+                          {dish?.dishName || "Selected Dish"}
+                        </span>
+                        <span className="font-black text-gray-900">
+                          {fmt(EXTRA_DISH_PRICE)}
+                        </span>
+                      </div>
+                    );
+                  })}
                 </div>
-              )}
-              {upgradeTotal > 0 && (
-                <CaptureRow
-                  label={`Upgrade (${getUpgradeKg(upgradeAmount)})`}
-                  value={fmt(upgradeTotal)}
-                />
-              )}
-            </CaptureSection>
+              </>
+            )}
 
-            <CaptureSection title="Pricing">
-              {selectedProduct && (
-                <CaptureRow label="Package" value={fmt(packageTotal)} />
-              )}
-              {filledExtraDishes.length > 0 && (
-                <CaptureRow
-                  label="Extra Dishes"
-                  value={fmt(extraDishesTotal)}
-                />
-              )}
-              {upgradeTotal > 0 && (
-                <CaptureRow
-                  label={`Upgrade (${getUpgradeKg(upgradeAmount)})`}
-                  value={fmt(upgradeTotal)}
-                />
-              )}
-              {orderType === "delivery" && (
-                <CaptureRow label="Delivery Fee" value={fmt(deliveryFee)} />
-              )}
+            {/* GRAND TOTAL */}
+            <div className="mt-6 pt-4 border-t-2 border-gray-100 space-y-2">
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-500">Subtotal</span>
+                <span className="font-bold">{fmt(packageTotal)}</span>
+              </div>
               {discount > 0 && (
-                <CaptureRow
-                  label="Discount"
-                  value={`-${fmt(discount)}`}
-                  green
-                />
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-500">Discount</span>
+                  <span className="font-bold text-green-600">
+                    - {fmt(discount)}
+                  </span>
+                </div>
               )}
-            </CaptureSection>
-
-            <div
-              style={{
-                backgroundColor: "#b91c1c",
-                borderRadius: "12px",
-                padding: "14px 20px",
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                marginTop: "12px",
-              }}
-            >
-              <span
-                style={{ color: "#fff", fontWeight: "900", fontSize: "14px" }}
-              >
-                TOTAL
-              </span>
-              <span
-                style={{ color: "#fff", fontWeight: "900", fontSize: "20px" }}
-              >
-                {fmt(total)}
-              </span>
+              {dishesTotal > 0 && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-500">Extra Dishes</span>
+                  <span className="font-bold">{fmt(dishesTotal)}</span>
+                </div>
+              )}
+              {deliveryFee > 0 && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-500">Delivery Fee</span>
+                  <span className="font-bold">{fmt(deliveryFee)}</span>
+                </div>
+              )}
+              <div className="h-px bg-gray-200 my-1"></div>
+              <ItemRow name="TOTAL" price={fmt(total)} isBold />
             </div>
+          </div>
+        </div>
+      </div>
 
+      {/* FOOTER */}
+      <div className="px-8 py-5 bg-gray-50/80 border-t border-gray-100 flex flex-col sm:flex-row gap-3">
+        <button
+          onClick={onCancel}
+          disabled={isSubmitting}
+          className="flex-1 px-6 py-3 rounded-2xl border-2 border-gray-200 text-gray-600 font-bold text-sm hover:bg-gray-100 hover:border-gray-300 transition-all disabled:opacity-50"
+        >
+          Cancel
+        </button>
+        <button
+          onClick={onConfirm}
+          disabled={isSubmitting}
+          className="flex-1 px-6 py-3 rounded-2xl bg-red-600 text-white font-black text-sm hover:bg-red-700 transition-all shadow-lg shadow-red-200 disabled:opacity-70 flex items-center justify-center gap-2"
+        >
+          {isSubmitting ? (
+            <>
+              <svg
+                className="w-4 h-4 animate-spin"
+                fill="none"
+                viewBox="0 0 24 24"
+              >
+                <circle
+                  className="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                />
+                <path
+                  className="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8v8z"
+                />
+              </svg>
+              Recording...
+            </>
+          ) : (
+            <>
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2.5"
+                  d="M5 13l4 4L19 7"
+                />
+              </svg>
+              Confirm Order
+            </>
+          )}
+        </button>
+      </div>
+    </>
+  );
+}
+
+// ✅ RECEIPT VIEW - UPDATED FOR MULTIPLE ITEMS
+function ReceiptView({
+  orderNumber,
+  customerName,
+  contacts,
+  facebookProfile,
+  orderType,
+  zone,
+  address,
+  deliveryDate,
+  deliveryTime,
+  items,
+  dishes,
+  filledExtraDishes,
+  packageTotal,
+  dishesTotal,
+  deliveryFee,
+  discount,
+  total,
+  paymentMethod,
+  fmt,
+  getUpgradeKg,
+  onBookAgain,
+  onDownloadPDF,
+  onDownloadImage,
+  isDownloading,
+}) {
+  return (
+    <>
+      {/* HEADER */}
+      <div className="px-8 pt-7 pb-5 border-b border-gray-100 text-center relative">
+        <button
+          onClick={onBookAgain}
+          className="absolute top-4 right-6 w-8 h-8 flex items-center justify-center rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-all"
+        >
+          <svg
+            className="w-5 h-5"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth="2.5"
+              d="M6 18L18 6M6 6l12 12"
+            />
+          </svg>
+        </button>
+
+        <div className="w-14 h-14 rounded-full bg-emerald-50 flex items-center justify-center mx-auto mb-3">
+          <svg
+            className="w-7 h-7 text-emerald-500"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth="2.5"
+              d="M5 13l4 4L19 7"
+            />
+          </svg>
+        </div>
+        <h2 className="text-xl font-black text-gray-900 tracking-tight">
+          Order Recorded!
+        </h2>
+        <p className="text-sm text-gray-400 font-medium mt-1">
+          <span className="font-black text-red-600">{orderNumber}</span>
+        </p>
+      </div>
+
+      {/* BODY */}
+      <div className="px-8 py-5 space-y-4 max-h-[55vh] overflow-y-auto">
+        <ReceiptSection title="Customer">
+          <ReceiptRow label="Name" value={customerName || "—"} />
+          <ReceiptRow
+            label="Contact"
+            value={contacts.filter(Boolean).join(", ") || "—"}
+          />
+          {facebookProfile && (
+            <ReceiptRow label="Facebook" value={facebookProfile} />
+          )}
+        </ReceiptSection>
+
+        <ReceiptSection title="Delivery">
+          <ReceiptRow
+            label="Type"
+            value={orderType === "delivery" ? "Delivery" : "Pickup"}
+            highlight
+          />
+          <ReceiptRow label="Date" value={deliveryDate || "—"} />
+          <ReceiptRow label="Time" value={deliveryTime || "—"} />
+          {orderType === "delivery" && (
+            <>
+              <ReceiptRow label="Address" value={address || "—"} />
+              <ReceiptRow label="Zone" value={zone || "—"} />
+            </>
+          )}
+          <ReceiptRow
+            label="Payment"
+            value={
+              paymentMethod === "gcash" ? "📱 GCash" : "💵 Cash on Delivery"
+            }
+          />
+        </ReceiptSection>
+
+        <ReceiptSection
+          title={`Order (${items.length} ${items.length === 1 ? "item" : "items"})`}
+        >
+          {items.map((item, index) => (
             <div
-              style={{
-                textAlign: "center",
-                marginTop: "18px",
-                color: "#bbb",
-                fontSize: "10px",
-              }}
+              key={item.id}
+              className="mb-3 pb-3 border-b border-gray-50 last:border-b-0 last:mb-0 last:pb-0"
             >
-              Thank you for ordering from Jojo's Lechon!
-              <br />
-              This receipt was generated electronically.
+              <div className="flex items-start justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <div className="w-6 h-6 bg-red-600 rounded-lg flex items-center justify-center text-white font-black text-xs shrink-0">
+                    {index + 1}
+                  </div>
+                  <span className="text-xs font-bold text-gray-900">
+                    {item.selectedProduct?.productName}
+                  </span>
+                </div>
+                <span className="text-xs font-black text-gray-900">
+                  {fmt(item.selectedProduct?.amount || 0)}
+                </span>
+              </div>
+              {item.upgradeAmount > 0 && (
+                <div className="flex justify-between text-xs text-red-600 font-bold ml-8">
+                  <span>+ Upgrade ({getUpgradeKg(item.upgradeAmount)})</span>
+                  <span>+ {fmt(item.upgradeAmount)}</span>
+                </div>
+              )}
             </div>
+          ))}
+
+          {filledExtraDishes.length > 0 && (
+            <div className="py-2 border-t border-gray-50 mt-2">
+              <p className="text-[10px] font-black text-gray-400 uppercase mb-1.5">
+                Extra Dishes ({filledExtraDishes.length})
+              </p>
+              {filledExtraDishes.slice(0, 3).map((dishIndex, i) => {
+                const dish = dishes.find(
+                  (d) => String(d.id) === String(dishIndex),
+                );
+                return (
+                  <div
+                    key={i}
+                    className="flex justify-between text-xs text-gray-600 font-medium py-0.5"
+                  >
+                    <span>• {dish?.dishName || "Selected Dish"}</span>
+                    <span className="text-gray-800 font-black">
+                      {fmt(EXTRA_DISH_PRICE)}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </ReceiptSection>
+
+        <ReceiptSection title="Pricing">
+          <ReceiptRow label="Subtotal" value={fmt(packageTotal)} />
+          {discount > 0 && (
+            <ReceiptRow label="Discount" value={`-${fmt(discount)}`} green />
+          )}
+          {dishesTotal > 0 && (
+            <ReceiptRow label="Extra Dishes" value={fmt(dishesTotal)} />
+          )}
+          {deliveryFee > 0 && (
+            <ReceiptRow label="Delivery Fee" value={fmt(deliveryFee)} />
+          )}
+          <div className="mt-2 pt-3 border-t-2 border-gray-100 flex justify-between items-center">
+            <span className="text-sm font-black text-gray-800">Total</span>
+            <span className="text-lg font-black text-red-600">
+              {fmt(total)}
+            </span>
+          </div>
+        </ReceiptSection>
+      </div>
+
+      {/* FOOTER BUTTONS */}
+      <div className="px-8 py-5 bg-gray-50/80 border-t border-gray-100 flex flex-col sm:flex-row gap-3">
+        <button
+          onClick={onDownloadPDF}
+          className="flex-1 px-6 py-3 rounded-2xl bg-gray-900 text-white font-black text-sm hover:bg-gray-800 transition-all flex items-center justify-center gap-2"
+        >
+          <svg
+            className="w-4 h-4"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth="2.5"
+              d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+            />
+          </svg>
+          Download Receipt
+        </button>
+        <button
+          onClick={onDownloadImage}
+          disabled={isDownloading}
+          className="flex-1 px-6 py-3 rounded-2xl border-2 border-gray-200 text-gray-600 font-bold text-sm hover:bg-gray-100 transition-all flex items-center justify-center gap-2 disabled:opacity-60"
+        >
+          {isDownloading ? (
+            <>
+              <svg
+                className="w-4 h-4 animate-spin"
+                fill="none"
+                viewBox="0 0 24 24"
+              >
+                <circle
+                  className="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                />
+                <path
+                  className="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8v8z"
+                />
+              </svg>
+              Saving...
+            </>
+          ) : (
+            <>
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2.5"
+                  d="M4 7h16M4 12h16M4 17h16"
+                />
+              </svg>
+              Save as Image
+            </>
+          )}
+        </button>
+        <button
+          onClick={onBookAgain}
+          className="flex-1 px-6 py-3 rounded-2xl bg-red-600 text-white font-black text-sm hover:bg-red-700 transition-all shadow-lg shadow-red-200 flex items-center justify-center gap-2"
+        >
+          <svg
+            className="w-4 h-4"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth="2.5"
+              d="M12 4v16m8-8H4"
+            />
+          </svg>
+          Book Again
+        </button>
+      </div>
+    </>
+  );
+}
+
+// ✅ STEP 3 COMPONENTS (REUSED)
+function OrderItemSummary({ item, index, dishes, fmt }) {
+  if (!item.selectedProduct) return null;
+
+  const requiredDishes = (item.requiredDishes || []).filter((d) => d !== "");
+  const dishNames = requiredDishes.map((dishId) => {
+    const dish = dishes.find((d) => String(d.id) === String(dishId));
+    return dish?.dishName || "Dish";
+  });
+
+  return (
+    <div className="mb-4 pb-4 border-b border-gray-100 last:border-b-0 last:mb-0 last:pb-0">
+      <div className="flex items-start justify-between mb-2">
+        <div className="flex items-center gap-2">
+          <div className="w-7 h-7 bg-red-600 rounded-lg flex items-center justify-center text-white font-black text-sm shrink-0">
+            {index}
+          </div>
+          <div>
+            <p className="font-black text-sm text-gray-900 leading-tight">
+              {item.selectedProduct.productName}
+            </p>
+            {item.upgradeAmount > 0 && (
+              <p className="text-xs text-red-600 font-bold">
+                + Upgrade ({getUpgradeKg(item.upgradeAmount)})
+              </p>
+            )}
+          </div>
+        </div>
+        <div className="text-right">
+          <p className="font-black text-sm">
+            {fmt(item.selectedProduct.amount)}
+          </p>
+          {item.upgradeAmount > 0 && (
+            <p className="text-xs text-gray-500">+ {fmt(item.upgradeAmount)}</p>
+          )}
+        </div>
+      </div>
+
+      {requiredDishes.length > 0 && (
+        <div className="bg-gray-50 rounded-xl p-3 ml-9 mt-1">
+          <p className="text-[10px] font-bold text-gray-500 uppercase mb-1.5 tracking-wide">
+            Included Dishes:
+          </p>
+          <div className="flex flex-wrap gap-1">
+            {dishNames.map((name, i) => (
+              <span
+                key={i}
+                className="px-2 py-0.5 bg-white text-[10px] font-bold text-gray-700 rounded-full shadow-sm"
+              >
+                {name}
+              </span>
+            ))}
           </div>
         </div>
       )}
@@ -1052,8 +1075,43 @@ export default function ConfirmOrderModal({
   );
 }
 
-/* ── RECEIPT SUB COMPONENTS ─────────────────────────────────────── */
+function DetailRow({ label, value, isHighlight = false }) {
+  return (
+    <div className="flex justify-between items-center py-2 border-b border-gray-50 last:border-0 group">
+      <span className="text-xs font-bold text-gray-400 group-hover:text-gray-500 transition-colors">
+        {label}
+      </span>
+      <span
+        className={`text-xs font-black px-2 py-0.5 rounded-md ${
+          isHighlight ? "text-red-600 bg-red-50" : "text-gray-800 bg-gray-50"
+        }`}
+      >
+        {value}
+      </span>
+    </div>
+  );
+}
 
+function ItemRow({ name, price, isBold = false }) {
+  return (
+    <div
+      className={`flex justify-between items-center py-2 ${isBold ? "pt-2 pb-3" : ""}`}
+    >
+      <span
+        className={`text-sm font-bold ${isBold ? "text-lg text-gray-900" : "text-gray-500"}`}
+      >
+        {name}
+      </span>
+      <span
+        className={`font-black ${isBold ? "text-xl text-red-600" : "text-sm text-gray-800"}`}
+      >
+        {price}
+      </span>
+    </div>
+  );
+}
+
+// Receipt components (unchanged)
 function ReceiptSection({ title, children }) {
   return (
     <div>
@@ -1072,7 +1130,13 @@ function ReceiptRow({ label, value, highlight = false, green = false }) {
     <div className="flex justify-between items-center py-2.5 border-b border-gray-100 last:border-0">
       <span className="text-xs font-bold text-gray-400">{label}</span>
       <span
-        className={`text-xs font-black px-2 py-0.5 rounded-lg ${green ? "text-emerald-600 bg-emerald-50" : highlight ? "text-red-600 bg-red-50" : "text-gray-700 bg-white border border-gray-100"}`}
+        className={`text-xs font-black px-2 py-0.5 rounded-lg ${
+          green
+            ? "text-emerald-600 bg-emerald-50"
+            : highlight
+              ? "text-red-600 bg-red-50"
+              : "text-gray-700 bg-white border border-gray-100"
+        }`}
       >
         {value}
       </span>
@@ -1080,30 +1144,271 @@ function ReceiptRow({ label, value, highlight = false, green = false }) {
   );
 }
 
-/* ── CONFIRM VIEW SUB COMPONENTS ────────────────────────────────── */
-
-function Section({ title, children }) {
+// Full receipt capture (UPDATED FOR MULTIPLE ITEMS)
+function FullReceiptCapture({
+  orderNumber,
+  customerName,
+  contacts,
+  facebookProfile,
+  orderType,
+  zone,
+  address,
+  deliveryDate,
+  deliveryTime,
+  items,
+  dishes,
+  filledExtraDishes,
+  packageTotal,
+  dishesTotal,
+  deliveryFee,
+  discount,
+  total,
+  paymentMethod,
+  fmt,
+  getUpgradeKg,
+}) {
   return (
-    <div>
-      <p className="text-[12px] font-black text-gray-600 uppercase tracking-[0.15em] mb-3">
-        {title}
-      </p>
-      <div className="bg-gray-50 rounded-2xl px-4 py-1 space-y-0.5">
-        {children}
+    <div
+      id="receipt-full-capture"
+      style={{
+        display: "none",
+        position: "fixed",
+        left: "-9999px",
+        top: 0,
+        width: "480px",
+        backgroundColor: "#ffffff",
+        padding: "0",
+        fontFamily: "sans-serif",
+      }}
+    >
+      {/* Header */}
+      <div
+        style={{
+          backgroundColor: "#b91c1c",
+          padding: "24px 32px",
+          textAlign: "center",
+        }}
+      >
+        <div style={{ fontSize: "22px", fontWeight: "900", color: "#fff" }}>
+          Jojo's Lechon
+        </div>
+        <div style={{ fontSize: "11px", color: "#fecaca", marginTop: "4px" }}>
+          Order Receipt
+        </div>
       </div>
-    </div>
-  );
-}
 
-function Row({ label, value, highlight = false, green = false }) {
-  return (
-    <div className="flex justify-between items-center py-2.5 border-b border-gray-100 last:border-0">
-      <span className="text-xs font-bold text-gray-400">{label}</span>
-      <span
-        className={`text-xs font-black px-2 py-0.5 rounded-lg ${green ? "text-emerald-600 bg-emerald-50" : highlight ? "text-red-600 bg-red-50" : "text-gray-700 bg-white border border-gray-100"}`}
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          padding: "14px 24px 10px",
+          borderBottom: "2px solid #b91c1c",
+        }}
       >
-        {value}
-      </span>
+        <span style={{ fontWeight: "900", color: "#b91c1c", fontSize: "13px" }}>
+          {orderNumber}
+        </span>
+        <span style={{ color: "#aaa", fontSize: "12px" }}>
+          {new Date().toLocaleDateString("en-PH", {
+            year: "numeric",
+            month: "long",
+            day: "numeric",
+          })}
+        </span>
+      </div>
+
+      <div style={{ padding: "0 24px 24px" }}>
+        <CaptureSection title="Customer">
+          <CaptureRow label="Name" value={customerName || "—"} />
+          <CaptureRow
+            label="Contact"
+            value={contacts.filter(Boolean).join(", ") || "—"}
+          />
+          {facebookProfile && (
+            <CaptureRow label="Facebook" value={facebookProfile} />
+          )}
+        </CaptureSection>
+
+        <CaptureSection title="Delivery">
+          <CaptureRow
+            label="Type"
+            value={orderType === "delivery" ? "Delivery" : "Pickup"}
+          />
+          <CaptureRow label="Date" value={deliveryDate || "—"} />
+          <CaptureRow label="Time" value={deliveryTime || "—"} />
+          {orderType === "delivery" && (
+            <>
+              <CaptureRow label="Address" value={address || "—"} />
+              <CaptureRow label="Zone" value={zone || "—"} />
+            </>
+          )}
+          <CaptureRow
+            label="Payment"
+            value={paymentMethod === "gcash" ? "GCash" : "Cash on Delivery"}
+          />
+        </CaptureSection>
+
+        <CaptureSection
+          title={`Order (${items.length} ${items.length === 1 ? "item" : "items"})`}
+        >
+          {items.map((item, index) => (
+            <div
+              key={item.id}
+              style={{
+                marginBottom: "12px",
+                paddingBottom: "12px",
+                borderBottom: "1px solid #f0f0f0",
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "flex-start",
+                  marginBottom: "6px",
+                }}
+              >
+                <div
+                  style={{ display: "flex", alignItems: "center", gap: "8px" }}
+                >
+                  <div
+                    style={{
+                      width: "24px",
+                      height: "24px",
+                      backgroundColor: "#b91c1c",
+                      borderRadius: "6px",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      color: "white",
+                      fontWeight: "900",
+                      fontSize: "12px",
+                    }}
+                  >
+                    {index + 1}
+                  </div>
+                  <span
+                    style={{
+                      fontSize: "13px",
+                      fontWeight: "800",
+                      color: "#111",
+                    }}
+                  >
+                    {item.selectedProduct?.productName}
+                  </span>
+                </div>
+                <span
+                  style={{
+                    fontSize: "13px",
+                    fontWeight: "900",
+                    color: "#b91c1c",
+                  }}
+                >
+                  {fmt(item.selectedProduct?.amount || 0)}
+                </span>
+              </div>
+              {item.upgradeAmount > 0 && (
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    marginLeft: "32px",
+                    fontSize: "11px",
+                    color: "#b91c1c",
+                    fontWeight: "700",
+                  }}
+                >
+                  <span>Upgrade ({getUpgradeKg(item.upgradeAmount)})</span>
+                  <span>{fmt(item.upgradeAmount)}</span>
+                </div>
+              )}
+            </div>
+          ))}
+
+          {filledExtraDishes.length > 0 && (
+            <div style={{ padding: "8px 0", borderTop: "1px solid #f0f0f0" }}>
+              <div
+                style={{
+                  fontSize: "9px",
+                  fontWeight: "800",
+                  color: "#aaa",
+                  textTransform: "uppercase",
+                  marginBottom: "6px",
+                }}
+              >
+                Extra Dishes ({filledExtraDishes.length})
+              </div>
+              {filledExtraDishes.slice(0, 4).map((dishIndex, i) => {
+                const dish = dishes.find(
+                  (d) => String(d.id) === String(dishIndex),
+                );
+                return (
+                  <div
+                    key={i}
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      fontSize: "12px",
+                      color: "#555",
+                      padding: "2px 0",
+                    }}
+                  >
+                    <span>• {dish?.dishName || "Selected Dish"}</span>
+                    <span style={{ fontWeight: "700", color: "#111" }}>
+                      {fmt(EXTRA_DISH_PRICE)}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </CaptureSection>
+
+        <CaptureSection title="Pricing">
+          <CaptureRow label="Subtotal" value={fmt(packageTotal)} />
+          {discount > 0 && (
+            <CaptureRow label="Discount" value={`-${fmt(discount)}`} green />
+          )}
+          {dishesTotal > 0 && (
+            <CaptureRow label="Extra Dishes" value={fmt(dishesTotal)} />
+          )}
+          {deliveryFee > 0 && (
+            <CaptureRow label="Delivery Fee" value={fmt(deliveryFee)} />
+          )}
+        </CaptureSection>
+
+        <div
+          style={{
+            backgroundColor: "#b91c1c",
+            borderRadius: "12px",
+            padding: "14px 20px",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginTop: "12px",
+          }}
+        >
+          <span style={{ color: "#fff", fontWeight: "900", fontSize: "14px" }}>
+            TOTAL
+          </span>
+          <span style={{ color: "#fff", fontWeight: "900", fontSize: "20px" }}>
+            {fmt(total)}
+          </span>
+        </div>
+
+        <div
+          style={{
+            textAlign: "center",
+            marginTop: "18px",
+            color: "#bbb",
+            fontSize: "10px",
+          }}
+        >
+          Thank you for ordering from Jojo's Lechon!
+          <br />
+          This receipt was generated electronically.
+        </div>
+      </div>
     </div>
   );
 }

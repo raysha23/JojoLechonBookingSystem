@@ -32,12 +32,24 @@ namespace api.Controllers
 
         [HttpGet]
         [OutputCache(PolicyName = "static-data")]
-        public async Task<IActionResult> GetProducts(
-            [FromQuery] int? productTypeId = null,
-            [FromQuery] string? productTypeName = null)
+        [HttpGet]
+        public async Task<IActionResult> GetProducts([FromQuery] int? productTypeId = null, [FromQuery] string? productTypeName = null)
         {
-            var products = await _productRepository.GetProductsAsync(productTypeId, productTypeName);
-            return Ok(products);
+            try
+            {
+                Console.WriteLine($"🔍 GetProducts: productTypeId={productTypeId}");
+
+                var products = await _productRepository.GetProductsAsync(productTypeId, productTypeName);
+                Console.WriteLine($"✅ Found {products.Count} products");
+
+                return Ok(products);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"💥 ERROR: {ex.Message}");
+                Console.WriteLine($"💥 Stack: {ex.StackTrace}");
+                return StatusCode(500, $"Error: {ex.Message}");
+            }
         }
 
         [HttpGet("types")]
