@@ -241,7 +241,7 @@ function App({ submittedByUserId = null, encoderName = null }) {
 
     try {
       const result = await createOrder(payload);
-      console.log("Order success:", result);
+      // console.log("Order success:", result);
     } catch (error) {
       console.error("Order submission error:", error);
       alert("Something went wrong.");

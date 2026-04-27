@@ -152,6 +152,8 @@ namespace api.Controllers
                     .AsNoTracking()
                     .Include(o => o.Customer).ThenInclude(c => c.Contacts)
                     .Include(o => o.Product)
+                        .ThenInclude(p => p!.ProductType)
+                    .Include(o => o.Product)
                         .ThenInclude(p => p!.Freebies)
                     .Include(o => o.OrderDishes).ThenInclude(od => od.Dish)
                     .FirstOrDefaultAsync(o => o.Id == order.Id);
@@ -375,6 +377,8 @@ namespace api.Controllers
             var restoredOrder = await _context.Orders
                 .Include(o => o.Customer)
                     .ThenInclude(c => c.Contacts)
+                .Include(o => o.Product)
+                    .ThenInclude(p => p!.ProductType)
                 .Include(o => o.Product)
                 .FirstOrDefaultAsync(o => o.Id == id);
 
