@@ -164,6 +164,8 @@ namespace api.Controllers
                     .Include(o => o.OrderItems).ThenInclude(oi => oi.Product).ThenInclude(p => p.Freebies)
                     .Include(o => o.OrderItems).ThenInclude(oi => oi.OrderItemDishes).ThenInclude(d => d.Dish)
                     .FirstOrDefaultAsync(o => o.Id == order.Id);
+                    
+                await _hub.Clients.All.SendAsync("NewOrder", createdOrder!.ToOrderDTO());
 
                 return Created($"/api/order/{order.Id}", createdOrder!.ToOrderDTO());
             }

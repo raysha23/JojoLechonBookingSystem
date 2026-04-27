@@ -1,5 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
-import DatePicker from "../../components/datetimepicker/DatePicker.jsx";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { generateOrderDoc } from "../generateDoc.js";
 import api from "../../api/client.js";
@@ -17,7 +16,6 @@ import * as signalR from "@microsoft/signalr";
 const EXTRA_DISH_PRICE = 700;
 
 // ── HELPERS ───────────────────────────────────────────────────────
-
 const fmt = (n) =>
   "₱" + Number(n).toLocaleString("en-PH", { minimumFractionDigits: 2 });
 
@@ -55,8 +53,36 @@ const getToday = () => {
   return `${year}-${month}-${day}`;
 };
 
-// ── MAIN ──────────────────────────────────────────────────────────
+// ── NORMALIZE BOOKING ─────────────────────────────────────────────
+// Handles both flat and items-array API shapes
+// Replace the old normalizeBooking with this
+function normalizeBooking(b) {
+  const items = b.items ?? [];
+  return {
+    items, // expose all items
+    // Keep a "primary" item for backward compat where needed
+    productName:
+      items
+        .map((i) => i.productName)
+        .filter(Boolean)
+        .join(" + ") ||
+      b.productName ||
+      "—",
+    productTypeName: items[0]?.productTypeName || b.productTypeName || "",
+    requiredDishes: items.flatMap(
+      (i) => i.requiredDishes?.filter(Boolean) ?? [],
+    ),
+    extraDishes: items.flatMap((i) => i.extraDishes?.filter(Boolean) ?? []),
+    freebies: items.flatMap((i) => i.freebies?.filter(Boolean) ?? []),
+    promoAmount: items.reduce(
+      (sum, i) => sum + Math.abs(Number(i.promoAmount ?? 0)),
+      0,
+    ),
+    productId: items[0]?.productId ?? b.productId ?? null,
+  };
+}
 
+// ── MAIN ──────────────────────────────────────────────────────────
 export default function AdminDashboard() {
   const navigate = useNavigate();
   const [bookings, setBookings] = useState([]);
@@ -78,63 +104,68 @@ export default function AdminDashboard() {
     return () => clearInterval(timer);
   }, []);
 
-  const formatClock = (date) => {
-    return date.toLocaleTimeString("en-PH", {
+  const formatClock = (date) =>
+    date.toLocaleTimeString("en-PH", {
       hour: "2-digit",
       minute: "2-digit",
       second: "2-digit",
       hour12: true,
     });
-  };
 
-  const formatDate = (date) => {
-    return date.toLocaleDateString("en-PH", {
+  const formatDate = (date) =>
+    date.toLocaleDateString("en-PH", {
       weekday: "long",
       year: "numeric",
       month: "long",
       day: "numeric",
     });
-  };
+
   const addToast = useCallback((order) => {
     const id = Date.now();
     setToasts((prev) => [...prev, { id, order }]);
-    // auto-remove after 5 seconds
     setTimeout(() => {
       setToasts((prev) => prev.filter((t) => t.id !== id));
     }, 10000);
   }, []);
 
+  const filterDateRef = useRef(filterDate);
+  useEffect(() => {
+    filterDateRef.current = filterDate;
+  }, [filterDate]);
+
   useEffect(() => {
     const connection = new signalR.HubConnectionBuilder()
       .withUrl("http://localhost:5194/hubs/order", {
         transport: signalR.HttpTransportType.LongPolling,
-        headers: {
-          "ngrok-skip-browser-warning": "true",
-        },
+        headers: { "ngrok-skip-browser-warning": "true" },
       })
       .withAutomaticReconnect()
       .build();
 
     connection.on("NewOrder", (order) => {
       addToast(order);
-      loadBookings(filterDate); // auto-refresh the table
+      loadBookings(filterDateRef.current); // always reads latest date
     });
 
     connection.start().catch(console.error);
 
     return () => connection.stop();
-  }, []);
-  const pigCount = bookings.filter(
-    (b) =>
-      !b.deletedAt &&
-      ["lechon_package", "lechon_only"].includes(b.productTypeName),
-  ).length;
+  }, [addToast]); // ← no longer depends on filterDate
 
-  const bellyCount = bookings.filter(
-    (b) =>
-      !b.deletedAt &&
-      ["belly_package", "belly_only"].includes(b.productTypeName),
-  ).length;
+  // ── COUNTS ────────────────────────────────────────────────────
+  const pigCount = bookings.filter((b) => {
+    if (b.deletedAt) return false;
+    return (b.items ?? []).some((i) =>
+      ["lechon_package", "lechon_only"].includes(i.productTypeName),
+    );
+  }).length;
+
+  const bellyCount = bookings.filter((b) => {
+    if (b.deletedAt) return false;
+    return (b.items ?? []).some((i) =>
+      ["belly_package", "belly_only"].includes(i.productTypeName),
+    );
+  }).length;
 
   const loadBookings = async (date = filterDate) => {
     const data = await getOrders({ date });
@@ -168,7 +199,6 @@ export default function AdminDashboard() {
     loadBookings(filterDate);
   };
 
-  // ── PRINT HANDLER ─────────────────────────────────────────────
   const handlePrintOrders = async () => {
     setPrintConfirm(false);
     const unprintedIds = filtered
@@ -178,10 +208,9 @@ export default function AdminDashboard() {
       await markOrdersAsPrinted(unprintedIds);
       await loadBookings(filterDate);
     }
-    await generateOrderDoc(filtered, filterDate); // downloads .docx
+    await generateOrderDoc(filtered, filterDate);
   };
 
-  // ── TOGGLE PRINT STATUS (with confirm modal) ──────────────────
   const handleTogglePrinted = async () => {
     await toggleOrderPrinted(
       togglePrintTarget.id,
@@ -196,7 +225,7 @@ export default function AdminDashboard() {
     .filter((b) => {
       const matchDeleted = showDeleted ? !!b.deletedAt : !b.deletedAt;
       const matchSearch = search
-        ? b.customerName.toLowerCase().includes(search.toLowerCase())
+        ? b.customerName?.toLowerCase().includes(search.toLowerCase())
         : true;
       const matchPrint =
         printFilter === "all"
@@ -284,7 +313,6 @@ export default function AdminDashboard() {
         {/* ── TOOLBAR ── */}
         <div className="bg-white rounded-[1.5rem] border border-slate-200/70 shadow-sm p-4 mb-8 print:hidden">
           <div className="flex flex-col lg:flex-row gap-4 items-center justify-between">
-            {/* LEFT */}
             <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
               {/* SEARCH */}
               <div className="relative flex-1 sm:flex-none min-w-[260px]">
@@ -359,6 +387,7 @@ export default function AdminDashboard() {
                   </button>
                 )}
               </div>
+
               {/* PIG & BELLY COUNTS */}
               <div className="flex items-center gap-2">
                 <div className="flex items-center gap-1.5 px-3 py-2 bg-red-50 border border-red-100 rounded-xl">
@@ -395,7 +424,6 @@ export default function AdminDashboard() {
                 </span>
               </div>
 
-              {/* TRASH TOGGLE */}
               <button
                 onClick={() => setShowDeleted(!showDeleted)}
                 className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all border ${
@@ -420,7 +448,6 @@ export default function AdminDashboard() {
                 {showDeleted ? "Viewing Trash" : "Trash"}
               </button>
 
-              {/* PRINT BUTTON */}
               <button
                 onClick={() => setPrintConfirm(true)}
                 className="flex items-center gap-2.5 bg-slate-900 text-white px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-[0.15em] hover:bg-black transition-all shadow-md active:scale-95"
@@ -466,11 +493,7 @@ export default function AdminDashboard() {
           >
             All
             <span
-              className={`px-1.5 py-0.5 rounded-full text-[10px] font-black ${
-                printFilter === "all"
-                  ? "bg-white/20 text-white"
-                  : "bg-gray-100 text-gray-500"
-              }`}
+              className={`px-1.5 py-0.5 rounded-full text-[10px] font-black ${printFilter === "all" ? "bg-white/20 text-white" : "bg-gray-100 text-gray-500"}`}
             >
               {bookings.filter((b) => !b.deletedAt).length}
             </span>
@@ -489,18 +512,12 @@ export default function AdminDashboard() {
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
               )}
               <span
-                className={`relative inline-flex rounded-full h-2 w-2 ${
-                  printFilter === "unprinted" ? "bg-white" : "bg-red-500"
-                }`}
+                className={`relative inline-flex rounded-full h-2 w-2 ${printFilter === "unprinted" ? "bg-white" : "bg-red-500"}`}
               />
             </span>
             Not Printed
             <span
-              className={`px-1.5 py-0.5 rounded-full text-[10px] font-black ${
-                printFilter === "unprinted"
-                  ? "bg-white/20 text-white"
-                  : "bg-red-100 text-red-600"
-              }`}
+              className={`px-1.5 py-0.5 rounded-full text-[10px] font-black ${printFilter === "unprinted" ? "bg-white/20 text-white" : "bg-red-100 text-red-600"}`}
             >
               {unprintedCount}
             </span>
@@ -516,11 +533,7 @@ export default function AdminDashboard() {
           >
             ✅ Printed
             <span
-              className={`px-1.5 py-0.5 rounded-full text-[10px] font-black ${
-                printFilter === "printed"
-                  ? "bg-white/20 text-white"
-                  : "bg-emerald-100 text-emerald-600"
-              }`}
+              className={`px-1.5 py-0.5 rounded-full text-[10px] font-black ${printFilter === "printed" ? "bg-white/20 text-white" : "bg-emerald-100 text-emerald-600"}`}
             >
               {printedCount}
             </span>
@@ -634,6 +647,7 @@ export default function AdminDashboard() {
               </p>
             )}
           </div>
+
           {/* ── TOAST NOTIFICATIONS ── */}
           <div className="fixed top-6 right-6 z-50 flex flex-col gap-3 pointer-events-none">
             {toasts.map((toast) => (
@@ -653,7 +667,10 @@ export default function AdminDashboard() {
                       {toast.order.customerName}
                     </p>
                     <p className="text-xs text-gray-500 font-medium truncate">
-                      {toast.order.productName || "No package"} ·{" "}
+                      {toast.order.items
+                        ?.map((i) => i.productName)
+                        .filter(Boolean)
+                        .join(" + ") || "No package"}
                       {toast.order.deliveryTime}
                     </p>
                     <p className="text-xs text-gray-400 font-medium mt-0.5">
@@ -661,11 +678,7 @@ export default function AdminDashboard() {
                       {toast.order.deliveryDate
                         ? new Date(toast.order.deliveryDate).toLocaleDateString(
                             "en-PH",
-                            {
-                              month: "short",
-                              day: "numeric",
-                              year: "numeric",
-                            },
+                            { month: "short", day: "numeric", year: "numeric" },
                           )
                         : "No date"}
                     </p>
@@ -759,7 +772,6 @@ export default function AdminDashboard() {
           confirmColor="green"
           onConfirm={handlePrintOrders}
           onCancel={() => setPrintConfirm(false)}
-          className="print:hidden"
         />
       )}
 
@@ -768,21 +780,19 @@ export default function AdminDashboard() {
           from { transform: translateX(100%); opacity: 0; }
           to { transform: translateX(0); opacity: 1; }
         }
-        .animate-slide-in {
-          animation: slide-in 0.3s ease-out;
-        }
+        .animate-slide-in { animation: slide-in 0.3s ease-out; }
         @media print {
           .print\\:hidden { display: none !important; }
           .hidden.print\\:block { display: block !important; }
           body { background: white !important; }
         }
-`}</style>
+      `}</style>
     </div>
   );
 }
 
 // ── TABLE HEADER CELL ─────────────────────────────────────────────
-function Th({ children, wide, className = "" }) {
+function Th({ children, className = "" }) {
   return (
     <th
       className={`px-5 py-4 text-left text-base font-bold text-white uppercase tracking-widest whitespace-nowrap ${className}`}
@@ -801,9 +811,8 @@ function BookingRow({
   onRestore,
   onTogglePrinted,
 }) {
-  const extraDishes = booking.dishes?.extra?.filter(Boolean) || [];
-  const discount = Math.abs(Number(booking.promoAmount || 0));
-  // console.log(discount);
+  const { productName, requiredDishes, extraDishes, freebies, promoAmount } =
+    normalizeBooking(booking);
   const processTime = getProcessTime(booking.deliveryTime);
 
   return (
@@ -838,50 +847,62 @@ function BookingRow({
       </td>
 
       {/* ORDER DETAILS */}
+      {/* ORDER DETAILS */}
       <td className="px-5 py-4 border border-gray-200">
-        <p className="text-base font-black text-gray-900 mb-2">
-          {booking.productName || "—"}
-        </p>
-        {booking.dishes?.required?.filter(Boolean).length > 0 && (
-          <div className="mb-2">
-            <p className="text-[10px] font-black text-gray-400 uppercase tracking-wider mb-1">
-              Included Dishes ({booking.dishes.required.length})
+        {(booking.items ?? []).map((item, idx) => (
+          <div
+            key={idx}
+            className={
+              idx > 0 ? "mt-4 pt-4 border-t border-dashed border-gray-200" : ""
+            }
+          >
+            <p className="text-base font-black text-gray-900 mb-2">
+              {item.productName || "—"}
             </p>
-            <p className="text-sm text-black font-bold leading-relaxed">
-              {booking.dishes.required.filter(Boolean).join(" · ")}
-            </p>
-          </div>
-        )}
-        {extraDishes.length > 0 && (
-          <div className="mb-2">
-            <p className="text-[10px] font-black text-red-400 uppercase tracking-wider mb-1">
-              Extra Dishes ({extraDishes.length} × ₱700)
-            </p>
-            <p className="text-sm text-black font-bold leading-relaxed">
-              {extraDishes.join(" · ")}
-            </p>
-          </div>
-        )}
-        {booking.freebies?.freebies?.length > 0 && (
-          <div>
-            <p className="text-[10px] font-black text-emerald-500 uppercase tracking-wider mb-1">
-              Freebies
-            </p>
-            <p className="text-sm text-black font-bold leading-relaxed">
-              {booking.freebies.freebies.join(" · ")}
-            </p>
-          </div>
-        )}
-      </td>
 
+            {item.requiredDishes?.filter(Boolean).length > 0 && (
+              <div className="mb-2">
+                <p className="text-[10px] font-black text-gray-400 uppercase tracking-wider mb-1">
+                  Included Dishes ({item.requiredDishes.length})
+                </p>
+                <p className="text-sm text-black font-bold leading-relaxed">
+                  {item.requiredDishes.join(" · ")}
+                </p>
+              </div>
+            )}
+
+            {item.extraDishes?.filter(Boolean).length > 0 && (
+              <div className="mb-2">
+                <p className="text-[10px] font-black text-red-400 uppercase tracking-wider mb-1">
+                  Extra Dishes ({item.extraDishes.length} × ₱700)
+                </p>
+                <p className="text-sm text-black font-bold leading-relaxed">
+                  {item.extraDishes.join(" · ")}
+                </p>
+              </div>
+            )}
+
+            {item.freebies?.filter(Boolean).length > 0 && (
+              <div>
+                <p className="text-[10px] font-black text-emerald-500 uppercase tracking-wider mb-1">
+                  Freebies
+                </p>
+                <p className="text-sm text-black font-bold leading-relaxed">
+                  {item.freebies.join(" · ")}
+                </p>
+              </div>
+            )}
+          </div>
+        ))}
+      </td>
       {/* TOTAL AMOUNT */}
       <td className="px-5 py-4 whitespace-nowrap border border-gray-200">
         <p className="text-base font-black text-gray-900">
           {fmt(booking.totalAmount)}
         </p>
-        {discount > 0 && (
+        {promoAmount > 0 && (
           <p className="text-xs text-emerald-500 font-bold mt-0.5">
-            -{fmt(discount)} disc.
+            -{fmt(promoAmount)} disc.
           </p>
         )}
       </td>
@@ -945,7 +966,7 @@ function BookingRow({
         </span>
       </td>
 
-      {/* STATUS / PRINT BADGE — clickable */}
+      {/* STATUS / PRINT BADGE */}
       <td className="print-hidden px-5 py-4 whitespace-nowrap border border-gray-200">
         <button
           onClick={onTogglePrinted}
@@ -1015,6 +1036,135 @@ function BookingRow({
   );
 }
 
+// ── VIEW MODAL ────────────────────────────────────────────────────
+function ViewModal({ booking, onClose }) {
+  const { productName, requiredDishes, extraDishes, freebies, promoAmount } =
+    normalizeBooking(booking);
+
+  return (
+    <Modal onClose={onClose}>
+      <ModalHeader
+        title="Booking Details"
+        subtitle={`Order #${booking.id}`}
+        onClose={onClose}
+      />
+      <div className="p-6 space-y-4 max-h-[70vh] overflow-auto text-sm">
+        {/* Customer Info */}
+        <Section title="Customer Info" icon="👤">
+          <div className="pt-2 space-y-1">
+            <Row label="Name" value={booking.customerName} />
+            <Row
+              label="Contact"
+              value={booking.contacts?.filter(Boolean).join(", ")}
+            />
+            <Row label="Facebook" value={booking.facebookProfile || null} />
+          </div>
+        </Section>
+
+        {/* Delivery Info */}
+        <Section title="Delivery Details" icon="🚚">
+          <div className="pt-2 space-y-1">
+            <Row
+              label="Order Type"
+              value={booking.orderType === "delivery" ? "Delivery" : "Pickup"}
+            />
+            <Row
+              label="Delivery Date"
+              value={booking.deliveryDate?.split("T")[0]}
+            />
+            <Row label="Delivery Time" value={booking.deliveryTime} />
+            <Row
+              label="Process Time"
+              value={getProcessTime(booking.deliveryTime)}
+            />
+            {booking.orderType === "delivery" && (
+              <>
+                <Row label="Zone" value={booking.zone} />
+                <Row label="Address" value={booking.address} />
+              </>
+            )}
+            <Row
+              label="Payment"
+              value={
+                booking.paymentMethod === "gcash" ? "GCash" : "Cash on Delivery"
+              }
+            />
+          </div>
+        </Section>
+
+        {/* Order Details */}
+        <Section title="Order Details" icon="🍖">
+          <div className="pt-2 space-y-1">
+            {(booking.items ?? []).map((item, idx) => (
+              <div
+                key={idx}
+                className={
+                  idx > 0
+                    ? "mt-3 pt-3 border-t border-dashed border-gray-200"
+                    : ""
+                }
+              >
+                <Row
+                  label={`Package ${booking.items.length > 1 ? idx + 1 : ""}`}
+                  value={item.productName}
+                  highlight
+                />
+
+                {item.requiredDishes?.filter(Boolean).length > 0 && (
+                  <div className="py-2.5 border-b border-gray-100">
+                    <span className="text-xs font-bold text-gray-400">
+                      Included Dishes
+                    </span>
+                    <p className="text-xs font-black text-gray-700 mt-1 leading-relaxed">
+                      {item.requiredDishes.join(" · ")}
+                    </p>
+                  </div>
+                )}
+
+                {item.extraDishes?.filter(Boolean).length > 0 && (
+                  <div className="py-2.5 border-b border-gray-100">
+                    <span className="text-xs font-bold text-red-400">
+                      Extra Dishes ({item.extraDishes.length} × ₱700)
+                    </span>
+                    <p className="text-xs font-black text-gray-700 mt-1 leading-relaxed">
+                      {item.extraDishes.join(" · ")}
+                    </p>
+                  </div>
+                )}
+
+                {item.freebies?.filter(Boolean).length > 0 && (
+                  <div className="py-2.5 border-b border-gray-100">
+                    <span className="text-xs font-bold text-emerald-500">
+                      Freebies
+                    </span>
+                    <p className="text-xs font-black text-gray-700 mt-1 leading-relaxed">
+                      {item.freebies.join(" · ")}
+                    </p>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </Section>
+
+        {/* Pricing */}
+        <Section title="Pricing" icon="💰">
+          <div className="pt-2 space-y-1">
+            {promoAmount > 0 && (
+              <Row label="Discount" value={`-${fmt(promoAmount)}`} green />
+            )}
+            <Row
+              label="Total Amount"
+              value={fmt(booking.totalAmount)}
+              highlight
+            />
+          </div>
+        </Section>
+      </div>
+    </Modal>
+  );
+}
+
 // ── ACTION BUTTON ─────────────────────────────────────────────────
 function ActionBtn({ onClick, color, title, icon }) {
   const colors = {
@@ -1046,94 +1196,7 @@ function ActionBtn({ onClick, color, title, icon }) {
   );
 }
 
-// ── VIEW MODAL ────────────────────────────────────────────────────
-function ViewModal({ booking, onClose }) {
-  const extraDishes = booking.dishes?.extra?.filter(Boolean) || [];
-  const extraTotal = extraDishes.length * EXTRA_DISH_PRICE;
-  const discount = Math.abs(Number(booking.promoAmount || 0));
-
-  const processTime = getProcessTime(booking.deliveryTime);
-
-  return (
-    <Modal onClose={onClose}>
-      <ModalHeader
-        title="Booking Details"
-        subtitle={booking.orderNumber}
-        onClose={onClose}
-      />
-      <div className="p-6 space-y-5 max-h-[65vh] overflow-y-auto">
-        <Section title="Customer" icon="👤">
-          <Row label="Name" value={booking.customerName} />
-          <Row label="Contact" value={booking.contacts?.join(", ")} />
-          {booking.facebookProfile && (
-            <Row label="Facebook" value={booking.facebookProfile} />
-          )}
-        </Section>
-        <Section title="Delivery" icon="🚚">
-          <Row label="Type" value={booking.orderType} highlight />
-          <Row
-            label="Delivery Date"
-            value={new Date(booking.deliveryDate).toLocaleDateString()}
-          />
-          <Row label="Delivery Time" value={booking.deliveryTime} />
-          <Row label="Process Time" value={processTime} highlight />
-          {booking.orderType === "delivery" && (
-            <>
-              <Row label="Address" value={booking.address} />
-              <Row label="Zone" value={booking.zone} />
-            </>
-          )}
-        </Section>
-        <Section title="Order" icon="🍖">
-          <Row label="Product" value={booking.productName} />
-          <Row
-            label="Included Dishes"
-            value={
-              booking.dishes?.required?.length > 0
-                ? booking.dishes.required.join(", ")
-                : "None"
-            }
-          />
-          {extraDishes.length > 0 && (
-            <Row label="Extra Dishes" value={extraDishes.join(", ")} />
-          )}
-          {booking.freebies?.freebies?.length > 0 && (
-            <Row
-              label="Freebies"
-              value={booking.freebies.freebies.join(", ")}
-              green
-            />
-          )}
-        </Section>
-        <Section title="Pricing" icon="💰">
-          <Row label="Product" value={fmt(booking.product?.amount || 0)} />
-          {extraDishes.length > 0 && (
-            <Row label="Extra Dishes" value={fmt(extraTotal)} />
-          )}
-          {discount > 0 && (
-            <Row label="Discount" value={`-${fmt(discount)}`} green />
-          )}
-          <div className="flex justify-between items-center pt-3 border-t border-gray-100 mt-1">
-            <span className="text-sm font-black text-gray-800">Total</span>
-            <span className="text-base font-black text-red-600">
-              {fmt(booking.totalAmount)}
-            </span>
-          </div>
-        </Section>
-        <Section title="Payment" icon="💳">
-          <Row
-            label="Method"
-            value={
-              booking.paymentMethod === "gcash"
-                ? "📱 GCash"
-                : "💵 Cash on Delivery"
-            }
-          />
-        </Section>
-      </div>
-    </Modal>
-  );
-}
+// ── ZONE KEYWORDS ─────────────────────────────────────────────────
 const zoneKeywords = [
   {
     zoneName: "Talisay-Proper",
@@ -1265,16 +1328,17 @@ const getAvailableTimes = (deliveryDate) => {
     return false;
   });
 };
+
 // ── EDIT MODAL ────────────────────────────────────────────────────
 function EditModal({ booking, onClose, onSave }) {
-  const EXTRA_DISH_PRICE = 700;
+  const normalized = normalizeBooking(booking);
 
   const [form, setForm] = useState({
     orderType: booking.orderType || "delivery",
     deliveryDate: booking.deliveryDate?.split("T")[0] ?? "",
     deliveryTime: booking.deliveryTime || "",
     address: booking.address || "",
-    zone: booking.zone?.trim() || "", // trim whitespace just in case
+    zone: booking.zone?.trim() || "",
     paymentMethod: booking.paymentMethod || "cod",
   });
 
@@ -1284,14 +1348,95 @@ function EditModal({ booking, onClose, onSave }) {
   const [productTypes, setProductTypes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedProductId, setSelectedProductId] = useState(
-    booking.productId ?? booking.product?.id ?? null,
+    normalized.productId,
   );
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [requiredDishes, setRequiredDishes] = useState([]);
   const [extraDishes, setExtraDishes] = useState([]);
 
   const set = (key, val) => setForm((f) => ({ ...f, [key]: val }));
-  // Auto-detect zone from address
+
+  // ── LOAD REFERENCE DATA & PREFILL ─────────────────────────────
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const [productsRes, dishesRes, chargesRes, typesRes] =
+          await Promise.all([
+            api.get("/products"),
+            api.get("/dishes"),
+            api.get("/delivery-charges"),
+            api.get("/product-types"),
+          ]);
+
+        const products = productsRes.data ?? productsRes;
+        const dishes = dishesRes.data ?? dishesRes;
+        const charges = chargesRes.data ?? chargesRes;
+        const types = typesRes.data ?? typesRes;
+
+        setAllProducts(products);
+        setAllDishes(dishes);
+        setDeliveryCharges(charges);
+        setProductTypes(types);
+
+        // Prefill selected product
+        const currentProductId = normalized.productId;
+        if (currentProductId) {
+          const product = products.find(
+            (p) => p.id === Number(currentProductId),
+          );
+          if (product) {
+            setSelectedProduct(product);
+
+            // Prefill required dishes from existing booking data
+            const existingRequired = normalized.requiredDishes;
+            if (existingRequired.length > 0) {
+              // Map dish names back to IDs
+              const requiredIds = existingRequired.map((name) => {
+                const found = dishes.find(
+                  (d) => d.dishName?.toLowerCase() === name?.toLowerCase(),
+                );
+                return found ? String(found.id) : "";
+              });
+              const slots =
+                product.NoOfDishes || product.noOfDishes || requiredIds.length;
+              const padded = [...requiredIds];
+              while (padded.length < slots) padded.push("");
+              setRequiredDishes(padded);
+            } else {
+              // Use product defaults
+              const defaultIds = (product.defaultDishes ?? []).map((d) =>
+                String(d.dishId),
+              );
+              const slots = product.NoOfDishes || product.noOfDishes || 0;
+              const padded = [...defaultIds];
+              while (padded.length < slots) padded.push("");
+              setRequiredDishes(padded);
+            }
+
+            // Prefill extra dishes
+            const existingExtra = normalized.extraDishes;
+            if (existingExtra.length > 0) {
+              const extraIds = existingExtra.map((name) => {
+                const found = dishes.find(
+                  (d) => d.dishName?.toLowerCase() === name?.toLowerCase(),
+                );
+                return found ? String(found.id) : "";
+              });
+              setExtraDishes(extraIds);
+            }
+          }
+        }
+      } catch (err) {
+        console.error("Failed to load edit modal data:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    load();
+  }, []); // runs once on mount
+
+  // ── AUTO-DETECT ZONE ──────────────────────────────────────────
   useEffect(() => {
     if (!form.address || form.orderType !== "delivery") return;
     const lower = form.address.toLowerCase().replace(/\s+/g, "");
@@ -1303,71 +1448,6 @@ function EditModal({ booking, onClose, onSave }) {
     }
     set("zone", "");
   }, [form.address, form.orderType]);
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [typesRes, productsRes, dishesRes, chargesRes] =
-          await Promise.all([
-            api.get("/products/types"),
-            api.get("/products"),
-            api.get("/products/dishes"),
-            api.get("/products/delivery-charges"),
-          ]);
-
-        setProductTypes(typesRes.data ?? []);
-        setAllDishes(dishesRes.data ?? []);
-        setDeliveryCharges(chargesRes.data ?? []);
-
-        const mapped = (productsRes.data ?? []).map((p) => ({
-          id: p.id,
-          productName: p.productName,
-          amount: p.amount,
-          promoAmount: p.promoAmount,
-          productTypeId: p.productTypeId,
-          NoOfDishes: p.noOfIncludedDishes ?? 0,
-          freebies: (p.freebies ?? []).map((f) => f.freebieName),
-          defaultDishes: p.defaultDishes ?? [],
-        }));
-        setAllProducts(mapped);
-
-        const productId = booking.productId ?? booking.product?.id;
-        if (productId) {
-          const current = mapped.find((p) => p.id === productId);
-          if (current) {
-            setSelectedProduct(current);
-            setSelectedProductId(current.id);
-
-            const nameToId = Object.fromEntries(
-              (dishesRes.data ?? []).map((d) => [d.dishName, d.id]),
-            );
-
-            const toId = (val) => {
-              if (!val) return "";
-              if (typeof val === "number") return String(val);
-              return String(nameToId[val] ?? "");
-            };
-
-            const requiredIds = (booking.dishes?.required ?? []).map(toId);
-            const extraIds = (booking.dishes?.extra ?? [])
-              .map(toId)
-              .filter(Boolean);
-
-            const slots = current.NoOfDishes || 0;
-            const paddedRequired = [...requiredIds];
-            while (paddedRequired.length < slots) paddedRequired.push("");
-
-            setRequiredDishes(paddedRequired);
-            setExtraDishes(extraIds);
-          }
-        }
-      } catch (err) {
-        console.error("Failed to load edit data", err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchData();
-  }, []);
 
   const handleProductChange = (productId) => {
     const product = allProducts.find((p) => p.id === Number(productId));
@@ -1377,15 +1457,14 @@ function EditModal({ booking, onClose, onSave }) {
     if (product) {
       const defaultIds = (product.defaultDishes ?? []).map((d) =>
         String(d.dishId),
-      ); // ← d.dishId
-      const slots = product.NoOfDishes || 0;
+      );
+      const slots = product.NoOfDishes || product.noOfDishes || 0;
       const padded = [...defaultIds];
       while (padded.length < slots) padded.push("");
       setRequiredDishes(padded);
     } else {
       setRequiredDishes([]);
     }
-
     setExtraDishes([]);
   };
 
@@ -1397,8 +1476,6 @@ function EditModal({ booking, onClose, onSave }) {
               c.zoneName?.trim().toLowerCase() ===
               form.zone?.trim().toLowerCase(),
           );
-          // console.log("form.zone:", form.zone);
-          // console.log("deliveryCharges:", deliveryCharges);
           return charge
             ? Number((charge.baseFee || 0) + (charge.surcharge || 0))
             : 0;
@@ -1417,16 +1494,21 @@ function EditModal({ booking, onClose, onSave }) {
       orderType: form.orderType,
       deliveryDate: form.deliveryDate,
       deliveryTime: form.deliveryTime,
-      // ← only send address/zone if delivery
       address: form.orderType === "delivery" ? form.address : null,
       zone: form.orderType === "delivery" ? form.zone : null,
       paymentMethod: form.paymentMethod,
       totalAmount: total,
-      productId: selectedProductId,
-      dishes: {
-        required: requiredDishes.filter(Boolean).map(Number),
-        extra: extraDishes.filter(Boolean).map(Number),
-      },
+      items: [
+        {
+          productId: selectedProductId,
+          quantity: 1,
+          upgradeAmount: 0,
+          dishes: {
+            required: requiredDishes.filter(Boolean).map(Number),
+            extra: extraDishes.filter(Boolean).map(Number),
+          },
+        },
+      ],
     });
   };
 
@@ -1445,8 +1527,11 @@ function EditModal({ booking, onClose, onSave }) {
           subtitle={`#${booking.id}`}
           onClose={onClose}
         />
-        <div className="p-12 text-center text-gray-400 font-bold">
-          Loading order data...
+        <div className="p-12 text-center">
+          <div className="w-10 h-10 border-4 border-red-200 border-t-red-600 rounded-full animate-spin mx-auto mb-3" />
+          <p className="text-gray-400 font-bold text-sm">
+            Loading order data...
+          </p>
         </div>
       </Modal>
     );
@@ -1503,33 +1588,29 @@ function EditModal({ booking, onClose, onSave }) {
               </div>
             </div>
             {form.orderType === "delivery" && (
-              <>
-                <div>
-                  <label className="block text-xs font-black text-gray-500 uppercase tracking-widest mb-1.5">
-                    Address
-                  </label>
-                  <input
-                    type="text"
-                    value={form.address}
-                    onChange={(e) => set("address", e.target.value)}
-                    className="w-full p-3 border border-gray-200 rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-red-500"
-                    placeholder="Enter address"
-                  />
-                  {form.orderType === "delivery" && (
-                    <div
-                      className={`mt-1.5 px-3 py-2 rounded-lg text-xs font-bold ${
-                        form.zone
-                          ? "bg-emerald-50 text-emerald-700"
-                          : "bg-gray-100 text-gray-400"
-                      }`}
-                    >
-                      {form.zone
-                        ? `📍 ${form.zone}`
-                        : "Zone not detected — try a more specific address"}
-                    </div>
-                  )}
+              <div>
+                <label className="block text-xs font-black text-gray-500 uppercase tracking-widest mb-1.5">
+                  Address
+                </label>
+                <input
+                  type="text"
+                  value={form.address}
+                  onChange={(e) => set("address", e.target.value)}
+                  className="w-full p-3 border border-gray-200 rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-red-500"
+                  placeholder="Enter address"
+                />
+                <div
+                  className={`mt-1.5 px-3 py-2 rounded-lg text-xs font-bold ${
+                    form.zone
+                      ? "bg-emerald-50 text-emerald-700"
+                      : "bg-gray-100 text-gray-400"
+                  }`}
+                >
+                  {form.zone
+                    ? `📍 ${form.zone}`
+                    : "Zone not detected — try a more specific address"}
                 </div>
-              </>
+              </div>
             )}
             <div>
               <label className="block text-xs font-black text-gray-500 uppercase tracking-widest mb-1.5">
@@ -1680,6 +1761,7 @@ function EditModal({ booking, onClose, onSave }) {
           </Section>
         )}
 
+        {/* Pricing Summary */}
         <div className="bg-gray-50 rounded-2xl p-4 space-y-2">
           <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">
             Pricing Summary
@@ -1766,9 +1848,7 @@ function ConfirmModal({
     <Modal onClose={onCancel}>
       <div className="p-8 text-center">
         <div
-          className={`w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4 ${
-            confirmColor === "red" ? "bg-red-50" : "bg-emerald-50"
-          }`}
+          className={`w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4 ${confirmColor === "red" ? "bg-red-50" : "bg-emerald-50"}`}
         >
           <svg
             className={`w-7 h-7 ${confirmColor === "red" ? "text-red-500" : "text-emerald-500"}`}
