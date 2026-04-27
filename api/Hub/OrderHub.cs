@@ -2,10 +2,11 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.SignalR;
 
-namespace api.Hub
+namespace api.Hubs
 {
-    public class OrderHub
+    public class OrderHub : Hub
     {
         
     }

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import DatePicker from "../../components/datetimepicker/DatePicker.jsx";
 import { useNavigate } from "react-router-dom";
 import { generateOrderDoc } from "../generateDoc.js";
@@ -11,6 +11,9 @@ import {
   markOrdersAsPrinted,
   toggleOrderPrinted,
 } from "../../api/orderService.js";
+
+import * as signalR from "@microsoft/signalr";
+
 const EXTRA_DISH_PRICE = 700;
 
 // ── HELPERS ───────────────────────────────────────────────────────
@@ -67,7 +70,60 @@ export default function AdminDashboard() {
   const [search, setSearch] = useState("");
   const [filterDate, setFilterDate] = useState(getToday());
   const [printFilter, setPrintFilter] = useState("all");
+  const [toasts, setToasts] = useState([]);
+  const [clock, setClock] = useState(new Date());
 
+  useEffect(() => {
+    const timer = setInterval(() => setClock(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const formatClock = (date) => {
+    return date.toLocaleTimeString("en-PH", {
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: true,
+    });
+  };
+
+  const formatDate = (date) => {
+    return date.toLocaleDateString("en-PH", {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+  };
+  const addToast = useCallback((order) => {
+    const id = Date.now();
+    setToasts((prev) => [...prev, { id, order }]);
+    // auto-remove after 5 seconds
+    setTimeout(() => {
+      setToasts((prev) => prev.filter((t) => t.id !== id));
+    }, 10000);
+  }, []);
+
+  useEffect(() => {
+    const connection = new signalR.HubConnectionBuilder()
+      .withUrl("http://localhost:5194/hubs/order", {
+        transport: signalR.HttpTransportType.LongPolling,
+        headers: {
+          "ngrok-skip-browser-warning": "true",
+        },
+      })
+      .withAutomaticReconnect()
+      .build();
+
+    connection.on("NewOrder", (order) => {
+      addToast(order);
+      loadBookings(filterDate); // auto-refresh the table
+    });
+
+    connection.start().catch(console.error);
+
+    return () => connection.stop();
+  }, []);
   const pigCount = bookings.filter(
     (b) =>
       !b.deletedAt &&
@@ -208,11 +264,21 @@ export default function AdminDashboard() {
 
       <main className="w-full px-16 py-8">
         {/* ── PAGE TITLE ── */}
-        <div className="mb-8 print:hidden bg-red-600 text-white rounded-2xl px-6 py-5">
-          <h2 className="text-2xl font-black">Bookings</h2>
-          <p className="text-sm font-medium mt-0.5">
-            View and manage all customer orders
-          </p>
+        <div className="mb-8 print:hidden bg-red-600 text-white rounded-2xl px-6 py-5 flex items-center justify-between">
+          <div>
+            <h2 className="text-2xl font-black">Bookings</h2>
+            <p className="text-sm font-medium mt-0.5">
+              View and manage all customer orders
+            </p>
+          </div>
+          <div className="text-right">
+            <p className="text-3xl font-black tracking-tight leading-none">
+              {formatClock(clock)}
+            </p>
+            <p className="text-sm font-medium mt-1 text-red-200">
+              {formatDate(clock)}
+            </p>
+          </div>
         </div>
 
         {/* ── TOOLBAR ── */}
@@ -568,6 +634,66 @@ export default function AdminDashboard() {
               </p>
             )}
           </div>
+          {/* ── TOAST NOTIFICATIONS ── */}
+          <div className="fixed top-6 right-6 z-50 flex flex-col gap-3 pointer-events-none">
+            {toasts.map((toast) => (
+              <div
+                key={toast.id}
+                className="pointer-events-auto bg-white border border-gray-100 shadow-2xl rounded-2xl px-5 py-4 w-80 animate-slide-in"
+              >
+                <div className="flex items-start gap-3">
+                  <div className="w-9 h-9 bg-red-600 rounded-xl flex items-center justify-center shrink-0">
+                    <span className="text-lg">🐷</span>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-black text-red-600 uppercase tracking-widest mb-0.5">
+                      New Order!
+                    </p>
+                    <p className="text-sm font-black text-gray-900 truncate">
+                      {toast.order.customerName}
+                    </p>
+                    <p className="text-xs text-gray-500 font-medium truncate">
+                      {toast.order.productName || "No package"} ·{" "}
+                      {toast.order.deliveryTime}
+                    </p>
+                    <p className="text-xs text-gray-400 font-medium mt-0.5">
+                      📅{" "}
+                      {toast.order.deliveryDate
+                        ? new Date(toast.order.deliveryDate).toLocaleDateString(
+                            "en-PH",
+                            {
+                              month: "short",
+                              day: "numeric",
+                              year: "numeric",
+                            },
+                          )
+                        : "No date"}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() =>
+                      setToasts((prev) => prev.filter((t) => t.id !== toast.id))
+                    }
+                    className="text-gray-300 hover:text-gray-500 transition-colors shrink-0"
+                  >
+                    <svg
+                      className="w-4 h-4"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth="2"
+                        d="M6 18L18 6M6 6l12 12"
+                      />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </main>
 
@@ -638,12 +764,19 @@ export default function AdminDashboard() {
       )}
 
       <style>{`
+        @keyframes slide-in {
+          from { transform: translateX(100%); opacity: 0; }
+          to { transform: translateX(0); opacity: 1; }
+        }
+        .animate-slide-in {
+          animation: slide-in 0.3s ease-out;
+        }
         @media print {
           .print\\:hidden { display: none !important; }
           .hidden.print\\:block { display: block !important; }
           body { background: white !important; }
         }
-      `}</style>
+`}</style>
     </div>
   );
 }
@@ -670,7 +803,7 @@ function BookingRow({
 }) {
   const extraDishes = booking.dishes?.extra?.filter(Boolean) || [];
   const discount = Math.abs(Number(booking.promoAmount || 0));
-  console.log(discount);
+  // console.log(discount);
   const processTime = getProcessTime(booking.deliveryTime);
 
   return (
@@ -918,7 +1051,6 @@ function ViewModal({ booking, onClose }) {
   const extraDishes = booking.dishes?.extra?.filter(Boolean) || [];
   const extraTotal = extraDishes.length * EXTRA_DISH_PRICE;
   const discount = Math.abs(Number(booking.promoAmount || 0));
-
 
   const processTime = getProcessTime(booking.deliveryTime);
 

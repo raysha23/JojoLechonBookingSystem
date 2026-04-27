@@ -1,6 +1,5 @@
 using System;
 using Microsoft.AspNetCore.SignalR;
-using api.Hub;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -11,17 +10,18 @@ using api.Mappers;
 using api.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using api.Hubs;
 namespace api.Controllers
 {
     [Route("api/order")]
     [ApiController]
     public class OrderController : ControllerBase
     {
-        // private readonly IHubContext<OrderHub> _hub;
+        private readonly IHubContext<OrderHub> _hub;
         private readonly ApplicationDbContext _context;
-        public OrderController(ApplicationDbContext context)
+        public OrderController(ApplicationDbContext context, IHubContext<OrderHub> hub)
         {
-            // _hub = hub;
+            _hub = hub;
             _context = context;
         }
 
@@ -160,6 +160,17 @@ namespace api.Controllers
 
                 if (createdOrder == null)
                     return StatusCode(500, "Order was created but could not be loaded.");
+
+                await _hub.Clients.All.SendAsync("NewOrder", new
+                {
+                    id = createdOrder.Id,
+                    customerName = createdOrder.Customer.Name,
+                    productName = createdOrder.Product?.ProductName,
+                    deliveryTime = createdOrder.DeliveryTime,
+                    deliveryDate = createdOrder.DeliveryDate, 
+                    orderType = createdOrder.OrderType,
+                });
+
 
                 return Created($"/api/order/{createdOrder.Id}", createdOrder.ToOrderDTO());
             }

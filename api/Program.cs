@@ -1,5 +1,5 @@
 using api.data;
-using api.Hub;
+using api.Hubs;
 using api.Interfaces;
 using api.Repository;
 using Microsoft.EntityFrameworkCore;
@@ -33,7 +33,8 @@ builder.Services.AddCors(options =>
                 "https://amiss-occupancy-demanding.ngrok-free.dev"
               )
               .AllowAnyHeader()
-              .AllowAnyMethod();
+              .AllowAnyMethod()
+              .AllowCredentials();
     });
 });
 
@@ -156,6 +157,8 @@ app.UseAuthorization();
 app.UseOutputCache();
 
 app.MapControllers();
+app.MapHub<OrderHub>("/hubs/order"); 
+
 
 app.UseDefaultFiles();
 app.UseStaticFiles();
