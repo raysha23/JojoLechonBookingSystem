@@ -1,8 +1,12 @@
-// //File name: orderApi.js
-
-// import api from "./client";
-
-// export const createOrder = async (payload) => {
-//   const response = await api.post("/order", payload);
-//   return response.data;
-// };
+import api from "./client";
+export const getMyBookings = async ({ encoderId, date = null } = {}) => {
+  try {
+    const params = { encoderId };
+    if (date) params.date = date;
+    const res = await api.get("/order/my-bookings", { params });
+    return res.data;
+  } catch (error) {
+    console.error("Failed to fetch my bookings:", error);
+    return [];
+  }
+};

@@ -40,14 +40,25 @@ namespace api.Controllers
 
             if (!string.IsNullOrEmpty(date) && DateTime.TryParse(date, out var filterDate))
             {
+                // Specific date selected — show only that day
                 var start = filterDate.Date;
                 var end = start.AddDays(1);
                 query = query.Where(o => o.DeliveryDate >= start && o.DeliveryDate < end);
             }
+            else
+            {
+                // No date — show today and future (pending bookings)
+                var today = DateTime.UtcNow.Date;
+                query = query.Where(o => o.DeliveryDate >= today && o.DeletedAt == null);
+            }
 
-            var orders = await query.ToListAsync();
+            var orders = await query
+            .OrderByDescending(o => o.CreatedAt)
+            .ToListAsync();
+            
             return Ok(orders.Select(OrderMappers.ToOrderDTO).ToList());
         }
+
 
         [HttpPost]
         public async Task<ActionResult<OrderResponseDTO>> CreateOrder([FromBody] CreateOrderRequestDTO dto)
@@ -164,7 +175,7 @@ namespace api.Controllers
                     .Include(o => o.OrderItems).ThenInclude(oi => oi.Product).ThenInclude(p => p.Freebies)
                     .Include(o => o.OrderItems).ThenInclude(oi => oi.OrderItemDishes).ThenInclude(d => d.Dish)
                     .FirstOrDefaultAsync(o => o.Id == order.Id);
-                    
+
                 await _hub.Clients.All.SendAsync("NewOrder", createdOrder!.ToOrderDTO());
 
                 return Created($"/api/order/{order.Id}", createdOrder!.ToOrderDTO());
@@ -394,6 +405,37 @@ namespace api.Controllers
                 .ToListAsync();
 
             return distinctIds.Except(validIds).ToList();
+        }
+
+        [HttpGet("my-bookings")]
+        public async Task<ActionResult<IEnumerable<OrderResponseDTO>>> GetMyBookings(
+                [FromQuery] int encoderId,
+                [FromQuery] string? date = null)
+        {
+            IQueryable<Order> query = _context.Orders
+                .Include(o => o.Customer).ThenInclude(c => c.Contacts)
+                .Include(o => o.DeliveryCharge)
+                .Include(o => o.OrderItems)
+                    .ThenInclude(oi => oi.Product).ThenInclude(p => p.ProductType)
+                .Include(o => o.OrderItems)
+                    .ThenInclude(oi => oi.Product).ThenInclude(p => p.Freebies)
+                .Include(o => o.OrderItems)
+                    .ThenInclude(oi => oi.OrderItemDishes).ThenInclude(d => d.Dish)
+                .Where(o => o.SubmittedByUserId == encoderId && o.DeletedAt == null);
+
+            var filterDate = date != null && DateTime.TryParse(date, out var parsed)
+                ? parsed.Date
+                : DateTime.UtcNow.Date;
+
+            query = query.Where(o =>
+                o.CreatedAt.Date >= filterDate &&
+                o.CreatedAt.Date < filterDate.AddDays(1));
+
+            var orders = await query
+                .OrderByDescending(o => o.CreatedAt)
+                .ToListAsync();
+
+            return Ok(orders.Select(OrderMappers.ToOrderDTO).ToList());
         }
     }
 }

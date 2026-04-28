@@ -33,7 +33,12 @@ const makeEmptyItem = () => ({
 });
 
 // ── MAIN COMPONENT ────────────────────────────────────────────────
-function App({ submittedByUserId = null, encoderName = null }) {
+function App({
+  submittedByUserId = null,
+  encoderName = null,
+  view = null,
+  setView = null,
+}) {
   const [step, setStep] = useState(1);
   const [productTypes, setProductTypes] = useState([]);
   const [allProducts, setAllProducts] = useState([]);
@@ -253,7 +258,7 @@ function App({ submittedByUserId = null, encoderName = null }) {
   return (
     <div className="p-6 max-w-6xl mx-auto">
       <div className="max-w-6xl mx-auto">
-        <header className="flex items-center justify-between mb-6 md:mb-8">
+        <header className="flex items-center justify-between mb-6 md:mb-8 flex-wrap gap-4">
           {/* LEFT — Brand */}
           <div className="flex items-center space-x-3">
             <div className="w-10 h-10 md:w-14 md:h-14 bg-red-700 rounded-full flex items-center justify-center border-2 border-white shadow-md overflow-hidden flex-shrink-0">
@@ -268,6 +273,28 @@ function App({ submittedByUserId = null, encoderName = null }) {
               </p>
             </div>
           </div>
+
+          {/* CENTER — Nav tabs (only for encoder) */}
+          {encoderName && setView && (
+            <div className="flex items-center gap-1 bg-gray-100 rounded-2xl p-1">
+              {[
+                { key: "book", label: "New Booking" },
+                { key: "bookings", label: "My Bookings Today" },
+              ].map((tab) => (
+                <button
+                  key={tab.key}
+                  onClick={() => setView(tab.key)}
+                  className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
+                    view === tab.key
+                      ? "bg-white text-red-700 shadow-sm"
+                      : "text-gray-500 hover:text-gray-700"
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+          )}
 
           {/* RIGHT — Encoder badge + logout */}
           {encoderName && (

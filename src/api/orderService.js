@@ -33,11 +33,12 @@ export const getOrderById = async (id) => {
 
 // ── CREATE ORDER ──────────────────────────────────────────────────
 export const createOrder = async (payload) => {
+  console.log("PAYLOAD:", JSON.stringify(payload, null, 2)); // ADD THIS
   try {
     const res = await api.post("/order", payload);
     return res.data;
   } catch (error) {
-    console.error("Failed to create order:", error);
+    console.error("Error response:", error.response?.data); // ADD THIS TOO
     return null;
   }
 };
@@ -57,7 +58,6 @@ export const updateOrder = async (id, updatedData) => {
     return null;
   }
 };
-
 
 // ── SOFT DELETE ORDER ─────────────────────────────────────────────
 export const softDeleteOrder = async (id) => {

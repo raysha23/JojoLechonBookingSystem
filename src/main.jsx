@@ -1,4 +1,6 @@
 import { StrictMode } from "react";
+import { useState } from "react";
+import EncoderBookings from "./encoder/EncoderBookings.jsx";
 import { createRoot } from "react-dom/client";
 import { HashRouter, Routes, Route } from "react-router-dom";
 
@@ -53,5 +55,28 @@ createRoot(document.getElementById("root")).render(
 // Encoder wrapper — reads session and passes userId to App
 function EncoderApp() {
   const encoder = JSON.parse(sessionStorage.getItem("encoder") || "{}");
-  return <App submittedByUserId={encoder.id} encoderName={encoder.fullName} />;
+  const [view, setView] = useState("book");
+
+  if (view === "bookings") {
+    return (
+      <>
+        {/* Reuse the header with tabs by passing view/setView */}
+        <EncoderBookings
+          encoderId={encoder.id}
+          encoderName={encoder.fullName}
+          view={view}
+          setView={setView}
+        />
+      </>
+    );
+  }
+
+  return (
+    <App
+      submittedByUserId={encoder.id}
+      encoderName={encoder.fullName}
+      view={view}
+      setView={setView}
+    />
+  );
 }

@@ -94,10 +94,13 @@ export default function AdminDashboard() {
   const [togglePrintTarget, setTogglePrintTarget] = useState(null);
   const [printConfirm, setPrintConfirm] = useState(false);
   const [search, setSearch] = useState("");
-  const [filterDate, setFilterDate] = useState(getToday());
+  const [filterDate, setFilterDate] = useState("");
   const [printFilter, setPrintFilter] = useState("all");
   const [toasts, setToasts] = useState([]);
   const [clock, setClock] = useState(new Date());
+
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 15;
 
   useEffect(() => {
     const timer = setInterval(() => setClock(new Date()), 1000);
@@ -168,7 +171,7 @@ export default function AdminDashboard() {
   }).length;
 
   const loadBookings = async (date = filterDate) => {
-    const data = await getOrders({ date });
+    const data = await getOrders({ date: date || null }); // null when empty
     setBookings(data);
   };
 
@@ -176,6 +179,9 @@ export default function AdminDashboard() {
     loadBookings(filterDate);
   }, [filterDate]);
 
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filterDate, search, printFilter, showDeleted]);
   const handleLogout = () => {
     localStorage.removeItem("adminToken");
     navigate("/admin/login");
@@ -235,7 +241,14 @@ export default function AdminDashboard() {
             : b.isPrinted;
       return matchDeleted && matchSearch && matchPrint;
     })
-    .sort((a, b) => parseTime(a.deliveryTime) - parseTime(b.deliveryTime));
+    .sort((a, b) => {
+      if (filterDate) {
+        // Specific date selected → sort by delivery time AM to PM
+        return parseTime(a.deliveryTime) - parseTime(b.deliveryTime);
+      }
+      // Default (no date) → newest booking first
+      return new Date(b.createdAt) - new Date(a.createdAt);
+    });
 
   const unprintedCount = bookings.filter(
     (b) => !b.isPrinted && !b.deletedAt,
@@ -243,7 +256,13 @@ export default function AdminDashboard() {
   const printedCount = bookings.filter(
     (b) => b.isPrinted && !b.deletedAt,
   ).length;
+
   const grandTotal = filtered.reduce((sum, b) => sum + (b.totalAmount || 0), 0);
+  const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
+  const paginated = filtered.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE,
+  );
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -366,9 +385,9 @@ export default function AdminDashboard() {
                   onChange={(e) => setFilterDate(e.target.value)}
                   className="bg-transparent px-2 py-1.5 text-xs font-extrabold text-slate-700 uppercase tracking-tight outline-none cursor-pointer"
                 />
-                {filterDate && filterDate !== getToday() && (
+                {filterDate && (
                   <button
-                    onClick={() => setFilterDate(getToday())}
+                    onClick={() => setFilterDate("")}
                     className="p-1 hover:bg-white rounded-md text-slate-400 hover:text-red-500 transition-all"
                   >
                     <svg
@@ -617,7 +636,7 @@ export default function AdminDashboard() {
                     </td>
                   </tr>
                 ) : (
-                  filtered.map((booking) => (
+                  paginated.map((booking) => (
                     <BookingRow
                       key={booking.id}
                       booking={booking}
@@ -634,12 +653,109 @@ export default function AdminDashboard() {
           </div>
 
           {/* TABLE FOOTER */}
-          <div className="px-6 py-4 border-t border-gray-100 bg-gray-50/40 flex items-center justify-between">
+          <div className="px-6 py-4 border-t border-gray-100 bg-gray-50/40 flex flex-wrap items-center justify-between gap-4">
+            {/* LEFT — info */}
             <p className="text-xs font-bold text-gray-400">
-              Showing {filtered.length} of {bookings.length}{" "}
-              {showDeleted ? "deleted" : "active"} bookings
+              Showing{" "}
+              {filtered.length === 0
+                ? 0
+                : (currentPage - 1) * ITEMS_PER_PAGE + 1}
+              –{Math.min(currentPage * ITEMS_PER_PAGE, filtered.length)} of{" "}
+              {filtered.length} {showDeleted ? "deleted" : "active"} bookings
               {filterDate && ` for ${filterDate}`}
             </p>
+
+            {/* CENTER — pagination */}
+            {totalPages > 1 && (
+              <div className="flex items-center gap-1">
+                {/* Prev */}
+                <button
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  className="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                >
+                  <svg
+                    className="w-3.5 h-3.5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="2.5"
+                      d="M15 19l-7-7 7-7"
+                    />
+                  </svg>
+                </button>
+
+                {/* Page numbers */}
+                {Array.from({ length: totalPages }, (_, i) => i + 1)
+                  .filter((page) => {
+                    // Always show first, last, current, and neighbors
+                    return (
+                      page === 1 ||
+                      page === totalPages ||
+                      Math.abs(page - currentPage) <= 1
+                    );
+                  })
+                  .reduce((acc, page, idx, arr) => {
+                    // Insert "..." gaps
+                    if (idx > 0 && page - arr[idx - 1] > 1) {
+                      acc.push("...");
+                    }
+                    acc.push(page);
+                    return acc;
+                  }, [])
+                  .map((item, idx) =>
+                    item === "..." ? (
+                      <span
+                        key={`dots-${idx}`}
+                        className="w-8 h-8 flex items-center justify-center text-xs text-gray-400 font-bold"
+                      >
+                        ···
+                      </span>
+                    ) : (
+                      <button
+                        key={item}
+                        onClick={() => setCurrentPage(item)}
+                        className={`w-8 h-8 flex items-center justify-center rounded-lg text-xs font-black transition-all border ${
+                          currentPage === item
+                            ? "bg-red-600 text-white border-red-600 shadow-sm"
+                            : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"
+                        }`}
+                      >
+                        {item}
+                      </button>
+                    ),
+                  )}
+
+                {/* Next */}
+                <button
+                  onClick={() =>
+                    setCurrentPage((p) => Math.min(totalPages, p + 1))
+                  }
+                  disabled={currentPage === totalPages}
+                  className="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                >
+                  <svg
+                    className="w-3.5 h-3.5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="2.5"
+                      d="M9 5l7 7-7 7"
+                    />
+                  </svg>
+                </button>
+              </div>
+            )}
+
+            {/* RIGHT — grand total */}
             {filtered.length > 0 && (
               <p className="text-sm font-black text-gray-700">
                 Grand Total:{" "}
@@ -1587,7 +1703,7 @@ function EditModal({ booking, onClose, onSave }) {
             <div className="grid grid-cols-2 gap-3">
               <EditField
                 label="Date"
-                value={form.deliveryDate}
+                value={form.deliveryDate || ""}
                 onChange={(v) => set("deliveryDate", v)}
                 type="date"
               />
@@ -1596,7 +1712,7 @@ function EditModal({ booking, onClose, onSave }) {
                   Time
                 </label>
                 <select
-                  value={form.deliveryTime}
+                  value={form.deliveryTime || ""}
                   onChange={(e) => set("deliveryTime", e.target.value)}
                   className="w-full p-3 border border-gray-200 rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-red-500"
                 >
@@ -1617,7 +1733,7 @@ function EditModal({ booking, onClose, onSave }) {
                 </label>
                 <input
                   type="text"
-                  value={form.address}
+                  value={form.address || ""}
                   onChange={(e) => set("address", e.target.value)}
                   className="w-full p-3 border border-gray-200 rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-red-500"
                   placeholder="Enter address"
@@ -2048,7 +2164,7 @@ function EditField({ label, value, onChange, type = "text" }) {
       </label>
       <input
         type={type}
-        value={value}
+        value={value ?? ""}
         onChange={(e) => onChange(e.target.value)}
         className="w-full p-3 border border-gray-200 rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-red-500 transition-all"
       />
