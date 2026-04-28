@@ -184,7 +184,7 @@ export default function AdminDashboard() {
   }, [filterDate, search, printFilter, showDeleted]);
   const handleLogout = () => {
     localStorage.removeItem("adminToken");
-    navigate("/admin/login");
+    navigate("/admin/login", { replace: true });
   };
 
   const handleDelete = async () => {

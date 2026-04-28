@@ -1,6 +1,8 @@
 using api.data;
 using api.DTOs.User;
+using api.Helpers;
 using api.Models;
+using BCrypt.Net;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -15,7 +17,7 @@ namespace api.Controllers
         public UserController(ApplicationDbContext context)
         {
             _context = context;
-        }
+        }   
 
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] LoginRequestDTO dto)
@@ -25,13 +27,12 @@ namespace api.Controllers
 
             var user = await _context.Users
                 .Include(u => u.Role)
-                .FirstOrDefaultAsync(u => u.Username == dto.Username && u.PasswordHash == dto.Password);
+                .FirstOrDefaultAsync(u => u.Username == dto.Username);
 
-            if (user == null)
+            if (user == null || !BCrypt.Net.BCrypt.Verify(dto.Password, user.PasswordHash))
                 return Unauthorized("Invalid username or password.");
 
-            // Update last login
-            user.LastLoginAt = DateTime.UtcNow;
+            user.LastLoginAt = PhTime.Now;
             await _context.SaveChangesAsync();
 
             return Ok(new

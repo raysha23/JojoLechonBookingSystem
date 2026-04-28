@@ -1,14 +1,17 @@
 import { Navigate } from "react-router-dom";
 
 export default function ProtectedRoute({ children }) {
-  // Checks if admin is logged in
-  // When backend is ready, replace this with a real token check
-  const isAuthenticated =
-    localStorage.getItem("adminToken") === "authenticated";
-
-  if (!isAuthenticated) {
+  try {
+    const raw = localStorage.getItem("adminToken");
+    if (!raw) return <Navigate to="/admin/login" replace />;
+    const admin = JSON.parse(raw);
+    if (!admin?.role || admin.role !== "admin") {
+      localStorage.removeItem("adminToken");
+      return <Navigate to="/admin/login" replace />;
+    }
+    return children;
+  } catch {
+    localStorage.removeItem("adminToken");
     return <Navigate to="/admin/login" replace />;
   }
-
-  return children;
 }

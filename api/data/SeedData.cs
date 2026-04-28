@@ -24,25 +24,54 @@ namespace api.data
         // ─────────────────────────────────────────────
         public static List<User> GetUsers(List<Role> roles)
         {
-            return new List<User>
-            {
-                new User
-                {
-                    FullName = "Admin User",
-                    Username = "admin",
-                    PasswordHash = "admin123",
-                    RoleId = roles.First(r => r.RoleName == "admin").Id
-                },
-                new User
-                {
-                    FullName = "Encoder User",
-                    Username = "encoder",
-                    PasswordHash = "encoder123",
-                    RoleId = roles.First(r => r.RoleName == "encoder").Id
-                }
-            };
-        }
+            var adminRole = roles.First(r => r.RoleName == "admin");
+            var encoderRole = roles.First(r => r.RoleName == "encoder");
 
+            var adminNames = new List<(string Name, string Password)>
+            {
+                ("Dave",   "Dave@280"),
+                ("Jezelle", "Jezelle@682"),
+            };
+
+                    var encoderNames = new List<(string Name, string Password)>
+            {
+                ("Leanah",   "Leanah@943"),
+                ("Junisa",   "Junisa@255"),
+                ("Christian","Christian@198"),
+                ("Vanessa",  "Vanessa@460"),
+                ("Jissel",   "Jissel@836"),
+                ("Jacky",    "Jacky@159"),
+                ("Lovenjan", "Lovenjan@539"),
+            };
+
+            var users = new List<User>();
+
+            for (int i = 0; i < adminNames.Count; i++)
+            {
+                var (name, password) = adminNames[i];
+                users.Add(new User
+                {
+                    FullName = name,
+                    Username = $"admin{i + 1}",
+                    PasswordHash = BCrypt.Net.BCrypt.HashPassword(password),
+                    RoleId = adminRole.Id
+                });
+            }
+
+            for (int i = 0; i < encoderNames.Count; i++)
+            {
+                var (name, password) = encoderNames[i];
+                users.Add(new User
+                {
+                    FullName = $"Encoder {name}",
+                    Username = $"encoder{i + 1}",
+                    PasswordHash = BCrypt.Net.BCrypt.HashPassword(password),
+                    RoleId = encoderRole.Id
+                });
+            }
+
+            return users;
+        }
         // ─────────────────────────────────────────────
         // PRODUCT TYPES
         // ─────────────────────────────────────────────

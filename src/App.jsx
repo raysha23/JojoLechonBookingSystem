@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 import StepBar from "./components/stepper/StepBar";
 import OrderSummary from "./components/summary/OrderSummary";
@@ -73,6 +74,8 @@ function App({
   // ─── MODAL STATE ──────────────────────────────────────────────────
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchAll = async () => {
@@ -308,7 +311,7 @@ function App({
               <button
                 onClick={() => {
                   sessionStorage.removeItem("encoder");
-                  window.location.href = "/#/encoder/login";
+                  navigate("/encoder/login", { replace: true });
                 }}
                 className="flex items-center gap-2 px-4 py-2 rounded-2xl border-2 border-red-100 text-red-600 font-bold text-xs hover:bg-red-50 hover:border-red-300 transition-all"
               >

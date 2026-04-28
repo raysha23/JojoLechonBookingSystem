@@ -1,4 +1,5 @@
 using api.DTOs.Order;
+using api.Helpers;
 using api.Models;
 using static api.DTOs.Order.OrderItemDTO;
 
@@ -51,7 +52,7 @@ namespace api.Mappers
         {
             return new Order
             {
-                OrderNumber = $"ORD-{DateTime.UtcNow.Ticks}",
+                OrderNumber = $"ORD-{PhTime.Now.Ticks}",
                 OrderType = dto.OrderType,
                 Address = dto.Address,
                 Zone = dto.Zone,
@@ -63,7 +64,7 @@ namespace api.Mappers
                 SubmittedByUserId = dto.SubmittedByUserId,
                 Status = "active",
                 IsPrinted = false,
-                CreatedAt = DateTime.UtcNow,
+                CreatedAt = PhTime.Now,
                 CustomerId = customerId,
             };
         }

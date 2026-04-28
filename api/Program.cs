@@ -4,9 +4,6 @@ using api.Interfaces;
 using api.Repository;
 using Microsoft.EntityFrameworkCore;
 
-
-
-
 var builder = WebApplication.CreateBuilder(args);
 
 // Database
@@ -41,8 +38,8 @@ builder.Services.AddCors(options =>
 var app = builder.Build();
 
 using (var scope = app.Services.CreateScope())
-
 {
+
     var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 
     // Use migrations so schema updates (like ProductTypes) are applied 
@@ -61,7 +58,8 @@ using (var scope = app.Services.CreateScope())
     if (!context.Users.Any())
     {
         var roles = context.Roles.ToList();
-        var users = SeedData.GetUsers(roles);
+        var users = SeedData.GetUsers(roles); 
+
         context.Users.AddRange(users);
         context.SaveChanges();
     }
@@ -157,7 +155,7 @@ app.UseAuthorization();
 app.UseOutputCache();
 
 app.MapControllers();
-app.MapHub<OrderHub>("/hubs/order"); 
+app.MapHub<OrderHub>("/hubs/order");
 
 
 app.UseDefaultFiles();

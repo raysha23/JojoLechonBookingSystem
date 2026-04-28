@@ -11,6 +11,7 @@ using api.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using api.Hubs;
+using api.Helpers;
 namespace api.Controllers
 {
     [Route("api/order")]
@@ -48,7 +49,7 @@ namespace api.Controllers
             else
             {
                 // No date — show today and future (pending bookings)
-                var today = DateTime.UtcNow.Date;
+                var today = PhTime.Now.Date;
                 query = query.Where(o => o.DeliveryDate >= today && o.DeletedAt == null);
             }
 
@@ -211,7 +212,8 @@ namespace api.Controllers
                 if (dto.IsPrinted.HasValue)
                 {
                     order.IsPrinted = dto.IsPrinted.Value;
-                    order.PrintedAt = dto.IsPrinted.Value ? DateTime.UtcNow : null;
+                    order.PrintedAt = dto.IsPrinted.Value ? PhTime.Now : null;
+
                 }
 
                 if (dto.Items != null && dto.Items.Count > 0)
@@ -327,7 +329,7 @@ namespace api.Controllers
                 return NotFound($"Order with ID {id} not found.");
 
             order.IsPrinted = dto.IsPrinted;
-            order.PrintedAt = dto.IsPrinted ? DateTime.UtcNow : null;
+            order.PrintedAt = dto.IsPrinted ? PhTime.Now : null;
 
             await _context.SaveChangesAsync();
             return Ok(new { id, isPrinted = order.IsPrinted, printedAt = order.PrintedAt });
@@ -346,7 +348,7 @@ namespace api.Controllers
             foreach (var order in orders)
             {
                 order.IsPrinted = true;
-                order.PrintedAt = DateTime.UtcNow;
+                order.PrintedAt = PhTime.Now;
             }
 
             await _context.SaveChangesAsync();
@@ -360,7 +362,7 @@ namespace api.Controllers
             if (order == null)
                 return NotFound($"Order with ID {id} not found.");
 
-            order.DeletedAt = DateTime.UtcNow;
+            order.DeletedAt = PhTime.Now;
 
             _context.Orders.Update(order);
             await _context.SaveChangesAsync();
@@ -425,7 +427,7 @@ namespace api.Controllers
 
             var filterDate = date != null && DateTime.TryParse(date, out var parsed)
                 ? parsed.Date
-                : DateTime.UtcNow.Date;
+                : PhTime.Now.Date;
 
             query = query.Where(o =>
                 o.CreatedAt.Date >= filterDate &&

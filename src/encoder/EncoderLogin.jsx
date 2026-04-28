@@ -1,37 +1,30 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { loginEncoder } from "../api/userLoginApi";
 
 export default function EncoderLogin() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const raw = sessionStorage.getItem("encoder");
+    if (raw) navigate("/encoder/book", { replace: true });
+  }, []);
 
   const handleLogin = async (e) => {
     e.preventDefault();
     setError("");
     setLoading(true);
-
     try {
-      const res = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password }),
-      });
-
-      if (!res.ok) {
-        setError("Invalid username or password.");
-        return;
-      }
-
-      const data = await res.json();
-
+      const data = await loginEncoder(username, password);
       if (data.role !== "encoder") {
         setError("Access denied. Encoder accounts only.");
         return;
       }
-
       sessionStorage.setItem(
         "encoder",
         JSON.stringify({
@@ -40,10 +33,9 @@ export default function EncoderLogin() {
           username: data.username,
         }),
       );
-
       navigate("/encoder/book");
     } catch {
-      setError("Something went wrong. Please try again.");
+      setError("Invalid username or password.");
     } finally {
       setLoading(false);
     }
@@ -81,14 +73,23 @@ export default function EncoderLogin() {
             <label className="text-xs font-black text-gray-500 uppercase tracking-wider">
               Password
             </label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="mt-1.5 w-full px-4 py-3 rounded-2xl border-2 border-gray-100 bg-gray-50 text-sm font-bold focus:outline-none focus:border-red-400 transition-colors"
-              placeholder="Enter password"
-              required
-            />
+            <div className="relative">
+              <input
+                type={showPassword ? "text" : "password"}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="mt-1.5 w-full px-4 py-3 rounded-2xl border-2 border-gray-100 bg-gray-50 text-sm font-bold focus:outline-none focus:border-red-400 transition-colors"
+                placeholder="Enter password"
+                required
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] font-bold text-gray-400 hover:text-red-700 uppercase transition-colors"
+              >
+                {showPassword ? "Hide" : "Show"}
+              </button>
+            </div>
           </div>
 
           {error && (
