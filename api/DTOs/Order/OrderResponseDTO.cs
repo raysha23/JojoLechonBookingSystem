@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using api.DTOs.Product;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 using static api.DTOs.Order.OrderItemDTO;
 
 namespace api.DTOs.Order
@@ -28,7 +29,7 @@ namespace api.DTOs.Order
         public string? DeliveryTime { get; set; }
         public string? PaymentMethod { get; set; }
         public decimal TotalAmount { get; set; }
-
+        public string? SubmittedByName {get; set;}
         public List<OrderItemResponseDTO> Items { get; set; } = new();
 
 

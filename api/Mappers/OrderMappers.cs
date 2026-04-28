@@ -27,6 +27,7 @@ namespace api.Mappers
                 DeliveryTime = order.DeliveryTime,
                 PaymentMethod = order.PaymentMethod,
                 TotalAmount = order.TotalAmount,
+                SubmittedByName = order.SubmittedByUser?.FullName,
                 Items = order.OrderItems.Select(item => new OrderItemResponseDTO
                 {
                     Id = item.Id,

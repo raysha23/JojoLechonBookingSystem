@@ -31,6 +31,7 @@ namespace api.Controllers
         {
             IQueryable<Order> query = _context.Orders
                 .Include(o => o.Customer).ThenInclude(c => c.Contacts)
+                .Include(o => o.SubmittedByUser)
                 .Include(o => o.DeliveryCharge)
                 .Include(o => o.OrderItems)
                     .ThenInclude(oi => oi.Product).ThenInclude(p => p.ProductType)
@@ -56,7 +57,7 @@ namespace api.Controllers
             var orders = await query
             .OrderByDescending(o => o.CreatedAt)
             .ToListAsync();
-            
+
             return Ok(orders.Select(OrderMappers.ToOrderDTO).ToList());
         }
 
@@ -172,6 +173,7 @@ namespace api.Controllers
 
                 var createdOrder = await _context.Orders.AsNoTracking()
                     .Include(o => o.Customer).ThenInclude(c => c.Contacts)
+                    .Include(o => o.SubmittedByUser)
                     .Include(o => o.OrderItems).ThenInclude(oi => oi.Product).ThenInclude(p => p.ProductType)
                     .Include(o => o.OrderItems).ThenInclude(oi => oi.Product).ThenInclude(p => p.Freebies)
                     .Include(o => o.OrderItems).ThenInclude(oi => oi.OrderItemDishes).ThenInclude(d => d.Dish)
@@ -308,6 +310,7 @@ namespace api.Controllers
 
                 var updatedOrder = await _context.Orders.AsNoTracking()
                     .Include(o => o.Customer).ThenInclude(c => c.Contacts)
+                    .Include(o => o.SubmittedByUser)
                     .Include(o => o.OrderItems).ThenInclude(oi => oi.Product).ThenInclude(p => p.ProductType)
                     .Include(o => o.OrderItems).ThenInclude(oi => oi.Product).ThenInclude(p => p.Freebies)
                     .Include(o => o.OrderItems).ThenInclude(oi => oi.OrderItemDishes).ThenInclude(d => d.Dish)
@@ -385,6 +388,7 @@ namespace api.Controllers
             var restoredOrder = await _context.Orders
                 .Include(o => o.Customer)
                     .ThenInclude(c => c.Contacts)
+                .Include(o => o.SubmittedByUser)
                 .Include(o => o.OrderItems)
                     .ThenInclude(io => io.Product).ThenInclude(p => p.ProductType)
                 .Include(o => o.OrderItems).ThenInclude(oi => oi.Product).ThenInclude(p => p.Freebies)
@@ -416,6 +420,7 @@ namespace api.Controllers
         {
             IQueryable<Order> query = _context.Orders
                 .Include(o => o.Customer).ThenInclude(c => c.Contacts)
+                .Include(o => o.SubmittedByUser)
                 .Include(o => o.DeliveryCharge)
                 .Include(o => o.OrderItems)
                     .ThenInclude(oi => oi.Product).ThenInclude(p => p.ProductType)

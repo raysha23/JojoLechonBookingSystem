@@ -1154,16 +1154,52 @@ function BookingRow({
 
 // ── VIEW MODAL ────────────────────────────────────────────────────
 function ViewModal({ booking, onClose }) {
-  const { productName, requiredDishes, extraDishes, freebies, promoAmount } =
+  const { requiredDishes, extraDishes, freebies, promoAmount } =
     normalizeBooking(booking);
+
+  const bookedByLabel = booking.submittedByName
+    ? `Booked by ${booking.submittedByName}`
+    : "Booked by Customer";
 
   return (
     <Modal onClose={onClose}>
-      <ModalHeader
-        title="Booking Details"
-        subtitle={`Order #${booking.id}`}
-        onClose={onClose}
-      />
+      {/* HEADER */}
+      <div className="px-6 pt-6 pb-4 border-b border-gray-100 flex items-center justify-between">
+        <div>
+          <h2 className="text-lg font-black text-gray-900">Booking Details</h2>
+          <p className="text-xs text-gray-400 font-bold">Order #{booking.id}</p>
+        </div>
+        <div className="flex items-center gap-3">
+          {/* Booked by badge */}
+          <span
+            className={`text-[10px] font-black px-3 py-1.5 rounded-full uppercase tracking-widest ${
+              booking.submittedBy
+                ? "bg-blue-50 text-blue-600"
+                : "bg-gray-100 text-gray-500"
+            }`}
+          >
+            {bookedByLabel}
+          </span>
+          <button
+            onClick={onClose}
+            className="p-2 rounded-xl hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors"
+          >
+            <svg
+              className="w-5 h-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
+                d="M6 18L18 6M6 6l12 12"
+              />
+            </svg>
+          </button>
+        </div>
+      </div>
       <div className="p-6 space-y-4 max-h-[70vh] overflow-auto text-sm">
         {/* Customer Info */}
         <Section title="Customer Info" icon="👤">
