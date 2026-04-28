@@ -13,6 +13,11 @@ import {
 
 import * as signalR from "@microsoft/signalr";
 
+import {
+  zoneKeywords,
+  getAvailableTimes,
+  detectZone,
+} from "../../helper/deliveryHelper.js";
 const EXTRA_DISH_PRICE = 700;
 
 // ── HELPERS ───────────────────────────────────────────────────────
@@ -52,6 +57,34 @@ const getToday = () => {
   const day = String(today.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
 };
+
+// ── DOUBLE BOOKING DETECTOR (SAME DATE + CONTACT) ─────────────────
+function getDuplicateContacts(bookings, targetDate = null) {
+  const contactCounts = {};
+
+  // Filter by date if specified
+  const relevantBookings = targetDate
+    ? bookings.filter((b) => {
+        const bookingDate = b.deliveryDate?.split("T")[0];
+        return bookingDate === targetDate;
+      })
+    : bookings;
+
+  // Count occurrences of each contact ON THE SAME DATE
+  relevantBookings.forEach((booking) => {
+    if (booking.contacts) {
+      booking.contacts.filter(Boolean).forEach((contact) => {
+        const key = `${contact}_${targetDate || "all"}`; // Unique per date
+        contactCounts[key] = (contactCounts[key] || 0) + 1;
+      });
+    }
+  });
+
+  // Return contacts that appear more than once ON THE SAME DATE
+  return Object.keys(contactCounts)
+    .filter((key) => contactCounts[key] > 1)
+    .map((key) => key.split("_")[0]); // Extract just the contact number
+}
 
 // ── NORMALIZE BOOKING ─────────────────────────────────────────────
 // Handles both flat and items-array API shapes
@@ -640,6 +673,7 @@ export default function AdminDashboard() {
                     <BookingRow
                       key={booking.id}
                       booking={booking}
+                      bookings={bookings}
                       onView={() => setSelectedBooking(booking)}
                       onEdit={() => setEditingBooking(booking)}
                       onDelete={() => setDeleteTarget(booking)}
@@ -921,6 +955,7 @@ function Th({ children, className = "" }) {
 // ── BOOKING ROW ───────────────────────────────────────────────────
 function BookingRow({
   booking,
+  bookings,
   onView,
   onEdit,
   onDelete,
@@ -931,6 +966,16 @@ function BookingRow({
     normalizeBooking(booking);
   const processTime = getProcessTime(booking.deliveryTime);
 
+  // 🔥 DATE-SPECIFIC DOUBLE BOOKING DETECTION
+  const bookingDate = booking.deliveryDate?.split("T")[0];
+  const duplicateContacts = getDuplicateContacts(bookings, bookingDate);
+  const hasDuplicateContact = booking.contacts?.some((contact) =>
+    duplicateContacts.includes(contact),
+  );
+
+  const customerNameClass = hasDuplicateContact
+    ? "text-red-600 animate-pulse font-bold"
+    : "text-gray-900";
   return (
     <tr
       className={`hover:bg-gray-50/80 transition-colors ${booking.deletedAt ? "opacity-40" : ""}`}
@@ -942,11 +987,19 @@ function BookingRow({
         </span>
       </td>
 
-      {/* CUSTOMER */}
+      {/* CUSTOMER - WITH DOUBLE BOOKING HIGHLIGHT */}
       <td className="px-5 py-4 whitespace-nowrap border border-gray-200">
-        <p className="font-black text-gray-900 text-sm">
+        <p className={`font-black text-sm ${customerNameClass}`}>
           {booking.customerName}
         </p>
+        {hasDuplicateContact && (
+          <div className="mt-1 flex items-center gap-1.5 bg-red-50/80 px-2.5 py-1.5 rounded-full border border-red-200">
+            <div className="w-2 h-2 bg-red-500 rounded-full animate-ping" />
+            <span className="text-[9px] font-black text-red-600 uppercase tracking-wider">
+              Duplicate on {bookingDate || "same date"}
+            </span>
+          </div>
+        )}
       </td>
 
       {/* ORDER TYPE */}
@@ -1348,139 +1401,6 @@ function ActionBtn({ onClick, color, title, icon }) {
   );
 }
 
-// ── ZONE KEYWORDS ─────────────────────────────────────────────────
-const zoneKeywords = [
-  {
-    zoneName: "Talisay-Proper",
-    keywords: [
-      "talisay",
-      "biasong",
-      "bulacao",
-      "tabunok",
-      "mohon",
-      "pooc",
-      "lawaan",
-    ],
-  },
-  { zoneName: "Talisay-Mountain", keywords: ["camp 4", "manipis", "tapul"] },
-  {
-    zoneName: "Cebu-Proper",
-    keywords: [
-      "cebu",
-      "mambaling",
-      "pardo",
-      "lahug",
-      "mabolo",
-      "banilad",
-      "talamban",
-    ],
-  },
-  {
-    zoneName: "Cebu-Mountain",
-    keywords: ["busay", "sirao", "sudlon", "babag", "tops", "transcentral"],
-  },
-  {
-    zoneName: "Mandaue-Proper",
-    keywords: [
-      "mandaue",
-      "basak",
-      "cabancalan",
-      "opao",
-      "tipolo",
-      "subangdaku",
-    ],
-  },
-  {
-    zoneName: "Minglanilla-Proper",
-    keywords: ["minglanilla", "tungkop", "tunghaan", "camp 8"],
-  },
-  {
-    zoneName: "Minglanilla-Mountain",
-    keywords: ["guindaruhan", "manduang", "camp 7"],
-  },
-  { zoneName: "Naga-Proper", keywords: ["naga", "inala", "tinaan", "mayana"] },
-  { zoneName: "Naga-Mountain", keywords: ["alpaco", "pulangbato", "tabunan"] },
-  {
-    zoneName: "LapuLapu-Proper",
-    keywords: ["lapu", "mactan", "pusok", "basak", "aginid"],
-  },
-  {
-    zoneName: "Consolacion-Proper",
-    keywords: ["consolacion", "tayud", "lamac", "sacsac"],
-  },
-  {
-    zoneName: "Liloan-Proper",
-    keywords: ["liloan", "cotcot", "jublag", "tayud", "yati"],
-  },
-  { zoneName: "Liloan-Mountain", keywords: ["cansaga", "pitogo"] },
-  {
-    zoneName: "Danao-Proper",
-    keywords: ["danao", "guinsay", "cogon", "binaliw"],
-  },
-  {
-    zoneName: "Compostela-Proper",
-    keywords: ["compostela", "nangka", "tugbongan"],
-  },
-  {
-    zoneName: "Carcar-Proper",
-    keywords: ["carcar", "poblacion", "napo", "tuyom"],
-  },
-  {
-    zoneName: "San Fernando-Proper",
-    keywords: ["san fernando", "cabatbatan", "pitalo"],
-  },
-  { zoneName: "Sibonga-Proper", keywords: ["sibonga", "simala", "abugon"] },
-  {
-    zoneName: "Moalboal-Proper",
-    keywords: ["moalboal", "panagsama", "basdiot", "white beach"],
-  },
-  { zoneName: "Argao-Proper", keywords: ["argao", "talo-ot", "colawin"] },
-];
-
-const getAvailableTimes = (deliveryDate) => {
-  const allTimes = [
-    "12:00 AM",
-    "1:00 AM",
-    "2:00 AM",
-    "3:00 AM",
-    "4:00 AM",
-    "5:00 AM",
-    "6:00 AM",
-    "7:00 AM",
-    "8:00 AM",
-    "9:00 AM",
-    "10:00 AM",
-    "11:00 AM",
-    "12:00 PM",
-    "1:00 PM",
-    "2:00 PM",
-    "3:00 PM",
-    "4:00 PM",
-    "5:00 PM",
-    "6:00 PM",
-    "7:00 PM",
-    "8:00 PM",
-    "9:00 PM",
-    "10:00 PM",
-    "11:00 PM",
-  ];
-  if (!deliveryDate) return allTimes;
-  const today = new Date().toISOString().split("T")[0];
-  if (deliveryDate !== today) return allTimes;
-  const now = new Date();
-  const cutoffHour = now.getHours() + 5;
-  const currentMinutes = now.getMinutes();
-  return allTimes.filter((timeStr) => {
-    const [time, period] = timeStr.split(" ");
-    let [hours, minutes] = time.split(":").map(Number);
-    if (period === "PM" && hours !== 12) hours += 12;
-    if (period === "AM" && hours === 12) hours = 0;
-    if (hours > cutoffHour) return true;
-    if (hours === cutoffHour && minutes >= currentMinutes) return true;
-    return false;
-  });
-};
-
 // ── EDIT MODAL ────────────────────────────────────────────────────
 function EditModal({ booking, onClose, onSave }) {
   const [form, setForm] = useState({
@@ -1584,15 +1504,12 @@ function EditModal({ booking, onClose, onSave }) {
 
   // ── AUTO-DETECT ZONE ──────────────────────────────────────────
   useEffect(() => {
-    if (!form.address || form.orderType !== "delivery") return;
-    const lower = form.address.toLowerCase().replace(/\s+/g, "");
-    for (const z of zoneKeywords) {
-      if (z.keywords.some((k) => lower.includes(k.replace(/\s+/g, "")))) {
-        set("zone", z.zoneName);
-        return;
-      }
+    if (!form.address || form.orderType !== "delivery") {
+      set("zone", "");
+      return;
     }
-    set("zone", "");
+    const detectedZone = detectZone(form.address); // ✅ Your new function!
+    set("zone", detectedZone);
   }, [form.address, form.orderType]);
 
   // ── ITEM HANDLERS ─────────────────────────────────────────────
