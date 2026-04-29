@@ -1262,7 +1262,16 @@ function ViewModal({ booking, onClose }) {
               label="Contact"
               value={booking.contacts?.filter(Boolean).join(", ")}
             />
-            <Row label="Facebook" value={booking.facebookProfile || null} />
+            <Row
+              label="Facebook"
+              value={
+                booking.facebookProfile ? (
+                  <span className="truncate block max-w-[200px]">
+                    {booking.facebookProfile}
+                  </span>
+                ) : null
+              }
+            />
           </div>
         </Section>
 

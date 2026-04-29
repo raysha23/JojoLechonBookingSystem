@@ -197,7 +197,8 @@ function App({
     };
 
     try {
-      await createOrder(payload);
+      const result = await createOrder(payload);
+      return result; // ← ADD THIS
     } catch (error) {
       console.error("Order submission error:", error);
       alert("Something went wrong.");

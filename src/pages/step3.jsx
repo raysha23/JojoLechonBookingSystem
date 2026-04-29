@@ -83,7 +83,15 @@ export default function Step3({ orderState }) {
           />
           <DetailRow
             label="Facebook Profile"
-            value={facebookProfile || "N/A"}
+            value={
+              facebookProfile ? (
+                <span className="truncate block max-w-[200px]">
+                  {facebookProfile}
+                </span>
+              ) : (
+                "N/A"
+              )
+            }
           />
         </div>
       </div>

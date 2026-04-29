@@ -93,8 +93,9 @@ export default function ConfirmOrderModal({
 
   const handleConfirm = async () => {
     try {
-      await onConfirm();
-      const num = "ORD-" + Date.now().toString().slice(-6);
+      const result = await onConfirm();
+      console.log("onConfirm result:", result); // 👈 check this in console
+      const num = result?.orderNumber || result?.data?.orderNumber;
       setOrderNumber(num);
       setOrderSuccess(true);
     } catch {
@@ -102,7 +103,6 @@ export default function ConfirmOrderModal({
     }
   };
 
-  // ── PDF DOWNLOAD (UPDATED FOR MULTIPLE ITEMS) ──
   const handleDownloadPDF = async () => {
     const jsPDF = jsPDFRef.current;
     if (!jsPDF) return;
@@ -121,6 +121,10 @@ export default function ConfirmOrderModal({
     const BG = [249, 250, 251];
     const GREEN = [5, 150, 105];
     const WHITE = [255, 255, 255];
+
+    // ✅ PDF-safe currency formatter (₱ renders as ± in jsPDF)
+    const pdfFmt = (n) =>
+      "PHP " + Number(n).toLocaleString("en-PH", { minimumFractionDigits: 2 });
 
     const setFont = (size, style = "normal", color = DARK) => {
       doc.setFontSize(size);
@@ -158,7 +162,7 @@ export default function ConfirmOrderModal({
     y = 36;
 
     // Order info
-    fillRect(margin, y - 4.5, 38, 7, RED_LIGHT, 2);
+    fillRect(margin, y - 4.5, 50, 7, RED_LIGHT, 2);
     setFont(7.5, "bold", RED);
     doc.text(orderNumber, margin + 3, y);
     setFont(7.5, "normal", MID);
@@ -212,12 +216,11 @@ export default function ConfirmOrderModal({
     row("Payment Method", paymentLabel);
     y += 3;
 
-    // ✅ MULTIPLE ITEMS IN ORDER SECTION
+    // Order Details
     section("Order Details");
     items.forEach((item, index) => {
       if (!item.selectedProduct) return;
 
-      // Item header
       fillRect(margin, y - 3.5, contentW, 9, BG, 2);
       setFont(8.5, "bold", DARK);
       doc.text(
@@ -226,7 +229,7 @@ export default function ConfirmOrderModal({
         y,
       );
       setFont(8.5, "bold", RED);
-      doc.text(fmt(item.selectedProduct.amount), W - margin - 4, y, {
+      doc.text(pdfFmt(item.selectedProduct.amount), W - margin - 4, y, {
         align: "right",
       });
       y += 9;
@@ -240,7 +243,7 @@ export default function ConfirmOrderModal({
           y,
         );
         setFont(8, "bold", RED);
-        doc.text(fmt(item.upgradeAmount), W - margin - 4, y, {
+        doc.text(pdfFmt(item.upgradeAmount), W - margin - 4, y, {
           align: "right",
         });
         y += 6;
@@ -255,7 +258,6 @@ export default function ConfirmOrderModal({
         doc.text("INCLUDED DISHES", margin + 3, y);
         y += 4.5;
         requiredDishes.slice(0, 3).forEach((dishId) => {
-          // Limit to 3 for space
           const dish = dishes.find((d) => String(d.id) === String(dishId));
           doc.setFillColor(...MID);
           doc.circle(margin + 4.5, y - 1.5, 0.8, "F");
@@ -279,18 +281,23 @@ export default function ConfirmOrderModal({
         setFont(8, "normal", DARK);
         doc.text(dish?.dishName || "Selected Dish", margin + 7, y);
         setFont(8, "bold", DARK);
-        doc.text(fmt(EXTRA_DISH_PRICE), W - margin - 3, y, { align: "right" });
+        doc.text(pdfFmt(EXTRA_DISH_PRICE), W - margin - 3, y, {
+          align: "right",
+        });
         y += 5;
       });
     }
 
     y += 4;
     section("Pricing Summary");
-    row("Subtotal", fmt(packageTotal));
-    if (dishesTotal > 0) row("Extra Dishes", fmt(dishesTotal));
-    if (deliveryFee > 0) row("Delivery Fee", fmt(deliveryFee));
+    row("Subtotal", pdfFmt(packageTotal));
+    if (dishesTotal > 0) row("Extra Dishes", pdfFmt(dishesTotal));
+    if (deliveryFee > 0) row("Delivery Fee", pdfFmt(deliveryFee));
     if (discount > 0)
-      row("Discount", `-${fmt(discount)}`, { valColor: GREEN, valBold: true });
+      row("Discount", `-${pdfFmt(discount)}`, {
+        valColor: GREEN,
+        valBold: true,
+      });
 
     // Total
     fillRect(margin + 0.5, y + 0.5, contentW, 14, [150, 20, 20], 3);
@@ -298,7 +305,7 @@ export default function ConfirmOrderModal({
     setFont(9, "bold", WHITE);
     doc.text("TOTAL AMOUNT DUE", margin + 5, y + 9);
     setFont(13, "bold", WHITE);
-    doc.text(fmt(total), W - margin - 5, y + 9, { align: "right" });
+    doc.text(pdfFmt(total), W - margin - 5, y + 9, { align: "right" });
 
     y += 22;
     hRule(y, LIGHT);
@@ -548,6 +555,18 @@ function ConfirmView({
             <DetailRow
               label="Facebook Profile"
               value={facebookProfile || "N/A"}
+            />
+            <DetailRow
+              label="Facebook Profile"
+              value={
+                facebookProfile ? (
+                  <span className="truncate block max-w-[200px]">
+                    {facebookProfile}
+                  </span>
+                ) : (
+                  "N/A"
+                )
+              }
             />
           </div>
         </div>
@@ -823,8 +842,15 @@ function ReceiptView({
             value={contacts.filter(Boolean).join(", ") || "—"}
           />
           {facebookProfile && (
-            <ReceiptRow label="Facebook" value={facebookProfile} />
-          )}
+            <ReceiptRow
+              label="Facebook"
+              value={
+                <span className="truncate block max-w-[200px]">
+                  {facebookProfile}
+                </span>
+              }
+            />
+          )}{" "}
         </ReceiptSection>
 
         <ReceiptSection title="Delivery">

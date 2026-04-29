@@ -42,13 +42,13 @@ export default function Step2({ orderState }) {
     setContacts(newContacts);
   };
 
+  const fbRegex =
+    /^(https?:\/\/)?(www\.)?(business\.facebook\.com|facebook\.com|fb\.com)\/.+/i;
+
+    
   const handleFbBlur = () => {
     if (!facebookProfile) return;
-    if (
-      /^(https?:\/\/)?(www\.)?(facebook\.com|fb\.com)\/.+/i.test(
-        facebookProfile.trim(),
-      )
-    ) {
+    if (fbRegex.test(facebookProfile.trim())) {
       setFacebookProfile(normalizeFacebookUrl(facebookProfile));
     }
   };
