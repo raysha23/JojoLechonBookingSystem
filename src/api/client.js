@@ -2,7 +2,7 @@
 import axios from "axios";
 
 const api = axios.create({
-  baseURL: "http://jojolechon.runasp.net/api",
+  baseURL: "https://jojolechon.runasp.net/api",
   headers: {
     "Content-Type": "application/json",
     "ngrok-skip-browser-warning": "true", 

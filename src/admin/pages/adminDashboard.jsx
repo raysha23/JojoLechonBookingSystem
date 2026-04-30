@@ -171,7 +171,7 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     const connection = new signalR.HubConnectionBuilder()
-      .withUrl("http://jojolechon.runasp.net/hubs/order")
+      .withUrl("https://jojolechon.runasp.net/hubs/order")
       .withAutomaticReconnect()
       .build();
 
