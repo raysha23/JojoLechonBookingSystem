@@ -6,144 +6,136 @@ using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Database
+// IMPORTANT: Render requires explicit port binding
+builder.WebHost.UseUrls("http://0.0.0.0:8080");
+
+
+// ===================== DATABASE =====================
 builder.Services.AddDbContextPool<ApplicationDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+    options.UseSqlServer(
+        builder.Configuration.GetConnectionString("DefaultConnection")
+    )
+);
+
 builder.Services.AddScoped<IProductRepository, ProductRepository>();
 
+
+// ===================== CONTROLLERS + SIGNALR =====================
 builder.Services.AddControllers();
 builder.Services.AddSignalR();
+
+
+// ===================== OUTPUT CACHE =====================
 builder.Services.AddOutputCache(options =>
 {
     options.AddPolicy("static-data", policy =>
         policy.Expire(TimeSpan.FromMinutes(10)));
 });
+
+
+// ===================== SWAGGER =====================
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
+
+// ===================== CORS =====================
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowReactApp", policy =>
     {
         policy.WithOrigins(
                 "http://localhost:5173",
-                "https://amiss-occupancy-demanding.ngrok-free.dev"
-              )
-              .AllowAnyHeader()
-              .AllowAnyMethod()
-              .AllowCredentials();
+                "https://your-frontend.onrender.com" // update after deployment
+            )
+            .AllowAnyHeader()
+            .AllowAnyMethod()
+            .AllowCredentials();
     });
 });
 
+
 var app = builder.Build();
 
+
+// ===================== DATABASE SEEDING =====================
 using (var scope = app.Services.CreateScope())
 {
-
     var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 
-    // Use migrations so schema updates (like ProductTypes) are applied 
-    // to existing databases. EnsureCreated does not evolve an existing DB.
-    context.Database.Migrate();
+    // Safe migration (avoids crash on Render)
+    try
+    {
+        context.Database.Migrate();
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine("Migration error: " + ex.Message);
+    }
 
-    // ROLES
+    // ===================== SEED DATA =====================
+
     if (!context.Roles.Any())
     {
-        var roles = SeedData.GetRoles();
-        context.Roles.AddRange(roles);
+        context.Roles.AddRange(SeedData.GetRoles());
         context.SaveChanges();
     }
 
-    // USERS
     if (!context.Users.Any())
     {
         var roles = context.Roles.ToList();
-        var users = SeedData.GetUsers(roles); 
-
-        context.Users.AddRange(users);
+        context.Users.AddRange(SeedData.GetUsers(roles));
         context.SaveChanges();
     }
 
-    // DISHES
     if (!context.Dishes.Any())
     {
-        var dishes = SeedData.GetDishes();
-        context.Dishes.AddRange(dishes);
+        context.Dishes.AddRange(SeedData.GetDishes());
         context.SaveChanges();
     }
 
-    // PRODUCT TYPES
     if (!context.ProductTypes.Any())
     {
-        var productTypes = SeedData.GetProductTypes();
-        context.ProductTypes.AddRange(productTypes);
+        context.ProductTypes.AddRange(SeedData.GetProductTypes());
         context.SaveChanges();
     }
 
-    // PRODUCTS
     if (!context.Products.Any())
     {
         var productTypes = context.ProductTypes.ToList();
-        var products = SeedData.GetProducts(productTypes);
-        context.Products.AddRange(products);
+        context.Products.AddRange(SeedData.GetProducts(productTypes));
         context.SaveChanges();
     }
 
-    // FREEBIES
     if (!context.ProductFreebies.Any())
     {
         var products = context.Products.ToList();
-        var freebies = SeedData.GetProductFreebies(products); // improve later if needed
-        context.ProductFreebies.AddRange(freebies);
+        context.ProductFreebies.AddRange(SeedData.GetProductFreebies(products));
         context.SaveChanges();
     }
 
-    // DEFAULT DISHES
     if (!context.ProductDefaultDishes.Any())
     {
         var products = context.Products.ToList();
         var dishes = context.Dishes.ToList();
-        var defaults = SeedData.GetProductDefaultDishes(products, dishes);
-        context.ProductDefaultDishes.AddRange(defaults);
+
+        context.ProductDefaultDishes.AddRange(
+            SeedData.GetProductDefaultDishes(products, dishes)
+        );
+
         context.SaveChanges();
     }
 
-    // CUSTOMERS
-    // if (!context.Customers.Any())
-    // {
-    //     var customers = SeedData.GetCustomers();
-    //     context.Customers.AddRange(customers);
-    //     context.SaveChanges();
-    // }
-    // DELIVERY CHARGES
     if (!context.DeliveryCharges.Any())
     {
-        var charges = SeedData.GetDeliveryCharges();
-        context.DeliveryCharges.AddRange(charges);
+        context.DeliveryCharges.AddRange(SeedData.GetDeliveryCharges());
         context.SaveChanges();
     }
-
-    // ORDERS
-    // if (!context.Orders.Any())
-    // {
-    //     var customers = context.Customers.ToList();
-    //     var products = context.Products.ToList();
-    //     var deliveryCharges = context.DeliveryCharges.ToList();
-    //     var dishes = context.Dishes.ToList();
-    //     var productDefaultDishes = context.ProductDefaultDishes.ToList();
-    //     var orders = SeedData.GetOrders(customers, products, deliveryCharges, dishes, productDefaultDishes);
-    //     context.Orders.AddRange(orders);
-    //     context.SaveChanges();
-    // }
 }
 
+
+// ===================== PIPELINE =====================
 app.UseSwagger();
 app.UseSwaggerUI();
-
-if (!app.Environment.IsDevelopment())
-{
-    app.UseHttpsRedirection();
-}
 
 app.UseRouting();
 
@@ -158,6 +150,7 @@ app.MapControllers();
 app.MapHub<OrderHub>("/hubs/order");
 
 
+// Optional static hosting (only useful if serving frontend from API)
 app.UseDefaultFiles();
 app.UseStaticFiles();
 

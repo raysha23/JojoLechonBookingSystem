@@ -94,7 +94,7 @@ export default function ConfirmOrderModal({
   const handleConfirm = async () => {
     try {
       const result = await onConfirm();
-      console.log("onConfirm result:", result); // 👈 check this in console
+      // console.log("onConfirm result:", result); // 👈 check this in console
       const num = result?.orderNumber || result?.data?.orderNumber;
       setOrderNumber(num);
       setOrderSuccess(true);

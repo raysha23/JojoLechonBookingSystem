@@ -314,7 +314,7 @@ function ItemBlock({
     try {
       // ✅ YOUR API ENDPOINT: /api/products?productTypeId=X
       const response = await getProductsByType(typeId);
-      console.log("API Response:", response); // Debug
+      // console.log("API Response:", response); // Debug
 
       // Map API response to match your expected shape
       // In handleProductTypeChange - update mapping:
@@ -335,7 +335,7 @@ function ItemBlock({
       }));
 
       setFilteredProducts(mappedProducts);
-      console.log("Mapped products:", mappedProducts); // Debug
+      // console.log("Mapped products:", mappedProducts); // Debug
     } catch (err) {
       console.error("Failed to fetch products:", err);
       setFilteredProducts([]);
@@ -375,7 +375,7 @@ function ItemBlock({
     const padded = [...defaultDishIds];
     while (padded.length < slots) padded.push("");
 
-    console.log("Default dishes:", defaultDishIds, "Slots:", slots); // DEBUG
+    // console.log("Default dishes:", defaultDishIds, "Slots:", slots); // DEBUG
 
     onUpdate({
       selectedProductIndex: productId,

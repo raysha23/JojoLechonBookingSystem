@@ -6,13 +6,32 @@ export default defineConfig({
   base: "./",
   server: {
     host: true,
-    allowedHosts: [
-      "amiss-occupancy-demanding.ngrok-free.dev"
-    ],
+    allowedHosts: [],
     proxy: {
       "/api": {
         target: "http://localhost:5194",
         changeOrigin: true,
+      },
+    },
+  },
+  build: {
+    chunkSizeWarningLimit: 1000,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (
+            id.includes("node_modules/react-dom") ||
+            id.includes("node_modules/react/")
+          ) {
+            return "react";
+          }
+          if (
+            id.includes("node_modules/react-router-dom") ||
+            id.includes("node_modules/react-router/")
+          ) {
+            return "router";
+          }
+        },
       },
     },
   },

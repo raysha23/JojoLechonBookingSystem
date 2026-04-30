@@ -33,7 +33,7 @@ export const getOrderById = async (id) => {
 
 // ── CREATE ORDER ──────────────────────────────────────────────────
 export const createOrder = async (payload) => {
-  console.log("PAYLOAD:", JSON.stringify(payload, null, 2)); // ADD THIS
+  // console.log("PAYLOAD:", JSON.stringify(payload, null, 2)); // ADD THIS
   try {
     const res = await api.post("/order", payload);
     return res.data;

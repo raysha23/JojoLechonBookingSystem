@@ -171,22 +171,19 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     const connection = new signalR.HubConnectionBuilder()
-      .withUrl("http://localhost:5194/hubs/order", {
-        transport: signalR.HttpTransportType.LongPolling,
-        headers: { "ngrok-skip-browser-warning": "true" },
-      })
+      .withUrl("http://jojolechon.runasp.net/hubs/order")
       .withAutomaticReconnect()
       .build();
 
     connection.on("NewOrder", (order) => {
       addToast(order);
-      loadBookings(filterDateRef.current); // always reads latest date
+      loadBookings(filterDateRef.current);
     });
 
     connection.start().catch(console.error);
 
     return () => connection.stop();
-  }, [addToast]); // ← no longer depends on filterDate
+  }, [addToast]);
 
   // ── COUNTS ────────────────────────────────────────────────────
   const pigCount = bookings.filter((b) => {
